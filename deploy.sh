@@ -19,31 +19,32 @@ function print_usage_and_exit()
 base_port=$1
 num_ps=$2
 num_workers=$3
-hosts=(${@:4})
+ips=(${@:4})
+
+# Get device mappings:
+source mapping.sh
 
 [[ -z $3 ]] && print_usage_and_exit
+[[ -f tf_cnn_benchmarks.py ]] || {	echo "Error: tf_cnn_benchmarks.py is missing. deploy.sh should be run from tf_cnn_benchmarks folder."; exit 1; }
+[[ -z $ips ]] && ips=(`hostname`)
 
-[[ -z $hosts ]] && hosts=(`hostname`)
-
-num_hosts=${#hosts[@]}
-host_id=0
+num_ips=${#ips[@]}
+device_id=0
 port=$base_port
 ps_hosts=()
 worker_hosts=()
 
-function new_host()
+function add_ip_to_cluster()
 {
-	host=${hosts[$host_id]}:$port
-	if [[ $host == "localhost" ]]; then
-		host=`hostname`
-	fi
-	host_id=$((($host_id + 1) % $num_hosts))
+	ip=${ips[$ip_id]}
+	host=$ip:$port
+	ip_id=$((($ip_id + 1) % $num_ips))
 	port=$(($port + 1))
 }
 
-function new_ps_host()
+function add_ps_to_cluster()
 {
-	new_host
+	add_ip_to_cluster
 	if [[ -z $ps_hosts ]]; then
 		ps_hosts=$host
 	else
@@ -51,9 +52,9 @@ function new_ps_host()
 	fi
 }
 
-function new_worker_host()
+function add_worker_to_cluster()
 {
-	new_host
+	add_ip_to_cluster
 	if [[ -z $worker_hosts ]]; then
 		worker_hosts=$host
 	else
@@ -61,15 +62,23 @@ function new_worker_host()
 	fi
 }
 
-
 function run_job()
 {
-#	if [[ $1 == "localhost" ]]; then
-#		gnome-terminal -x sh -c "$dst_dir/run_job.sh $2 $c $ps_hosts $worker_hosts; bash"
-#	else
-		gnome-terminal -x ssh $1 "$dst_dir/run_job.sh $2 $c $ps_hosts $worker_hosts; bash"
-#	fi
+	ip=$1
+	job_name=$2
+	task_id=$3
+
+	get_server_of_ip $ip
+	gnome-terminal --geometry=200x20 -x ssh $server "$dst_dir/run_job.sh $job_name $task_id $ps_hosts $worker_hosts; bash"
 }
+
+
+print "IPs:"
+for ip in "${ips[@]}"
+do
+	get_server_of_ip $ip
+	echo " + $ip (Server: $server)"
+done
 
 #################
 # COPY SCRIPTS: #
@@ -81,9 +90,10 @@ echo "Copying scripts:"
 echo "  + Source: $script_dir" 
 echo "  + Destination: $dst_dir" 
 
-for host in "${hosts[@]}"
+for ip in "${ips[@]}"
 do
-	scp -r $script_dir $host:$dst_dir > /dev/null
+	get_server_of_ip $ip
+	scp -r $script_dir $server:$dst_dir > /dev/null
 done
 
 #########################
@@ -92,53 +102,57 @@ done
 echo "Creating PS:"
 for (( c=0; c<$num_ps; c++ ))
 do
-	new_ps_host
+	add_ps_to_cluster
 	echo "  #$c: $host"
 done
 
 echo "Creating workers:"
 for (( c=0; c<$num_workers; c++ ))
 do
-	new_worker_host
+	add_worker_to_cluster
 	echo "  #$c: $host"
 done
 
 ########
 # RUN: #
 ########
+echo "Running:"
 for (( c=0; c<$num_ps; c++ ))
 do
-	my_host=`echo $ps_hosts | cut -d',' -f$(($c + 1)) | cut -d':' -f1`
-	run_job $my_host ps
+	ip=`echo $ps_hosts | cut -d',' -f$(($c + 1)) | cut -d':' -f1`
+	run_job $ip ps $c
 done
+
 for (( c=0; c<$num_workers; c++ ))
 do
-	my_host=`echo $worker_hosts | cut -d',' -f$(($c + 1)) | cut -d':' -f1`
-	run_job $my_host worker
+	ip=`echo $worker_hosts | cut -d',' -f$(($c + 1)) | cut -d':' -f1`
+	run_job $ip worker $c
 done
 
 #################
 # WAIT FOR END: #
 #################
 echo "Waiting for end..."
-host=`echo $worker_hosts | cut -d',' -f1 | cut -d':' -f1`
+ip=`echo $worker_hosts | cut -d',' -f1 | cut -d':' -f1`
+get_server_of_ip $ip
 res=0
 while [[ $res -eq 0 ]]
 do
-	res=`ssh $host [[ -f $dst_dir/done.txt ]] && echo 1 || echo 0`
+	res=`ssh $server [[ -f $dst_dir/done.txt ]] && echo 1 || echo 0`
 	sleep 1
 done
 
 echo "Done."
-ssh $host cat $dst_dir/run_logs/worker_0.log
+ssh $server cat $dst_dir/run_logs/worker_0.log
 
 ############
 # CLEANUP: #
 ############
-for host in "${hosts[@]}"
+for ip in "${ips[@]}"
 do
-	scp $host:$dst_dir/run_logs/* run_logs
-	ssh $host $dst_dir/clean_host.sh
+	get_server_of_ip $ip
+	scp $server:$dst_dir/run_logs/* run_logs > /dev/null
+	ssh $server $dst_dir/clean_host.sh
 done
 sleep 2
 
