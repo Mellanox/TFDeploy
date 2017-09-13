@@ -83,7 +83,7 @@ function run_job()
 		device=mlx5_0
 	fi
 	get_server_of_ip $ip
-	gnome-terminal --geometry=200x20 -x ssh $server "$work_dir/run_job.sh $job_name $task_id $ps_hosts $worker_hosts $device 2>&1 | tee $logs_dir/${job_name}_${task_id}.log"
+	gnome-terminal --geometry=200x20 -x ssh $server "$work_dir/run_job.sh $job_name $task_id $ps_hosts $worker_hosts $device 2>&1 | tee $work_dir/${job_name}_${task_id}.log"
 }
 
 function output_log()
@@ -181,7 +181,15 @@ do
 	sleep 1
 done
 
+echo "Copying logs..."
+for server in $servers
+do
+	scp $server:$work_dir/*.log $logs_dir
+done
+
 echo "Done."
+echo
+echo "----------------------------------------------------------------"
 cat $logs_dir/worker_0.log
 
 ############
