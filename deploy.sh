@@ -68,9 +68,9 @@ function run_job()
 	job_name=$2
 	task_id=$3
 	if [[ $ip == "trex-00" ]]; then
-		device=mlx5_1
+		device=mlx5_2
 	else
-		device=mlx5_3
+		device=mlx5_0
 	fi
 	get_server_of_ip $ip
 	gnome-terminal --geometry=200x20 -x ssh $server "$dst_dir/run_job.sh $job_name $task_id $ps_hosts $worker_hosts $device; bash"
