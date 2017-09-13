@@ -28,7 +28,7 @@ source $run_env/bin/activate
 pip install --upgrade $script_dir/tensorflow_pkg/tensorflow-1.3.0*
 
 mkdir -p run_logs
-python -u $script_dir/tf_cnn_benchmarks.py --job_name=$job_name \
+RDMA_DEVICE=$5 python -u $script_dir/tf_cnn_benchmarks.py --job_name=$job_name \
                                            --task_index=$task_index \
                                            --ps_hosts=$ps_hosts \
                                            --worker_hosts=$worker_hosts 2>&1 | tee $script_dir/run_logs/${job_name}_${task_index}.log
