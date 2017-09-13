@@ -72,19 +72,30 @@ function run_job()
 	gnome-terminal --geometry=200x20 -x ssh $server "$dst_dir/run_job.sh $job_name $task_id $ps_hosts $worker_hosts; bash"
 }
 
-
-print "IPs:"
+echo "IPs:"
 for ip in "${ips[@]}"
 do
 	get_server_of_ip $ip
 	echo " + $ip (Server: $server)"
 done
 
+script_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+dst_dir=`mktemp -du`
+
+############
+# Compile: #
+############
+echo "Compile localy:"
+[[ -z $TENSORFLOW_HOME ]] && TENSORFLOW_HOME=/root/tensorflow/
+cd $TENSORFLOW_HOME
+#bazel clean
+bazel build --config=opt //tensorflow/tools/pip_package:build_pip_package
+bazel-bin/tensorflow/tools/pip_package/build_pip_package $script_dir/tensorflow_pkg
+cd -
+
 #################
 # COPY SCRIPTS: #
 #################
-script_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-dst_dir=`mktemp -du`
 
 echo "Copying scripts:"
 echo "  + Source: $script_dir" 
