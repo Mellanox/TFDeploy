@@ -1,5 +1,6 @@
 #!/bin/bash
 
+
 function print_usage()
 {
 	echo "Usage: `basename $0` <base-port> <num_ps> <num_workers> [server1 server2 ...]"
@@ -23,9 +24,11 @@ base_port=$1
 num_ps=$2
 num_workers=$3
 ips=(${@:4})
+servers=""
 
 # Get device mappings:
 source mapping.sh
+source mark_errors_and_warnings.sh
 
 [[ -z $3 ]] && print_usage_and_exit
 [[ -f tf_cnn_benchmarks.py ]] || {	echo "Error: tf_cnn_benchmarks.py is missing. deploy.sh should be run from tf_cnn_benchmarks folder."; exit 1; }
@@ -36,6 +39,10 @@ device_id=0
 port=$base_port
 ps_hosts=()
 worker_hosts=()
+logs_dir=$script_dir/run_logs
+
+rm -rf $logs_dir 
+mkdir -p $logs_dir
 
 function add_ip_to_cluster()
 {
@@ -76,7 +83,12 @@ function run_job()
 		device=mlx5_0
 	fi
 	get_server_of_ip $ip
-	gnome-terminal --geometry=200x20 -x ssh $server "$work_dir/run_job.sh $job_name $task_id $ps_hosts $worker_hosts $device 2>&1 | tee $script_dir/run_logs/${job_name}_${task_id}.log"
+	gnome-terminal --geometry=200x20 -x ssh $server "$work_dir/run_job.sh $job_name $task_id $ps_hosts $worker_hosts $device 2>&1 | tee $logs_dir/${job_name}_${task_id}.log"
+}
+
+function output_log()
+{
+	tail -n 100 $1 | MarkErrorsAndWarnings
 }
 
 echo "IPs:"
@@ -84,18 +96,30 @@ for ip in "${ips[@]}"
 do
 	get_server_of_ip $ip
 	echo " + $ip (Server: $server)"
+	servers="$servers $server"
 done
 
 ############
 # Compile: #
 ############
-echo "Compile localy:"
+echo "Building:"
+echo "   See: $logs_dir/build.log"
 [[ -z $TENSORFLOW_HOME ]] && TENSORFLOW_HOME=/root/tensorflow/
 cd $TENSORFLOW_HOME
 #bazel clean
-bazel build --config=opt //tensorflow/tools/pip_package:build_pip_package
-bazel-bin/tensorflow/tools/pip_package/build_pip_package $script_dir/tensorflow_pkg
+bazel build --config=opt //tensorflow/tools/pip_package:build_pip_package >& $logs_dir/build.log
+if [[ $? -ne 0 ]]; then output_log $logs_dir/build.log; error "Build failed."; fi
+bazel-bin/tensorflow/tools/pip_package/build_pip_package $script_dir/tensorflow_pkg >> $logs_dir/build.log 2>&1
+if [[ $? -ne 0 ]]; then output_log $logs_dir/build.log; error "Build failed."; fi
 cd -
+
+echo "Installing:"
+for server in $servers
+do
+	echo " + $server..."
+	ssh $server pip install --user --upgrade $script_dir/tensorflow_pkg/tensorflow-1.3.0* >& $logs_dir/install_$server.log
+done
+echo "Done."
 
 #################
 # COPY SCRIPTS: #
@@ -131,9 +155,6 @@ done
 ########
 # RUN: #
 ########
-rm -rf $script_dir/run_logs
-mkdir -p $script_dir/run_logs
-
 echo "Running:"
 for (( c=0; c<$num_ps; c++ ))
 do
@@ -161,7 +182,7 @@ do
 done
 
 echo "Done."
-cat $script_dir/run_logs/worker_0.log
+cat $logs_dir/worker_0.log
 
 ############
 # CLEANUP: #
