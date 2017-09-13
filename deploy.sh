@@ -17,6 +17,21 @@ function print_usage_and_exit()
 	exit 1
 }
 
+#######################
+# Read input options: #
+#######################
+while getopts ":d:m:c" opt
+do
+	case "$opt" in
+	d)  export rdma_device=$OPTARG;;
+	m)	export model=$OPTARG;;
+	c)	compile=1;;
+    \?) echo "Invalid option: -$OPTARG" >&2; return 1;;
+    :)  echo "Option -$OPTARG requires an argument." >&2; return 1;;
+  esac
+done
+shift "$((OPTIND-1))"
+
 
 script_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 work_dir=`mktemp -du`
@@ -77,13 +92,12 @@ function run_job()
 	ip=$1
 	job_name=$2
 	task_id=$3
-	if [[ $ip == "trex-00" ]]; then
-		device=mlx5_2
-	else
-		device=mlx5_0
-	fi
 	get_server_of_ip $ip
-	gnome-terminal --geometry=200x20 -x ssh $server "$work_dir/run_job.sh $job_name $task_id $ps_hosts $worker_hosts $device 2>&1 | tee $work_dir/${job_name}_${task_id}.log"
+	gnome-terminal --geometry=200x20 -x ssh $server "TF_PS_HOSTS=$ps_hosts \
+	                                                 TF_WORKER_HOSTS=$worker_hosts \
+	                                                 TF_MODEL=$model \
+	                                                 RDMA_DEVICE=$rdma_device \
+													 $work_dir/run_job.sh $job_name $task_id 2>&1 | tee $work_dir/${job_name}_${task_id}.log"
 }
 
 function output_log()
@@ -102,24 +116,26 @@ done
 ############
 # Compile: #
 ############
-echo "Building:"
-echo "   See: $logs_dir/build.log"
-[[ -z $TENSORFLOW_HOME ]] && TENSORFLOW_HOME=/root/tensorflow/
-cd $TENSORFLOW_HOME
-#bazel clean
-bazel build --config=opt //tensorflow/tools/pip_package:build_pip_package >& $logs_dir/build.log
-if [[ $? -ne 0 ]]; then output_log $logs_dir/build.log; error "Build failed."; fi
-bazel-bin/tensorflow/tools/pip_package/build_pip_package $script_dir/tensorflow_pkg >> $logs_dir/build.log 2>&1
-if [[ $? -ne 0 ]]; then output_log $logs_dir/build.log; error "Build failed."; fi
-cd -
 
-echo "Installing:"
-for server in $servers
-do
-	echo " + $server..."
-	ssh $server pip install --user --upgrade $script_dir/tensorflow_pkg/tensorflow-1.3.0* >& $logs_dir/install_$server.log
-done
-echo "Done."
+if [[ $compile -eq 1 ]]; then
+	echo "Building:"
+	echo "   See: $logs_dir/build.log"
+	[[ -z $TENSORFLOW_HOME ]] && TENSORFLOW_HOME=/root/tensorflow/
+	cd $TENSORFLOW_HOME
+	bazel build --config=opt //tensorflow/tools/pip_package:build_pip_package >& $logs_dir/build.log
+	if [[ $? -ne 0 ]]; then output_log $logs_dir/build.log; error "Build failed."; fi
+	bazel-bin/tensorflow/tools/pip_package/build_pip_package $script_dir/tensorflow_pkg >> $logs_dir/build.log 2>&1
+	if [[ $? -ne 0 ]]; then output_log $logs_dir/build.log; error "Build failed."; fi
+	cd -
+
+	echo "Installing:"
+	for server in $servers
+	do
+		echo " + $server..."
+		ssh $server pip install --user --upgrade $script_dir/tensorflow_pkg/tensorflow-1.3.0* >& $logs_dir/install_$server.log
+	done
+	echo "Done."
+fi
 
 #################
 # COPY SCRIPTS: #
