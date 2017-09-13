@@ -16,6 +16,9 @@ function print_usage_and_exit()
 	exit 1
 }
 
+
+script_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+work_dir=`mktemp -du`
 base_port=$1
 num_ps=$2
 num_workers=$3
@@ -73,7 +76,7 @@ function run_job()
 		device=mlx5_0
 	fi
 	get_server_of_ip $ip
-	gnome-terminal --geometry=200x20 -x ssh $server "$dst_dir/run_job.sh $job_name $task_id $ps_hosts $worker_hosts $device; bash"
+	gnome-terminal --geometry=200x20 -x ssh $server "$work_dir/run_job.sh $job_name $task_id $ps_hosts $worker_hosts $device 2>&1 | tee $script_dir/run_logs/${job_name}_${task_id}.log"
 }
 
 echo "IPs:"
@@ -82,9 +85,6 @@ do
 	get_server_of_ip $ip
 	echo " + $ip (Server: $server)"
 done
-
-script_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-dst_dir=`mktemp -du`
 
 ############
 # Compile: #
@@ -103,12 +103,12 @@ cd -
 
 echo "Copying scripts:"
 echo "  + Source: $script_dir" 
-echo "  + Destination: $dst_dir" 
+echo "  + Destination: $work_dir" 
 
 for ip in "${ips[@]}"
 do
 	get_server_of_ip $ip
-	scp -r $script_dir $server:$dst_dir > /dev/null
+	scp -r $script_dir $server:$work_dir > /dev/null
 done
 
 #########################
@@ -131,6 +131,9 @@ done
 ########
 # RUN: #
 ########
+rm -rf $script_dir/run_logs
+mkdir -p $script_dir/run_logs
+
 echo "Running:"
 for (( c=0; c<$num_ps; c++ ))
 do
@@ -153,12 +156,12 @@ get_server_of_ip $ip
 res=0
 while [[ $res -eq 0 ]]
 do
-	res=`ssh $server [[ -f $dst_dir/done.txt ]] && echo 1 || echo 0`
+	res=`ssh $server [[ -f $work_dir/done.txt ]] && echo 1 || echo 0`
 	sleep 1
 done
 
 echo "Done."
-ssh $server cat $dst_dir/run_logs/worker_0.log
+cat $script_dir/run_logs/worker_0.log
 
 ############
 # CLEANUP: #
@@ -166,8 +169,7 @@ ssh $server cat $dst_dir/run_logs/worker_0.log
 for ip in "${ips[@]}"
 do
 	get_server_of_ip $ip
-	scp $server:$dst_dir/run_logs/* run_logs > /dev/null
-	ssh $server $dst_dir/clean_host.sh
+	ssh $server $work_dir/clean_host.sh
 done
 sleep 2
 
@@ -176,7 +178,7 @@ sleep 2
 ##################
 this_script=`basename $0`
 echo "Closing windows..."
-pids="`ps -ef | grep $dst_dir/run_job.sh | grep -v " grep " | sed -e 's!^[a-zA-Z0-9]* *\([0-9]*\) .*!\1!g'`"
+pids="`ps -ef | grep $work_dir/run_job.sh | grep -v " grep " | sed -e 's!^[a-zA-Z0-9]* *\([0-9]*\) .*!\1!g'`"
 
 for pid in $pids; do
 	echo " + Killing $pid..."
