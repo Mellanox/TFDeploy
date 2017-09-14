@@ -40,7 +40,7 @@ then
  	cmd="$cmd --job_name=$job_name"
 	cmd="$cmd --task_index=$task_index"
 	cmd="$cmd --ps_hosts=$TF_PS_HOSTS"
-	cmd="$cmd --ps_workers=$TF_WORKER_HOSTS"
+	cmd="$cmd --worker_hosts=$TF_WORKER_HOSTS"
 fi
 
 if [[ $job_name == "worker" ]]
