@@ -134,8 +134,21 @@ then
 	echo "   See: $logs_dir/build.log"
 	[[ -z $TENSORFLOW_HOME ]] && TENSORFLOW_HOME=/root/tensorflow/
 	cd $TENSORFLOW_HOME
-	bazel build --config=opt //tensorflow/tools/pip_package:build_pip_package >& $logs_dir/build.log
-	if [[ $? -ne 0 ]]; then output_log $logs_dir/build.log; error "Build failed."; fi
+	bazel build --config=opt //tensorflow/tools/pip_package:build_pip_package >& $logs_dir/build.log &
+	build_pid=$!
+	echo "   PID: $build_pid"
+	echo -n "   Progress: "
+	while [[ -d /proc/$build_pid ]]
+	do
+		stat=`tail -1 $logs_dir/build.log | grep -e "\[[0-9,]* / [0-9,]*\]" | sed -e 's!.*\[\([0-9,]*\) / \([0-9,]*\)\] .*!\[\1 / \2\]!g' | sed -e 's!,!!g'`
+		if [[ ! -z $stat ]]
+		then
+			echo -ne "\r                                     "
+			echo -ne "\r   Progress: \033[1;32m$stat\033[0;0m"
+		fi
+	done
+	echo
+
 	bazel-bin/tensorflow/tools/pip_package/build_pip_package $script_dir/tensorflow_pkg >> $logs_dir/build.log 2>&1
 	if [[ $? -ne 0 ]]; then output_log $logs_dir/build.log; error "Build failed."; fi
 	cd -
