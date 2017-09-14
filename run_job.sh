@@ -27,18 +27,23 @@ function set_done()
 	exit $1
 }
 
-export CUDA_VISIBLE_DEVICES='' 
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda/lib64/
+if [[ $job_name == "ps" ]]; then
+	export CUDA_VISIBLE_DEVICES=""
+fi
+
 cmd="python -u $script_dir/tf_cnn_benchmarks.py --job_name=$job_name \
                                                 --task_index=$task_index \
                                                 --ps_hosts=$TF_PS_HOSTS \
                                                 --worker_hosts=$TF_WORKER_HOSTS"
                                                 
-
-[[ ! -z $TF_MODEL ]]             && { cmd="$cmd --model=$TF_MODEL"; }
-[[ ! -z $TF_NUM_GPUS ]]          && { cmd="$cmd --num_gpus=$TF_NUM_GPUS --local_parameter_device=gpu"; }
-[[ ! -z $TF_BATCH_SIZE ]]        && { cmd="$cmd --batch_size=$TF_BATCH_SIZE"; }
-[[ ! -z $TF_SERVER_PROTOCOL ]]   && { cmd="$cmd --server_protocol=$TF_SERVER_PROTOCOL"; }
-[[ -d /data/ ]]                  && { cmd="$cmd --data_dir=/data/imagenet_data/"; }
+if [[ $job_name == "worker" ]]; then
+	[[ ! -z $TF_MODEL ]]             && cmd="$cmd --model=$TF_MODEL"
+	[[ ! -z $TF_NUM_GPUS ]]          && cmd="$cmd --num_gpus=$TF_NUM_GPUS --local_parameter_device=gpu"
+	[[ ! -z $TF_BATCH_SIZE ]]        && cmd="$cmd --batch_size=$TF_BATCH_SIZE"
+	[[ ! -z $TF_SERVER_PROTOCOL ]]   && cmd="$cmd --server_protocol=$TF_SERVER_PROTOCOL"
+	[[ -d /data/ ]]                  && cmd="$cmd --data_dir=/data/imagenet_data/"
+fi
 
 for word in $cmd
 do

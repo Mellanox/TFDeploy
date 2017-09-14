@@ -20,11 +20,16 @@ function print_usage_and_exit()
 #######################
 # Read input options: #
 #######################
-while getopts ":d:m:c" opt
+while getopts ":d:m:cb:n:vgD" opt
 do
 	case "$opt" in
-	d)  export rdma_device=$OPTARG;;
-	m)	export model=$OPTARG;;
+	d)	rdma_device=$OPTARG;;
+	m)	model=$OPTARG;;
+	v)	server_protocol="grpc+verbs";;
+	g)	server_protocol="grpc+gdr";;
+	b)	batch_size=$OPTARG;;
+	n)	num_gpus=$OPTARG;;
+	D)	log_level=2;; 
 	c)	compile=1;;
     \?) echo "Invalid option: -$OPTARG" >&2; return 1;;
     :)  echo "Option -$OPTARG requires an argument." >&2; return 1;;
@@ -96,8 +101,12 @@ function run_job()
 	gnome-terminal --geometry=200x20 -x ssh $server "TF_PS_HOSTS=$ps_hosts \
 	                                                 TF_WORKER_HOSTS=$worker_hosts \
 	                                                 TF_MODEL=$model \
+	                                                 TF_NUM_GPUS=$num_gpus \
+	                                                 TF_BATCH_SIZE=$batch_size \
+	                                                 TF_SERVER_PROTOCOL=$server_protocol \
+	                                                 TF_CPP_MIN_VLOG_LEVEL=$log_level \
 	                                                 RDMA_DEVICE=$rdma_device \
-													 $work_dir/run_job.sh $job_name $task_id 2>&1 | tee $work_dir/${job_name}_${task_id}.log"
+	                                                 $work_dir/run_job.sh $job_name $task_id 2>&1 | tee $work_dir/${job_name}_${task_id}.log"
 }
 
 function output_log()
