@@ -32,7 +32,6 @@ do
 	n)	num_gpus=$OPTARG;;
 	D)	log_level=2;; 
 	c)	compile=1;;
-	i)	install=1;;
     \?) echo "Invalid option: -$OPTARG" >&2; return 1;;
     :)  echo "Option -$OPTARG requires an argument." >&2; return 1;;
   esac
@@ -171,7 +170,7 @@ done
 ###############
 # INSTALL TF: #
 ###############
-if [[ $install -eq 1 ]]
+if [[ $compile -eq 1 ]]
 then
 	echo "Installing:"
 	for server in $servers

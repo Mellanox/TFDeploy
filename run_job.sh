@@ -28,7 +28,8 @@ function set_done()
 ####################
 # Get device name: #
 ####################
-DEVICE_NAME=`/usr/sbin/ip -o a s | grep $DEVICE_IP | cut -d ' ' -f 2`
+PATH="$PATH:/usr/sbin"
+DEVICE_NAME=`ip -o a s | grep $DEVICE_IP | cut -d ' ' -f 2`
 if [[ ! -z $DEVICE_NAME ]]
 then
 	echo "Using IP device: $DEVICE_NAME ($DEVICE_IP)"
@@ -66,12 +67,13 @@ then
 	cmd="$cmd --worker_hosts=$TF_WORKER_HOSTS"
 fi
 
+[[ ! -z $TF_SERVER_PROTOCOL ]]   && cmd="$cmd --server_protocol=$TF_SERVER_PROTOCOL"
+
 if [[ $job_name == "worker" ]]
 then
 	[[ ! -z $TF_MODEL ]]             && cmd="$cmd --model=$TF_MODEL"
 	[[ ! -z $TF_NUM_GPUS ]]          && cmd="$cmd --num_gpus=$TF_NUM_GPUS --local_parameter_device=gpu"
 	[[ ! -z $TF_BATCH_SIZE ]]        && cmd="$cmd --batch_size=$TF_BATCH_SIZE"
-	[[ ! -z $TF_SERVER_PROTOCOL ]]   && cmd="$cmd --server_protocol=$TF_SERVER_PROTOCOL"
 	[[ -d /data/ ]]                  && cmd="$cmd --data_dir=/data/imagenet_data/"
 fi
 
