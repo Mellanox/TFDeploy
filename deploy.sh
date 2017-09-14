@@ -50,8 +50,14 @@ servers=""
 source mapping.sh
 source mark_errors_and_warnings.sh
 
+[[ ! -f tf_cnn_benchmarks.py ]] && error "tf_cnn_benchmarks.py is missing. deploy.sh should be run from tf_cnn_benchmarks folder." 
+if [[ -z $1 ]]; then
+	echo "Running locally..."
+	python -u tf_cnn_benchmarks.py
+	exit 0
+fi
+
 [[ -z $3 ]] && print_usage_and_exit
-[[ -f tf_cnn_benchmarks.py ]] || {	echo "Error: tf_cnn_benchmarks.py is missing. deploy.sh should be run from tf_cnn_benchmarks folder."; exit 1; }
 [[ -z $ips ]] && ips=(`hostname`)
 
 num_ips=${#ips[@]}
