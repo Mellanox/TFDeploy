@@ -52,7 +52,8 @@ source mapping.sh
 source mark_errors_and_warnings.sh
 
 [[ ! -f tf_cnn_benchmarks.py ]] && error "tf_cnn_benchmarks.py is missing. deploy.sh should be run from tf_cnn_benchmarks folder." 
-[[ -z $3 ]] && print_usage_and_exit
+[[ -z $num_workers ]] && print_usage_and_exit
+[[ $num_workers -eq 0 ]] && error "number of workers should be at least 1."
 [[ -z $ips ]] && ips=(`hostname`)
 
 num_ips=${#ips[@]}
@@ -135,7 +136,7 @@ then
 	cd $TENSORFLOW_HOME
 	bazel build --config=opt //tensorflow/tools/pip_package:build_pip_package >& $logs_dir/build.log
 	if [[ $? -ne 0 ]]; then output_log $logs_dir/build.log; error "Build failed."; fi
-	bazel-bin/tensorflow/tools/pip_package/build_pip_package $work_dir/tensorflow_pkg >> $logs_dir/build.log 2>&1
+	bazel-bin/tensorflow/tools/pip_package/build_pip_package $script_dir/tensorflow_pkg >> $logs_dir/build.log 2>&1
 	if [[ $? -ne 0 ]]; then output_log $logs_dir/build.log; error "Build failed."; fi
 	cd -
 fi
