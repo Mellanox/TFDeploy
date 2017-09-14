@@ -138,7 +138,7 @@ then
 	build_pid=$!
 	echo "   PID: $build_pid"
 	echo -n "   Progress: "
-	while [[ -d /proc/$build_pid ]]
+	while ps -p $build_pid >& /dev/null
 	do
 		stat=`tail -1 $logs_dir/build.log | grep -e "\[[0-9,]* / [0-9,]*\]" | sed -e 's!.*\[\([0-9,]*\) / \([0-9,]*\)\] .*!\[\1 / \2\]!g' | sed -e 's!,!!g'`
 		if [[ ! -z $stat ]]
@@ -148,7 +148,8 @@ then
 		fi
 	done
 	echo
-
+	wait $build_pid
+	if [[ $? -ne 0 ]]; then output_log $logs_dir/build.log; error "Build failed."; fi
 	bazel-bin/tensorflow/tools/pip_package/build_pip_package $script_dir/tensorflow_pkg >> $logs_dir/build.log 2>&1
 	if [[ $? -ne 0 ]]; then output_log $logs_dir/build.log; error "Build failed."; fi
 	cd -
