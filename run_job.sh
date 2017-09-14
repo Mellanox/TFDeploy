@@ -28,16 +28,23 @@ function set_done()
 }
 
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda/lib64/
-if [[ $job_name == "ps" ]]; then
+if [[ $job_name == "ps" ]]
+then
 	export CUDA_VISIBLE_DEVICES=""
 fi
 
-cmd="python -u $script_dir/tf_cnn_benchmarks.py --job_name=$job_name \
-                                                --task_index=$task_index \
-                                                --ps_hosts=$TF_PS_HOSTS \
-                                                --worker_hosts=$TF_WORKER_HOSTS"
-                                                
-if [[ $job_name == "worker" ]]; then
+cmd="python -u $script_dir/tf_cnn_benchmarks.py"
+
+if [[ ! -z $TF_PS_HOSTS ]]
+then
+ 	cmd="$cmd --job_name=$job_name"
+	cmd="$cmd --task_index=$task_index"
+	cmd="$cmd --ps_hosts=$TF_PS_HOSTS"
+	cmd="$cmd --ps_workers=$TF_WORKER_HOSTS"
+fi
+
+if [[ $job_name == "worker" ]]
+then
 	[[ ! -z $TF_MODEL ]]             && cmd="$cmd --model=$TF_MODEL"
 	[[ ! -z $TF_NUM_GPUS ]]          && cmd="$cmd --num_gpus=$TF_NUM_GPUS --local_parameter_device=gpu"
 	[[ ! -z $TF_BATCH_SIZE ]]        && cmd="$cmd --batch_size=$TF_BATCH_SIZE"
