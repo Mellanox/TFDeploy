@@ -3,9 +3,21 @@
 
 function print_usage()
 {
-	echo "Usage: `basename $0` <base-port> <num_ps> <num_workers> [server1 server2 ...]"
-	echo "   The script will round-robin the PS between availble servers."
+	echo "Usage: `basename $0` [OPTIONS] <base-port> <num_ps> <num_workers> [ip1 ip2 ...]"
+	echo "   The script will round-robin the jobs between availble servers."
 	echo "   If no servers spefied, localhost will be used."
+	echo "   To run locally, pass num_ps=0."
+	echo "   The script will automatically recognize the RDMA devices based on the ip addresses given."
+	echo "   Important: Due to getopts limitiations, OPTIONS must come before the rest of the arguments."
+	echo "   OPTIONS:"
+	echo "       -m - model (trivial, inception3, resnet50, resnet152, vgg16)."
+	echo "       -v - use grpc + verbs."
+	echo "       -g - use grpc + gdr."
+	echo "       -b - batch_size."
+	echo "       -n - num gpus."
+	echo "       -D - run in debug mode (tensorflow)."
+	echo "       -c - compile and install tensorflow on all the given servers."
+	echo "       -h - print this message and exit."
 	echo "   Examples:"
 	echo "       `basename $0` 10000 1 2 trex-00 trex-02"
 	echo "       `basename $0` 10000 1 2"
@@ -22,7 +34,7 @@ function print_usage_and_exit()
 #######################
 model=trivial
 
-while getopts ":m:cib:n:vgD" opt
+while getopts ":m:cib:n:vgDh" opt
 do
 	case "$opt" in
 	m)	model=$OPTARG;;
@@ -32,6 +44,7 @@ do
 	n)	num_gpus=$OPTARG;;
 	D)	log_level=2;; 
 	c)	compile=1;;
+	h)	print_usage_and_exit;;
     \?) echo "Invalid option: -$OPTARG" >&2; return 1;;
     :)  echo "Option -$OPTARG requires an argument." >&2; return 1;;
   esac
