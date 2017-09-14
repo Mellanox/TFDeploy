@@ -20,10 +20,11 @@ function print_usage_and_exit()
 #######################
 # Read input options: #
 #######################
-while getopts ":d:m:cib:n:vgD" opt
+model=trivial
+
+while getopts ":m:cib:n:vgD" opt
 do
 	case "$opt" in
-	d)	rdma_device=$OPTARG;;
 	m)	model=$OPTARG;;
 	v)	server_protocol="grpc+verbs";;
 	g)	server_protocol="grpc+gdr";;
@@ -107,7 +108,7 @@ function run_job()
 	                                                 TF_BATCH_SIZE=$batch_size \
 	                                                 TF_SERVER_PROTOCOL=$server_protocol \
 	                                                 TF_CPP_MIN_VLOG_LEVEL=$log_level \
-	                                                 RDMA_DEVICE=$rdma_device \
+	                                                 DEVICE_IP=$ip \
 	                                                 $work_dir/run_job.sh $job_name $task_id 2>&1 | tee $work_dir/${job_name}_${task_id}.log"
 }
 

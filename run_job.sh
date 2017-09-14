@@ -16,8 +16,6 @@ echo "   + Task Index: $task_index"
 echo "   + PS hosts: $TF_PS_HOSTS"
 echo "   + Worker hosts: $TF_WORKER_HOSTS"
 echo "   + Model: $TF_MODEL"
-echo "   + RDMA device: $RDMA_DEVICE"
-echo -e "\033[0;0m"
 
 function set_done()
 {
@@ -26,6 +24,31 @@ function set_done()
 	fi
 	exit $1
 }
+
+####################
+# Get device name: #
+####################
+DEVICE_NAME=`/usr/sbin/ip -o a s | grep $DEVICE_IP | cut -d ' ' -f 2`
+if [[ ! -z $DEVICE_NAME ]]
+then
+	echo "Using IP device: $DEVICE_NAME ($DEVICE_IP)"
+	ibdev_line=`ibdev2netdev | grep $DEVICE_NAME 2>/dev/null`
+	if [[ ! -z $ibdev_line ]]
+	then
+		export RDMA_DEVICE=`echo $ibdev_line | cut -d' ' -f1`
+		export RDMA_DEVICE_PORT=`echo $ibdev_line | cut -d' ' -f3`
+		echo "   + RDMA device: $RDMA_DEVICE"
+		echo "   + RDMA port: $RDMA_DEVICE_PORT"
+		if [[ -z `echo $ibdev_line | grep Up` ]]
+		then
+			echo -e "\033[1;31mDevice is down.\033[0;0m"
+			set_done 1
+		fi
+	else
+		echo " + Not an RDMA device."
+	fi
+fi
+echo -e "\033[0;0m"
 
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda/lib64/
 if [[ $job_name == "ps" ]]
