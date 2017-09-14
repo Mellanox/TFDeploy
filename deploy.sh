@@ -20,7 +20,7 @@ function print_usage_and_exit()
 #######################
 # Read input options: #
 #######################
-while getopts ":d:m:cb:n:vgD" opt
+while getopts ":d:m:cib:n:vgD" opt
 do
 	case "$opt" in
 	d)	rdma_device=$OPTARG;;
@@ -31,6 +31,7 @@ do
 	n)	num_gpus=$OPTARG;;
 	D)	log_level=2;; 
 	c)	compile=1;;
+	i)	install=1;;
     \?) echo "Invalid option: -$OPTARG" >&2; return 1;;
     :)  echo "Option -$OPTARG requires an argument." >&2; return 1;;
   esac
@@ -126,30 +127,22 @@ done
 # Compile: #
 ############
 
-if [[ $compile -eq 1 ]]; then
+if [[ $compile -eq 1 ]]
+then
 	echo "Building:"
 	echo "   See: $logs_dir/build.log"
 	[[ -z $TENSORFLOW_HOME ]] && TENSORFLOW_HOME=/root/tensorflow/
 	cd $TENSORFLOW_HOME
 	bazel build --config=opt //tensorflow/tools/pip_package:build_pip_package >& $logs_dir/build.log
 	if [[ $? -ne 0 ]]; then output_log $logs_dir/build.log; error "Build failed."; fi
-	bazel-bin/tensorflow/tools/pip_package/build_pip_package $script_dir/tensorflow_pkg >> $logs_dir/build.log 2>&1
+	bazel-bin/tensorflow/tools/pip_package/build_pip_package $work_dir/tensorflow_pkg >> $logs_dir/build.log 2>&1
 	if [[ $? -ne 0 ]]; then output_log $logs_dir/build.log; error "Build failed."; fi
 	cd -
-
-	echo "Installing:"
-	for server in $servers
-	do
-		echo " + $server..."
-		ssh $server pip install --user --upgrade $script_dir/tensorflow_pkg/tensorflow-1.3.0* >& $logs_dir/install_$server.log
-	done
-	echo "Done."
 fi
 
 #################
 # COPY SCRIPTS: #
 #################
-
 echo "Copying scripts:"
 echo "  + Source: $script_dir" 
 echo "  + Destination: $work_dir" 
@@ -159,6 +152,20 @@ do
 	get_server_of_ip $ip
 	scp -r $script_dir $server:$work_dir > /dev/null
 done
+
+###############
+# INSTALL TF: #
+###############
+if [[ $install -eq 1 ]]
+then
+	echo "Installing:"
+	for server in $servers
+	do
+		echo " + $server..."
+		ssh $server pip install --user --upgrade $work_dir/tensorflow_pkg/tensorflow-1.3.0* >& $logs_dir/install_$server.log
+	done
+	echo "Done."
+fi
 
 #########################
 # INITIALIZE INSTANCES: #
