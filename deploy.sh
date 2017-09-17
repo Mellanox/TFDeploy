@@ -34,7 +34,7 @@ function print_usage_and_exit()
 #######################
 model=trivial
 
-while getopts ":m:cib:n:vgDh" opt
+while getopts ":m:cb:n:vgDh" opt
 do
 	case "$opt" in
 	m)	model=$OPTARG;;
