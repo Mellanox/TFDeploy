@@ -38,6 +38,7 @@ then
 	then
 		export RDMA_DEVICE=`echo $ibdev_line | cut -d' ' -f1`
 		export RDMA_DEVICE_PORT=`echo $ibdev_line | cut -d' ' -f3`
+		export RDMA_GID=0 
 		echo "   + RDMA device: $RDMA_DEVICE"
 		echo "   + RDMA port: $RDMA_DEVICE_PORT"
 		if [[ -z `echo $ibdev_line | grep Up` ]]

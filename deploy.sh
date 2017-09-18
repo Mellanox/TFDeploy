@@ -190,7 +190,7 @@ then
 	for server in $servers
 	do
 		echo " + $server..."
-		ssh $server pip install --user --upgrade $work_dir/tensorflow_pkg/tensorflow-1.3.0* >& $logs_dir/install_$server.log
+		ssh $server pip install --user --upgrade $work_dir/tensorflow_pkg/tensorflow-1.* >& $logs_dir/install_$server.log
 	done
 	echo "Done."
 fi
