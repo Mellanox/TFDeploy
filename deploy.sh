@@ -163,6 +163,8 @@ then
 	echo
 	wait $build_pid
 	if [[ $? -ne 0 ]]; then output_log $logs_dir/build.log; error "Build failed."; fi
+	
+	rm $script_dir/tensorflow_pkg/*
 	bazel-bin/tensorflow/tools/pip_package/build_pip_package $script_dir/tensorflow_pkg >> $logs_dir/build.log 2>&1
 	if [[ $? -ne 0 ]]; then output_log $logs_dir/build.log; error "Build failed."; fi
 	cd -
