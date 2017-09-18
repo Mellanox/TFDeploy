@@ -14,6 +14,7 @@ If specified, the script will compile tensorflow on the source-station (the stat
 * tensorflow 
 * tf_cnn_benchmarks
 * gnome-terminal installed (the script will open a new terminal for each ps/worker being run)
+* If connected to the source-station using SSH, make sure you have DISPLAY env variable set (for the gnome-terminals to open)
 * It is recommended to do ssh-copy-id once for each of the desired run-servers, in order to avoid having to enter a password each time.
 * When running with compile (-c), the environment variable TENSORFLOW_HOME should point to the tensorflow repository home folder. Default is "/root/tensorflow"
 
