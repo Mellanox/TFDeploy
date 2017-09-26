@@ -143,7 +143,6 @@ done
 ############
 # Compile: #
 ############
-
 if [[ $compile -eq 1 ]]
 then
 	echo "Building:"
