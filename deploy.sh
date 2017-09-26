@@ -16,6 +16,7 @@ function print_usage()
 	echo "       -n - num gpus."
 	echo "       -D - run in debug mode (tensorflow)."
 	echo "       -c - compile and install tensorflow on all the given servers."
+	echo "       -d - user comment (for benchmark results)."
 	echo "       -h - print this message and exit."
 	echo "   Examples:"
 	echo "       `basename $0` 10000 1 2 trex-00 trex-02"
@@ -36,7 +37,7 @@ batch_size=64
 model=trivial
 server_protocol=grpc
 
-while getopts ":m:cb:n:vgDh" opt
+while getopts ":m:cb:n:vgDd:h" opt
 do
 	case "$opt" in
 	m)	model=$OPTARG;;
@@ -44,7 +45,8 @@ do
 	g)	server_protocol="grpc+gdr";;
 	b)	batch_size=$OPTARG;;
 	n)	num_gpus=$OPTARG;;
-	D)	log_level=2;; 
+	D)	log_level=2;;
+	d)	comment=$OPTARG;;
 	c)	compile=1;;
 	h)	print_usage_and_exit;;
     \?) echo "Invalid option: -$OPTARG" >&2; return 1;;
@@ -77,7 +79,12 @@ device_id=0
 port=$base_port
 ps_hosts=()
 worker_hosts=()
-logs_dir=$script_dir/run_logs
+logs_base_dir=$script_dir/logs
+logs_dir=$logs_base_dir/`date +%Y_%m_%d_%H_%M_%S`
+if [[ ! -z $comment ]]
+then
+	logs_dir=${logs_dir}_`echo $comment | sed -e 's![^a-zA-Z0-9]\+!_!g'`
+fi
 
 rm -rf $logs_dir 
 mkdir -p $logs_dir
@@ -282,14 +289,11 @@ done
 # APPEND RESULTS: #
 ###################
 result=`grep "total images/sec" $logs_dir/worker_0.log | cut -d' ' -f3`
-results_file="results.csv"
+results_file="$logs_dir/results.csv"
 if [[ ! -f $results_file ]]
 then
-	echo -e "Creating result file for the first time: \033[0;32m$results_file\033[0;0m"
 	printf "%-30s, %-12s, %-5s, %-14s, %-11s, %-8s, %-3s, %-10s\n" \
 		"Date" "Model" "Batch" "Protocol" "GPUs/Server" "#Workers" "#PS" "Images/sec" >> $results_file
-else
-	echo -e "Appended results to: \033[0;32m$results_file\033[0;0m"
 fi
 printf "%-30s, %-12s, %-5u, %-14s, %-11u, %-8u, %-3u, %-10.2f\n" \
 	"`date`" \
@@ -301,3 +305,4 @@ printf "%-30s, %-12s, %-5u, %-14s, %-11u, %-8u, %-3u, %-10.2f\n" \
 	$num_ps \
 	$result >> $results_file
 
+echo -e "Results: \033[0;32mlogs/`basename $logs_dir`\033[0;0m"
