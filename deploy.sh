@@ -68,6 +68,7 @@ source mark_errors_and_warnings.sh
 [[ -z $num_workers ]] && print_usage_and_exit
 [[ $num_workers -eq 0 ]] && error "number of workers should be at least 1."
 [[ -z $ips ]] && ips=(`hostname`)
+[[ -z $DISPLAY ]] && error "DISPLAY is not set. You may need to reconnect with ssh -X."
 
 num_ips=${#ips[@]}
 device_id=0
