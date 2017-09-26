@@ -1,9 +1,8 @@
 #!/bin/bash
 
-declare -A ip_to_server=( ["192.168.30.2"]="trex-00" \
-                          ["192.168.40.2"]="trex-00" \
-                          ["192.168.30.1"]="trex-02" \
-                          ["192.168.40.1"]="trex-02" )
+declare -A ip_to_server=( ["99.99.99.0"]="server-0" \
+                          ["99.99.99.1"]="server-1" \
+                          ["99.99.99.2"]="server-2" )
 
 function get_server_of_ip() # IP
 {
