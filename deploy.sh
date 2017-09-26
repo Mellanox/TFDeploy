@@ -150,7 +150,7 @@ then
 	echo "   See: $logs_dir/build.log"
 	[[ -z $TENSORFLOW_HOME ]] && TENSORFLOW_HOME=/root/tensorflow/
 	cd $TENSORFLOW_HOME
-	bazel build --config=opt //tensorflow/tools/pip_package:build_pip_package >& $logs_dir/build.log &
+	bazel build --config=opt $TENSORFLOW_BUILD_FLAGS //tensorflow/tools/pip_package:build_pip_package >& $logs_dir/build.log &
 	build_pid=$!
 	echo "   PID: $build_pid"
 	echo -n "   Progress: "
