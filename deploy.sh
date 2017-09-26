@@ -1,6 +1,5 @@
 #!/bin/bash
 
-
 function print_usage()
 {
 	echo "Usage: `basename $0` [OPTIONS] <base-port> <num_ps> <num_workers> [ip1 ip2 ...]"
@@ -32,7 +31,10 @@ function print_usage_and_exit()
 #######################
 # Read input options: #
 #######################
+num_gpus=1
+batch_size=64
 model=trivial
+server_protocol=grpc
 
 while getopts ":m:cb:n:vgDh" opt
 do
@@ -266,7 +268,7 @@ done
 sleep 2
 
 ##################
-# Close windows: #
+# CLOSE WINDOWS: #
 ##################
 this_script=`basename $0`
 echo "Closing windows..."
@@ -276,3 +278,27 @@ for pid in $pids; do
 	echo " + Killing $pid..."
 	kill -9 $pid
 done
+
+###################
+# APPEND RESULTS: #
+###################
+result=`grep "total images/sec" $logs_dir/worker_0.log | cut -d' ' -f3`
+results_file="results.csv"
+if [[ ! -f $results_file ]]
+then
+	echo -e "Creating result file for the first time: \033[0;32m$results_file\033[0;0m"
+	printf "%-30s, %-12s, %-5s, %-14s, %-11s, %-8s, %-3s, %-10s\n" \
+		"Date" "Model" "Batch" "Protocol" "GPUs/Server" "#Workers" "#PS" "Images/sec" >> $results_file
+else
+	echo -e "Appended results to: \033[0;32m$results_file\033[0;0m"
+fi
+printf "%-30s, %-12s, %-5u, %-14s, %-11u, %-8u, %-3u, %-10.2f\n" \
+	"`date`" \
+	"$model" \
+	$batch_size \
+	"$server_protocol" \
+	$num_gpus \
+	$num_workers \
+	$num_ps \
+	$result >> $results_file
+
