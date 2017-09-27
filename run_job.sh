@@ -43,7 +43,7 @@ then
 		export RDMA_QUEUE_DEPTH=1024
 		export RDMA_TIMEOUT=10
 		export RDMA_RETRY_CNT=10
-		export RDMA_SL=18
+		export RDMA_SL=1
 		export RDMA_MTU=512
 		echo "   + RDMA device: $RDMA_DEVICE"
 		echo "   + RDMA port: $RDMA_DEVICE_PORT"
