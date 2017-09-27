@@ -29,16 +29,17 @@ function set_done()
 # Get device name: #
 ####################
 PATH="$PATH:/usr/sbin"
-DEVICE_NAME=`ip -o a s | grep $DEVICE_IP | cut -d ' ' -f 2`
+DEVICE_NAME=`ip -o a s | grep $DEVICE_IP | cut -d ' ' -f 2 | cut -d'.' -f1`
 if [[ ! -z $DEVICE_NAME ]]
 then
 	echo "Using IP device: $DEVICE_NAME ($DEVICE_IP)"
 	ibdev_line=`ibdev2netdev | grep $DEVICE_NAME 2>/dev/null`
 	if [[ ! -z $ibdev_line ]]
 	then
-		export RDMA_DEVICE=`echo $ibdev_line | cut -d' ' -f1`
+		export RDMA_DEVICE=`echo $ibdev_line | cut -d' ' -f1 `
 		export RDMA_DEVICE_PORT=`echo $ibdev_line | cut -d' ' -f3`
-		export RDMA_GID_INDEX=3 
+		export RDMA_GID_INDEX=5
+		export RDMA_SL=2
 		echo "   + RDMA device: $RDMA_DEVICE"
 		echo "   + RDMA port: $RDMA_DEVICE_PORT"
 		if [[ -z `echo $ibdev_line | grep Up` ]]
