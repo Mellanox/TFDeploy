@@ -37,7 +37,7 @@ batch_size=64
 model=trivial
 server_protocol=grpc
 
-while getopts ":m:cb:n:vgDd:h" opt
+while getopts ":m:cb:n:vgD:d:h" opt
 do
 	case "$opt" in
 	m)	model=$OPTARG;;
@@ -45,7 +45,7 @@ do
 	g)	server_protocol="grpc+gdr";;
 	b)	batch_size=$OPTARG;;
 	n)	num_gpus=$OPTARG;;
-	D)	log_level=2;;
+	D)	log_level=$OPTARG;;
 	d)	comment=$OPTARG;;
 	c)	compile=1;;
 	h)	print_usage_and_exit;;
