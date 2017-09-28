@@ -288,21 +288,33 @@ done
 ###################
 # APPEND RESULTS: #
 ###################
-result=`grep "total images/sec" $logs_dir/worker_0.log | cut -d' ' -f3`
-results_file="$logs_dir/results.csv"
-if [[ ! -f $results_file ]]
-then
-	printf "%-30s, %-12s, %-5s, %-14s, %-11s, %-8s, %-3s, %-10s\n" \
-		"Date" "Model" "Batch" "Protocol" "GPUs/Server" "#Workers" "#PS" "Images/sec" >> $results_file
-fi
-printf "%-30s, %-12s, %-5u, %-14s, %-11u, %-8u, %-3u, %-10.2f\n" \
-	"`date`" \
-	"$model" \
-	$batch_size \
-	"$server_protocol" \
-	$num_gpus \
-	$num_workers \
-	$num_ps \
-	$result >> $results_file
+echo "All done."
 
-echo -e "Results: \033[0;32mlogs/`basename $logs_dir`\033[0;0m"
+result=`grep "total images/sec" $logs_dir/worker_0.log | cut -d' ' -f3`
+[[ -z $result ]] && result="Error"
+local_results_file="$logs_dir/results.csv"
+global_results_file="$logs_base_dir/results.csv"
+
+for file in $local_results_file $global_results_file
+do
+	if [[ ! -f $file ]]
+	then
+		printf "%-30s, %-12s, %-5s, %-14s, %-11s, %-8s, %-3s, %-10s, %s\n" \
+			"Date" "Model" "Batch" "Protocol" "GPUs/Server" "#Workers" "#PS" "Images/sec" "Comment" >> $file
+	fi
+
+	printf "%-30s, %-12s, %-5u, %-14s, %-11u, %-8u, %-3u, %-10s, %s\n" \
+		"`date`" \
+		"$model" \
+		$batch_size \
+		"$server_protocol" \
+		$num_gpus \
+		$num_workers \
+		$num_ps \
+		"$result" \
+		"$comment" >> $file
+done
+
+echo "Results:"
+cat $local_results_file
+echo "See logs/`basename $logs_dir` for more info."
