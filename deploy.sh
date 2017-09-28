@@ -261,7 +261,7 @@ done
 echo "Done."
 echo
 echo "----------------------------------------------------------------"
-cat $logs_dir/worker_0.log
+tail -n 50 $logs_dir/worker_0.log
 
 ############
 # CLEANUP: #
