@@ -29,7 +29,7 @@ function set_done()
 # Get device name: #
 ####################
 PATH="$PATH:/usr/sbin"
-DEVICE_NAME=`ip -o a s | grep $DEVICE_IP | cut -d ' ' -f 2`
+DEVICE_NAME=`ip -o a s | grep $DEVICE_IP | cut -d ' ' -f 2 | cut -d'.' -f1`
 if [[ ! -z $DEVICE_NAME ]]
 then
 	echo "Using IP device: $DEVICE_NAME ($DEVICE_IP)"
@@ -38,9 +38,22 @@ then
 	then
 		export RDMA_DEVICE=`echo $ibdev_line | cut -d' ' -f1`
 		export RDMA_DEVICE_PORT=`echo $ibdev_line | cut -d' ' -f3`
-		export RDMA_GID_INDEX=3 
+		export RDMA_GID_INDEX=3
+		export RDMA_PKEY=0
+		export RDMA_QUEUE_DEPTH=1024
+		export RDMA_TIMEOUT=10
+		export RDMA_RETRY_CNT=10
+		export RDMA_SL=1
+		export RDMA_MTU=512
 		echo "   + RDMA device: $RDMA_DEVICE"
 		echo "   + RDMA port: $RDMA_DEVICE_PORT"
+		echo "   + RDMA GID INDEX: $RDMA_GID_INDEX"
+		echo "   + RDMA pkey_index: $RDMA_PKEY"
+		echo "   + RDMA queue depth: $RDMA_QUEUE_DEPTH"
+		echo "   + RDMA timeout: $RDMA_TIMEOUT"
+		echo "   + RDMA retry_cnt: $RDMA_RETRY_CNT"
+		echo "   + RDMA sl: $RDMA_SL"
+		echo "   + RDMA mtu: $RDMA_MTU"
 		if [[ -z `echo $ibdev_line | grep Up` ]]
 		then
 			echo -e "\033[1;31mDevice is down.\033[0;0m"
