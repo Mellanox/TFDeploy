@@ -71,7 +71,8 @@ then
 	export CUDA_VISIBLE_DEVICES=""
 fi
 
-cmd="python -u $script_dir/tf_cnn_benchmarks.py"
+[[ $TF_CPP_MIN_VLOG_LEVEL == "x" ]] && GDB_OPTION="gdb --args"
+cmd="$GDB_OPTION python -u $script_dir/tf_cnn_benchmarks.py"
 
 if [[ ! -z $TF_PS_HOSTS ]]
 then
