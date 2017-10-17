@@ -303,7 +303,8 @@ done
 echo "All done."
 
 result=`grep "total images/sec" $logs_dir/worker_0.log | cut -d' ' -f3`
-[[ -z $result ]] && result="Error"
+[[ -z $result ]] && error "Run failed. See $logs_dir/worker_0.log for details."
+
 local_results_file="$logs_dir/results.csv"
 global_results_file="$logs_base_dir/results.csv"
 
