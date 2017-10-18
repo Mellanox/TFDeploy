@@ -14,9 +14,11 @@ function print_usage()
 	echo "       -g - use grpc + gdr."
 	echo "       -b - batch_size."
 	echo "       -n - num gpus."
-	echo "       -D - run in debug mode (tensorflow)."
+	echo "       -D - run with debug level (tensorflow). Levels (0, 1...) or 'x' to run with gdb."
 	echo "       -c - compile and install tensorflow on all the given servers."
 	echo "       -d - user comment (for benchmark results)."
+	echo "       -r - data dir (default is syntetic data)."
+	echo "       -s - don't open terminals (for regression tests)."
 	echo "       -h - print this message and exit."
 	echo "   Examples:"
 	echo "       `basename $0` 10000 1 2 trex-00 trex-02"
@@ -36,8 +38,9 @@ num_gpus=1
 batch_size=64
 model=trivial
 server_protocol=grpc
+no_terminals_mode=0
 
-while getopts ":m:cb:n:vgD:d:h" opt
+while getopts ":m:cb:n:vgD:d:hr:s" opt
 do
 	case "$opt" in
 	m)	model=$OPTARG;;
@@ -47,6 +50,8 @@ do
 	n)	num_gpus=$OPTARG;;
 	D)	log_level=$OPTARG;;
 	d)	comment=$OPTARG;;
+	r)	data_dir=$OPTARG;;
+	s)	no_terminals_mode=1;;
 	c)	compile=1;;
 	h)	print_usage_and_exit;;
     \?) echo "Invalid option: -$OPTARG" >&2; return 1;;
@@ -123,15 +128,22 @@ function run_job()
 	job_name=$2
 	task_id=$3
 	get_server_of_ip $ip
-	gnome-terminal --geometry=200x20 -x ssh $server "TF_PS_HOSTS=$ps_hosts \
-	                                                 TF_WORKER_HOSTS=$worker_hosts \
-	                                                 TF_MODEL=$model \
-	                                                 TF_NUM_GPUS=$num_gpus \
-	                                                 TF_BATCH_SIZE=$batch_size \
-	                                                 TF_SERVER_PROTOCOL=$server_protocol \
-	                                                 TF_CPP_MIN_VLOG_LEVEL=$log_level \
-	                                                 DEVICE_IP=$ip \
-	                                                 $work_dir/run_job.sh $job_name $task_id 2>&1 | tee $work_dir/${job_name}_${task_id}.log"
+	if [[ $no_terminals_mode -ne 1 ]]
+	then
+		terminal_command="gnome-terminal --geometry=200x20 -x"
+	fi
+	$terminal_command ssh $server "TF_PS_HOSTS=$ps_hosts \
+	                               TF_WORKER_HOSTS=$worker_hosts \
+	                               TF_MODEL=$model \
+	                               TF_NUM_GPUS=$num_gpus \
+	                               TF_BATCH_SIZE=$batch_size \
+	                               TF_SERVER_PROTOCOL=$server_protocol \
+	                               TF_CPP_MIN_VLOG_LEVEL=$log_level \
+	                               TF_DATA_DIR=$data_dir \
+	                               DEVICE_IP=$ip \
+	                               $work_dir/run_job.sh $job_name $task_id 2>&1 | tee $work_dir/${job_name}_${task_id}.log" &
+
+	sleep 0.4 # Have windows open by order
 }
 
 function output_log()
@@ -291,7 +303,8 @@ done
 echo "All done."
 
 result=`grep "total images/sec" $logs_dir/worker_0.log | cut -d' ' -f3`
-[[ -z $result ]] && result="Error"
+[[ -z $result ]] && error "Run failed. See $logs_dir/worker_0.log for details."
+
 local_results_file="$logs_dir/results.csv"
 global_results_file="$logs_base_dir/results.csv"
 

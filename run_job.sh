@@ -73,7 +73,8 @@ then
 	export CUDA_VISIBLE_DEVICES=""
 fi
 
-cmd="python -u $script_dir/tf_cnn_benchmarks.py"
+[[ $TF_CPP_MIN_VLOG_LEVEL == "x" ]] && GDB_OPTION="gdb --args"
+cmd="$GDB_OPTION python -u $script_dir/tf_cnn_benchmarks.py"
 
 if [[ ! -z $TF_PS_HOSTS ]]
 then
@@ -90,7 +91,7 @@ then
 	[[ ! -z $TF_MODEL ]]             && cmd="$cmd --model=$TF_MODEL"
 	[[ ! -z $TF_NUM_GPUS ]]          && cmd="$cmd --num_gpus=$TF_NUM_GPUS --local_parameter_device=gpu"
 	[[ ! -z $TF_BATCH_SIZE ]]        && cmd="$cmd --batch_size=$TF_BATCH_SIZE"
-	[[ -d /data/ ]]                  && cmd="$cmd --data_dir=/data/imagenet_data/"
+	[[ ! -z $TF_DATA_DIR ]]          && cmd="$cmd --data_dir=$TF_DATA_DIR"
 fi
 
 for word in $cmd
