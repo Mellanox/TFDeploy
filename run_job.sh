@@ -45,6 +45,7 @@ then
 		export RDMA_RETRY_CNT=10
 		export RDMA_SL=1
 		export RDMA_MTU=512
+		export RDMA_TRAFFIC_CLASS=8
 		echo "   + RDMA device: $RDMA_DEVICE"
 		echo "   + RDMA port: $RDMA_DEVICE_PORT"
 		echo "   + RDMA GID INDEX: $RDMA_GID_INDEX"
@@ -54,6 +55,7 @@ then
 		echo "   + RDMA retry_cnt: $RDMA_RETRY_CNT"
 		echo "   + RDMA sl: $RDMA_SL"
 		echo "   + RDMA mtu: $RDMA_MTU"
+	    echo "   + RDMA traffic class: $RDMA_TRAFFIC_CLASS"
 		if [[ -z `echo $ibdev_line | grep Up` ]]
 		then
 			echo -e "\033[1;31mDevice is down.\033[0;0m"
