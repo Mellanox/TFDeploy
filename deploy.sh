@@ -201,8 +201,9 @@ echo "  + Destination: $work_dir"
 for ip in "${ips[@]}"
 do
 	get_server_of_ip $ip
-	scp -r $script_dir $server:$work_dir > /dev/null
+	scp -r $script_dir $server:$work_dir > /dev/null &
 done
+wait
 
 ###############
 # INSTALL TF: #
@@ -213,8 +214,9 @@ then
 	for server in $servers
 	do
 		echo " + $server..."
-		ssh $server pip install --user --upgrade $work_dir/tensorflow_pkg/tensorflow-1.* >& $logs_dir/install_$server.log
+		ssh $server pip install --user --upgrade $work_dir/tensorflow_pkg/tensorflow-1.* >& $logs_dir/install_$server.log &
 	done
+	wait
 	echo "Done."
 fi
 
