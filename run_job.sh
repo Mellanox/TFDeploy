@@ -100,5 +100,36 @@ do
 done
 echo
 
-$cmd
+output_fifo="${job_name}_${task_index}_fifo"
+mkfifo $output_fifo
+$cmd >& $output_fifo &
+child_pid=$!
+echo $child_pid
+while true; do
+    if jobs %% >&/dev/null; then
+        if read -r -u 9 line; then
+		if [[ "$line" =~ "images/sec" ]]; then
+			process_stats=`ps -p $child_pid -o %cpu,%mem | tail -1`
+			cpu_usage=`echo $process_stats | cut -d' ' -f1`
+			mem_usage=`echo $process_stats | cut -d' ' -f2`
+			gpus_usage=`nvidia-smi | grep -e " [0-9]\+% " | sed -e 's!.* \([0-9]\+%\) .*!\1!g'`
+			
+			echo -ne "[CPU: $cpu_usage% MEM: $mem_usage%"
+			gpu_id=0
+			for gpu_usage in $gpus_usage 
+			do
+				[[ $gpu_usage != "0%" ]] && echo -ne " GPU-$gpu_id: $gpu_usage"
+				gpu_id=$((gpu_id+1))
+			done
+			echo "] $line"
+		else
+			echo $line
+		fi
+        fi
+    else
+        echo "info: child finished or died"
+        break
+    fi
+done 9< "${output_fifo}"
+
 set_done 0
