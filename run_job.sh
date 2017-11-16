@@ -25,6 +25,16 @@ function set_done()
 	exit $1
 }
 
+#######################
+# Kill old processes: #
+#######################
+old_processes=$(ps -ef | grep tf_cnn_benchmarks.py | grep python | sed -e "s@$USER *\([0-9]\+\) .*@\1@g")
+if [[ ! -z $old_processes ]]
+then
+	echo "Killing running processes $old_processes"
+	kill -9 $old_processes
+fi
+
 ####################
 # Get device name: #
 ####################
