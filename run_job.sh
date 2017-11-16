@@ -110,6 +110,13 @@ do
 done
 echo
 
+if [[ ! -z $GDB_OPTION ]]
+then
+	$cmd
+	set_done 0
+	exit
+fi
+
 output_fifo="${job_name}_${task_index}_fifo"
 mkfifo $output_fifo
 $cmd >& $output_fifo &
