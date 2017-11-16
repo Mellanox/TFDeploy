@@ -312,7 +312,7 @@ done
 ###################
 echo "All done."
 
-result=`grep "total images/sec" $logs_dir/worker_0.log | cut -d' ' -f3`
+result=`grep "total images/sec" $logs_dir/worker_0.log | sed -e 's!.*total images/sec: !!g'`
 [[ -z $result ]] && error "Run failed. See $logs_dir/worker_0.log for details."
 
 local_results_file="$logs_dir/results.csv"
