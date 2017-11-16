@@ -151,12 +151,16 @@ function output_log()
 	tail -n 100 $1 | MarkErrorsAndWarnings
 }
 
+#######################
+# Kill old processes: #
+#######################
 echo "IPs:"
 for ip in "${ips[@]}"
 do
 	get_server_of_ip $ip
 	echo " + $ip (Server: $server)"
 	servers="$servers $server"
+	ssh $server "ps -ef | grep tf_cnn_benchmarks.py | grep -v $work_dir | sed -e \"s@$USER *\([0-9]\+\) .*@\1@g\" | xargs kill -9"
 done
 
 ############
