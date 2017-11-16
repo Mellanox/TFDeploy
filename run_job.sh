@@ -140,11 +140,10 @@ while true; do
 			done
 			echo "] $line"
 		else
-			echo $line
+			echo "$line"
 		fi
         fi
     else
-        echo "info: child finished or died"
         break
     fi
 done 9< "${output_fifo}"
