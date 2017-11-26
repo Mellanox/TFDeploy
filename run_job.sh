@@ -74,6 +74,7 @@ then
 fi
 
 [[ $TF_CPP_MIN_VLOG_LEVEL == "x" ]] && GDB_OPTION="gdb --args"
+[[ $TF_CPP_MIN_VLOG_LEVEL == "p" ]] && TF_ADDITIONAL_FLAGS="$TF_ADDITIONAL_FLAGS --trace_file=trace_${job_name}_${task_index}.json"
 cmd="$GDB_OPTION python -u $script_dir/tf_cnn_benchmarks.py"
 
 if [[ ! -z $TF_PS_HOSTS ]]
@@ -94,11 +95,9 @@ then
 	[[ ! -z $TF_DATA_DIR ]]          && cmd="$cmd --data_dir=$TF_DATA_DIR"
 fi
 
-for word in $cmd
-do
-	echo -ne "\033[1;33m$word\033[0;0m "
-done
-echo
+cmd="$cmd $TF_ADDITIONAL_FLAGS"
+
+echo -ne "\033[1;33m$cmd\033[0;0m\n"
 
 if [[ ! -z $GDB_OPTION ]]
 then

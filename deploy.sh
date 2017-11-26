@@ -140,6 +140,7 @@ function run_job()
 	                               TF_SERVER_PROTOCOL=$server_protocol \
 	                               TF_CPP_MIN_VLOG_LEVEL=$log_level \
 	                               TF_DATA_DIR=$data_dir \
+	                               TF_ADDITIONAL_FLAGS=$TF_ADDITIONAL_FLAGS \
 	                               DEVICE_IP=$ip \
 	                               $work_dir/run_job.sh $job_name $task_id 2>&1 | tee $work_dir/${job_name}_${task_id}.log" &
 
@@ -279,6 +280,7 @@ echo "Copying logs..."
 for server in $servers
 do
 	scp $server:$work_dir/*.log $logs_dir
+	scp $server:$work_dir/*.json $logs_dir >& /dev/null
 done
 
 echo "Done."
