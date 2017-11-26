@@ -209,7 +209,8 @@ echo "  + Destination: $work_dir"
 for ip in "${ips[@]}"
 do
 	get_server_of_ip $ip
-	scp -r $script_dir $server:$work_dir > /dev/null &
+	ssh $server mkdir $work_dir
+	scp -r *.py *.sh tensorflow_pkg $server:$work_dir > /dev/null &
 done
 wait
 
