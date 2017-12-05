@@ -12,6 +12,7 @@ function print_usage()
 	echo "       -m - model (trivial, inception3, resnet50, resnet152, vgg16)."
 	echo "       -v - use grpc + verbs."
 	echo "       -g - use grpc + gdr."
+	echo "       -u - use grpc + ucx"
 	echo "       -b - batch_size."
 	echo "       -n - num gpus."
 	echo "       -D - run with debug level (tensorflow). Levels (0, 1...) or 'x' to run with gdb."
@@ -40,12 +41,13 @@ model=trivial
 server_protocol=grpc
 no_terminals_mode=0
 
-while getopts ":m:cb:n:vgD:d:hr:s" opt
+while getopts ":m:cb:n:vguD:d:hr:s" opt
 do
 	case "$opt" in
 	m)	model=$OPTARG;;
 	v)	server_protocol="grpc+verbs";;
 	g)	server_protocol="grpc+gdr";;
+	u)	server_protocol="grpc+ucx";;
 	b)	batch_size=$OPTARG;;
 	n)	num_gpus=$OPTARG;;
 	D)	log_level=$OPTARG;;
