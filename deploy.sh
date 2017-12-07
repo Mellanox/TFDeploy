@@ -14,7 +14,7 @@ function print_usage()
 	echo "       -g - use grpc + gdr."
 	echo "       -b - batch_size."
 	echo "       -n - num gpus."
-	echo "       -D - run with debug level (tensorflow). Levels (0, 1...) or 'x' to run with gdb."
+	echo "       -D - run with debug level (tensorflow). Levels (0, 1...). 'x' to run with gdb. 'p' to run with traceline."
 	echo "       -c - compile and install tensorflow on all the given servers."
 	echo "       -d - user comment (for benchmark results)."
 	echo "       -r - data dir (default is syntetic data)."
