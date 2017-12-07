@@ -105,36 +105,107 @@ then
 	set_done 0
 	exit
 fi
+			
+rpktold=`cat /sys/class/infiniband/$RDMA_DEVICE/ports/$RDMA_DEVICE_PORT/counters/port_rcv_packets`
+rdtaold=`cat /sys/class/infiniband/$RDMA_DEVICE/ports/$RDMA_DEVICE_PORT/counters/port_rcv_data`
+tpktold=`cat /sys/class/infiniband/$RDMA_DEVICE/ports/$RDMA_DEVICE_PORT/counters/port_xmit_packets`
+tdtaold=`cat /sys/class/infiniband/$RDMA_DEVICE/ports/$RDMA_DEVICE_PORT/counters/port_xmit_data`
+total_gpu_usage=0
+total_cpu_usage=0
+total_rmbps=0
+total_tmbps=0
 
-output_fifo="${job_name}_${task_index}_fifo"
+################################
+# Run command and format stats #
+################################
+output_fifo="fifo_${job_name}_${task_index}"
 mkfifo $output_fifo
 $cmd >& $output_fifo &
 child_pid=$!
 echo $child_pid
 while true; do
-    if jobs %% >&/dev/null; then
-        if read -r -u 9 line; then
-		if [[ "$line" =~ "images/sec" ]]; then
-			process_stats=`ps -p $child_pid -o %cpu,%mem | tail -1`
-			cpu_usage=`echo $process_stats | cut -d' ' -f1`
-			mem_usage=`echo $process_stats | cut -d' ' -f2`
-			gpus_usage=`nvidia-smi | grep -e " [0-9]\+% " | sed -e 's!.* \([0-9]\+%\) .*!\1!g'`
-			
-			echo -ne "[CPU: $cpu_usage% MEM: $mem_usage%"
-			gpu_id=0
-			for gpu_usage in $gpus_usage 
-			do
-				[[ $gpu_usage != "0%" ]] && echo -ne " GPU-$gpu_id: $gpu_usage"
-				gpu_id=$((gpu_id+1))
-			done
-			echo "] $line"
-		else
-			echo "$line"
+	if jobs %% >&/dev/null; then
+		if read -r -u 9 line; then
+			if [[ "$line" =~ "images/sec" ]]
+			then
+				process_stats=`top -b -p $child_pid -n 1 | grep $tf_cnn_benchmarks.py`
+				cpu_usage=`echo $process_stats | cut -d' ' -f9`
+				mem_usage=`echo $process_stats | cut -d' ' -f10`
+				gpus_usage=`nvidia-smi | grep -e " [0-9]\+% " | sed -e 's!.* \([0-9]\+\)% .*!\1!g'`
+				total_cpu_usage=`python -c "print $total_cpu_usage + $cpu_usage"`
+
+				rpkt=`cat /sys/class/infiniband/$RDMA_DEVICE/ports/$RDMA_DEVICE_PORT/counters/port_rcv_packets`
+				rdta=`cat /sys/class/infiniband/$RDMA_DEVICE/ports/$RDMA_DEVICE_PORT/counters/port_rcv_data`
+				rpktd=$((rpkt - rpktold))
+				rdtad=$((rdta - rdtaold))
+				rmbps=$((rdtad * 4 * 8 / 1000 / 1000))
+				total_rmbps=`python -c "print $total_rmbps + $rmbps"`
+
+				tpkt=`cat /sys/class/infiniband/$RDMA_DEVICE/ports/$RDMA_DEVICE_PORT/counters/port_xmit_packets`
+				tdta=`cat /sys/class/infiniband/$RDMA_DEVICE/ports/$RDMA_DEVICE_PORT/counters/port_xmit_data`
+				tpktd=$((tpkt - tpktold))
+				tdtad=$((tdta - tdtaold))
+				tmbps=$((tdtad * 4 * 8 / 1000 / 1000))
+				total_tmbps=`python -c "print $total_tmbps + $tmbps"`
+
+				rpktold=$rpkt; rdtaold=$rdta;
+				tpktold=$tpkt; tdtaold=$tdta;
+					
+				################
+				# Print header #
+				################
+				if [[ -z $step ]]
+				then
+					printf "%-6s, %-3s, %-12s, " "CPU" "MEM" "RX/TX (Mbit)"
+					gpus_usage=`nvidia-smi | grep -e " [0-9]\+% " | sed -e 's!.* \([0-9]\+\)% .*!\1!g'`
+					gpu_id=0
+					for gpu_usage in $gpus_usage
+					do
+						printf "%-6s, " "GPU-$gpu_id"
+						gpu_id=$((gpu_id+1))
+					done
+					printf "%-4s, %-50s, %-5s\n" "Step" "Img/sec" "loss"
+				fi
+
+
+				if [[ "$line" =~ "total images/sec" ]]
+				then
+					step="###"
+					loss=""
+					images_sec="$line"
+					cpu_usage=`python -c "print $total_cpu_usage / 10.0"`
+					rmbps=`python -c "print '%u' % ($total_rmbps / 11.0)"`
+					tmbps=`python -c "print '%u' % ($total_tmbps / 11.0)"`
+					gpu_usage=`python -c "print '%u' % ($total_gpu_usage / 22.0)"`
+					for dummy in $gpus_usage 
+					do
+						new_gpus_usage="$new_gpus_usage $gpu_usage"
+					done
+					gpus_usage=$new_gpus_usage
+				else
+					step=`echo $line | cut -d' ' -f1`
+					loss=`echo $line | sed -e 's!.*images/sec.*) *\([0-9\.]*\)!\1!g'`
+					images_sec=`echo $line | sed -e 's!.*\(images/sec.*)\) .*!\1!g'`
+				fi
+
+				##############
+				# Print line #
+				##############
+				printf "%-6.1f, %-3s, %-12s, " "$cpu_usage" "$mem_usage" "$rmbps/$tmbps"
+				for gpu_usage in $gpus_usage 
+				do
+					printf "%-6s, " "$gpu_usage%"
+					total_gpu_usage=`python -c "print $total_gpu_usage + $gpu_usage"`
+				done
+				printf "%-4s, %-50s, %-5s\n" "$step" "$images_sec" "$loss"
+			else
+				echo "$line"
+			fi
+	    else
+    	    break
 		fi
-        fi
-    else
-        break
     fi
 done 9< "${output_fifo}"
+rm $output_fifo
 
 set_done 0
