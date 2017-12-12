@@ -10,6 +10,7 @@ NONE=$(echo -e "\033[0m")
 function error()
 {
 	echo -e "\033[1;31mError: $1\033[0;0m"
+	notify-send "$1" >& /dev/null
 	exit 1
 }
 
