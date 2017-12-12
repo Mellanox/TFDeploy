@@ -35,7 +35,7 @@ function print_usage_and_exit()
 #######################
 # Read input options: #
 #######################
-num_gpus=1
+num_gpus=0
 batch_size=64
 model=trivial
 server_protocol=grpc
