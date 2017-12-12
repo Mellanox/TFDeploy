@@ -186,7 +186,7 @@ then
 	while ps -p $build_pid >& /dev/null
 	do
 		stat=`tail -1 $logs_dir/build.log | grep -e "\[[0-9,]* / [0-9,]*\]" | sed -e 's!.*\[\([0-9,]*\) / \([0-9,]*\)\] .*!\[\1 / \2\]!g' | sed -e 's!,!!g'`
-		if [[ ! -z $stat ]]
+		if [[ ! -z $stat ]] && [[ $no_terminals_mode -ne 1 ]]
 		then
 			echo -ne "\r                                     "
 			echo -ne "\r   Progress: \033[1;32m$stat\033[0;0m"
