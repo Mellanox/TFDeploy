@@ -288,7 +288,7 @@ done
 echo "Done."
 echo
 echo "----------------------------------------------------------------"
-tail -n 50 $logs_dir/worker_0.log
+[[ $no_terminals_mode -ne 1 ]] && tail -n 50 $logs_dir/worker_0.log
 
 ############
 # CLEANUP: #
