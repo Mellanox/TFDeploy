@@ -213,7 +213,7 @@ for ip in "${ips[@]}"
 do
 	get_server_of_ip $ip
 	ssh $server mkdir $work_dir
-	scp -r *.py *.sh tensorflow_pkg $server:$work_dir > /dev/null &
+	scp -r `find -maxdepth 1 ! -name . ! -name logs` $server:$work_dir > /dev/null &
 done
 wait
 
