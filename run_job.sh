@@ -146,9 +146,9 @@ do
 		gpus_usage=$new_gpus_usage
 	else
 		process_stats=`top -b -p $child_pid -n 1 | grep $tf_cnn_benchmarks.py`
-		cpu_usage=`echo $process_stats | cut -d' ' -f9`
-		mem_usage=`echo $process_stats | cut -d' ' -f10`
-		gpus_usage=`nvidia-smi | grep -e " [0-9]\+% " | sed -e 's!.* \([0-9]\+\)% .*!\1!g'`
+		cpu_usage=`echo $process_stats | cut -d' ' -f9`; [[ -z $cpu_usage ]] && cpu_usage=0
+		mem_usage=`echo $process_stats | cut -d' ' -f10`; [[ -z $mem_usage ]] && mem_usage=0
+		[[ $TF_NUM_GPUS -gt 0 ]] && gpus_usage=`nvidia-smi | grep -e " [0-9]\+% " | sed -e 's!.* \([0-9]\+\)% .*!\1!g'`
 		total_cpu_usage=`python -c "print $total_cpu_usage + $cpu_usage"`
 	
 		rpkt=`cat /sys/class/infiniband/$RDMA_DEVICE/ports/$RDMA_DEVICE_PORT/counters/port_rcv_packets`
@@ -174,7 +174,7 @@ do
 		if [[ -z $step ]]
 		then
 			printf "%-6s, %-3s, %-12s, " "CPU" "MEM" "RX/TX (Mbit)"
-			gpus_usage=`nvidia-smi | grep -e " [0-9]\+% " | sed -e 's!.* \([0-9]\+\)% .*!\1!g'`
+			[[ $TF_NUM_GPUS -gt 0 ]] && gpus_usage=`nvidia-smi | grep -e " [0-9]\+% " | sed -e 's!.* \([0-9]\+\)% .*!\1!g'`
 			gpu_id=0
 			for gpu_usage in $gpus_usage
 			do
