@@ -281,7 +281,7 @@ done
 echo "Copying logs..."
 for server in $servers
 do
-	scp $server:$work_dir/*.log $logs_dir
+	scp $server:$work_dir/*.log $logs_dir >& /dev/null
 	scp $server:$work_dir/*.json $logs_dir >& /dev/null
 done
 
