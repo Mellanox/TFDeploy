@@ -177,9 +177,13 @@ then
 	cd $TENSORFLOW_HOME
 	if [[ $num_gpus -ne 0 ]]
 	then
-		TENSORFLOW_BUILD_FLAGS="--config=cuda $TENSORFLOW_BUILD_FLAGS"
+		CONFIG_CUDA="--config=cuda"
 	fi
-	bazel build -c opt $TENSORFLOW_BUILD_FLAGS //tensorflow/tools/pip_package:build_pip_package >& $logs_dir/build.log &
+	if [[ ! -z $TENSORFLOW_BUILD_FLAGS ]]
+	then
+		TENSORFLOW_BUILD_FLAGS=--copt="$TENSORFLOW_BUILD_FLAGS"
+	fi
+	bazel build -c opt $CONFIG_CUDA $TENSORFLOW_BUILD_FLAGS //tensorflow/tools/pip_package:build_pip_package >& $logs_dir/build.log &
 	build_pid=$!
 	echo "   PID: $build_pid"
 	echo -n "   Progress: "
