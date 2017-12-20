@@ -319,7 +319,7 @@ done
 ###################
 # APPEND RESULTS: #
 ###################
-echo "All done."
+echo -e "\033[1;32mSuccess.\033[0;0m"
 
 result=`grep "total images/sec" $logs_dir/worker_0.log | sed -e 's!.*total images/sec: !!g'`
 [[ -z $result ]] && error "Run failed. See $logs_dir/worker_0.log for details."
@@ -347,6 +347,4 @@ do
 		"$comment" >> $file
 done
 
-echo "Results:"
-cat $local_results_file
 echo "See logs/`basename $logs_dir` for more info."
