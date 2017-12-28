@@ -46,6 +46,19 @@ then
 		export RDMA_SL=1
 		export RDMA_MTU=512
 		export RDMA_TRAFFIC_CLASS=8
+
+################  UCX  ######################
+                export UCX_NET_DEVICES=$RDMA_DEVICE:$RDMA_DEVICE_PORT 
+# Ucx should be compiled ./contrib/configure-devel --enable-debug 
+		#export UCX_IB_ETH_PAUSE_ON=y
+		#export UCX_LOG_LEVEL=trace 
+
+################  GRPC debugging ############
+		#export GRPC_VERBOSITY=DEBUG
+		#export GRPC_TRACE=api,call_combiner
+		#export GRPC_TRACE=queue_pluck,flowctl,http1,http2_stream_state,http,op_failure
+		#export GRPC_TRACE=client_channel,call_error,channel,server_channel,channel_stack_builder,connectivity_state  #all
+                echo "   + UCX device: $UCX_NET_DEVICES"
 		echo "   + RDMA device: $RDMA_DEVICE"
 		echo "   + RDMA port: $RDMA_DEVICE_PORT"
 		echo "   + RDMA GID INDEX: $RDMA_GID_INDEX"
