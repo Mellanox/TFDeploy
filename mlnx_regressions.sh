@@ -10,6 +10,7 @@ server1=$1
 server2=$2
 silent=$3
 
+[[ -z $TENSORFLOW_HOME ]] && TENSORFLOW_HOME=/root/tensorflow/
 
 function f_nv_peer_mem()
 {
@@ -79,7 +80,9 @@ f_nv_peer_mem start
 # Data validation: 
 #------------------
 print_title "Data validation:" $COLOR_BLUE 1
-TENSORFLOW_BUILD_FLAGS="-DRDMA_DATA_VALIDATION" \
+
+sed -i '1i#define RDMA_DATA_VALIDATION' $TENSORFLOW_HOME/tensorflow/contrib/verbs/verbs_util.h
+
 f_run_test -vc -b 32 -n 2 -r /data/imagenet_data/ -m trivial   
 f_run_test -v  -b 32 -n 2 -r /data/imagenet_data/ -m resnet50  
 f_run_test -v  -b 32 -n 2 -r /data/imagenet_data/ -m resnet152 
@@ -92,3 +95,5 @@ f_run_test -v -b 32 -n 2 -r /data/imagenet_data/ -m resnet152
 f_run_test -v -b 32 -n 2 -r /data/imagenet_data/ -m inception3
 f_run_test -v -b 32 -n 2 -r /data/imagenet_data/ -m vgg16     
 f_nv_peer_mem start
+
+sed -i '1d' $TENSORFLOW_HOME/tensorflow/contrib/verbs/verbs_util.h
