@@ -8,6 +8,108 @@ import threading
 
 # -------------------------------------------------------------------- #
 
+class UniBorder():
+    
+    BAR = []
+    
+    ##################
+    # Border styles: #
+    ##################
+    BORDER_STYLE_SINGLE  = 0
+    BORDER_STYLE_STRONG  = 1
+    BORDER_STYLE_DOUBLE  = 2
+    BORDER_STYLE_ASCII   = 3
+    
+    #################
+    # Border parts: #
+    #################
+    BORDER_PART_VERTICAL_LINE                   = 0
+    BORDER_PART_HORIZONAL_LINE                  = 1
+    BORDER_PART_TOP_LEFT_CORNER                 = 2
+    BORDER_PART_TOP_RIGHT_CORNER                = 3
+    BORDER_PART_BOTTOM_LEFT_CORNER              = 4
+    BORDER_PART_BOTTOM_RIGHT_CORNER             = 5
+    BORDER_PART_TOP_LEFT_CORNER_ROUND           = 6
+    BORDER_PART_TOP_RIGHT_CORNER_ROUND          = 7
+    BORDER_PART_BOTTOM_LEFT_CORNER_ROUND        = 8
+    BORDER_PART_BOTTOM_RIGHT_CORNER_ROUND       = 9
+    BORDER_PART_TOP_T                           = 10
+    BORDER_PART_BOTTOM_T                        = 11
+    BORDER_PART_RIGHT_T                         = 12
+    BORDER_PART_LEFT_T                          = 13
+    BORDER_PART_CROSS                           = 14
+    BORDER_PART_NONE                            = 15
+    
+    VERTICAL_POSITION_HAS_TOP       = 1
+    VERTICAL_POSITION_HAS_BOTTOM    = 2
+    
+    HORIZONAL_POSITION_HAS_LEFT     = 1
+    HORIZONAL_POSITION_HAS_RIGHT    = 2
+ 
+    _border_chars = [[ "│", "┃", "║", "|" ],
+                     [ "─", "━", "═", "-" ],
+                     [ "┌", "┏", "╔", "+" ],
+                     [ "┐", "┓", "╗", "+" ],
+                     [ "└", "┗", "╚", "+" ],
+                     [ "┘", "┛", "╝", "+" ],
+                     [ "╭", "┏", "╔", "+" ],
+                     [ "╮", "┓", "╗", "+" ],
+                     [ "╰", "┗", "╚", "+" ],
+                     [ "╯", "┛", "╝", "+" ],
+                     [ "┬", "┳", "╦", "+" ],
+                     [ "┴", "┻", "╩", "+" ],
+                     [ "┤", "┫", "╢", "+" ],
+                     [ "├", "┣", "╟", "+" ],
+                     [ "┼", "╋", "╬", "+" ],
+                     [ " ", " ", " ", " " ]]
+          
+                                #  Nothing                      HAS LEFT                          HAS RIGHT                        HAS LEFT + RIGHT                     
+    _junction_part_by_position = [[BORDER_PART_NONE,            BORDER_PART_HORIZONAL_LINE,        BORDER_PART_HORIZONAL_LINE,     BORDER_PART_HORIZONAL_LINE   ],  # Nothing
+                                  [BORDER_PART_VERTICAL_LINE,   BORDER_PART_BOTTOM_RIGHT_CORNER,   BORDER_PART_BOTTOM_LEFT_CORNER, BORDER_PART_BOTTOM_T         ],  # HAS TOP
+                                  [BORDER_PART_VERTICAL_LINE,   BORDER_PART_TOP_RIGHT_CORNER,      BORDER_PART_TOP_LEFT_CORNER,    BORDER_PART_TOP_T            ],  # HAS BOTTOM
+                                  [BORDER_PART_VERTICAL_LINE,   BORDER_PART_RIGHT_T,               BORDER_PART_LEFT_T,             BORDER_PART_CROSS            ]]  # TOP + BOTTOM
+
+    default_style = BORDER_STYLE_STRONG
+        
+    # -------------------------------------------------------------------- #
+    
+    @staticmethod
+    def _get_vertical_position(has_top, has_bottom):
+        return has_top * UniBorder.VERTICAL_POSITION_HAS_TOP + has_bottom * UniBorder.VERTICAL_POSITION_HAS_BOTTOM
+
+    # -------------------------------------------------------------------- #
+    
+    @staticmethod
+    def _get_horizonal_position(has_left, has_right):
+        return has_left * UniBorder.HORIZONAL_POSITION_HAS_LEFT + has_right * UniBorder.HORIZONAL_POSITION_HAS_RIGHT
+                                             
+    # -------------------------------------------------------------------- #
+    
+    @staticmethod
+    def _get_border_char_by_part(border_part, style = None):
+        if style is None:
+            style = UniBorder.default_style        
+        return UniBorder._border_chars[border_part][style]
+    
+    # -------------------------------------------------------------------- #
+
+    @staticmethod    
+    def _get_border_part_by_direction(vertical_position, horizonal_position):
+        return UniBorder._junction_part_by_position[vertical_position][horizonal_position]
+    
+    # -------------------------------------------------------------------- #
+    
+    @staticmethod    
+    def _get_border_char(has_top, has_bottom, has_left, has_right, style = None):
+        if style is None:
+            style = UniBorder.default_style
+        vertical_position   = UniBorder._get_vertical_position(has_top, has_bottom)
+        horizonal_position  = UniBorder._get_horizonal_position(has_left, has_right)
+        border_part         = UniBorder._get_border_part_by_direction(vertical_position, horizonal_position, style)
+        return UniBorder._get_border_char_by_part(border_part)    
+    
+# -------------------------------------------------------------------- #
+
 def log_write(msg, process, stream):
     pid = "" if process is None else " %u" % process.pid
     stream.write("[%s%s] %s\n" % (time.strftime("%Y-%m-%d %H:%M:%S"), pid, msg))
@@ -23,6 +125,15 @@ def log(msg, process = None):
 def error(msg, process = None):
     log_write(msg, process, sys.stderr)
 
+# -------------------------------------------------------------------- #
+
+def title(msg, style = UniBorder.BORDER_STYLE_STRONG, process = None):
+    UniBorder.default_style = style
+    bar = UniBorder._get_border_char_by_part(UniBorder.BORDER_PART_HORIZONAL_LINE) * len(msg)
+    log(UniBorder._get_border_char_by_part(UniBorder.BORDER_PART_TOP_LEFT_CORNER) + bar + UniBorder._get_border_char_by_part(UniBorder.BORDER_PART_TOP_RIGHT_CORNER), process)
+    log(UniBorder._get_border_char_by_part(UniBorder.BORDER_PART_VERTICAL_LINE) + msg + UniBorder._get_border_char_by_part(UniBorder.BORDER_PART_VERTICAL_LINE), process)
+    log(UniBorder._get_border_char_by_part(UniBorder.BORDER_PART_BOTTOM_LEFT_CORNER) + bar + UniBorder._get_border_char_by_part(UniBorder.BORDER_PART_BOTTOM_RIGHT_CORNER), process)
+    
 # -------------------------------------------------------------------- #
 
 def processCommunicateTarget(process):
@@ -124,6 +235,7 @@ def copyToRemote(servers, sources, remote_dir, user = None):
 ###############################################################################################################################################################
 
 if __name__ == '__main__':
+    title("Running some processes:")
     processes = []
     processes.append(executeCommand("echo A"))
     processes.append(executeCommand("echo B"))
@@ -135,5 +247,6 @@ if __name__ == '__main__':
     processes.append(executeCommand("echo E"))    
     processes.append(executeCommand("sleep 999"))
     processes.append(executeCommand("echo F"))    
-            
+
+    title("Waiting for processes:", style=UniBorder.BORDER_STYLE_DOUBLE)
     waitForProcesses(processes, 5, log, error)    
