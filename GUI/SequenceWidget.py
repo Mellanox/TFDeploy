@@ -5,11 +5,14 @@ import sys
 import time
 from xml.dom import minidom
 from xml.etree import cElementTree as etree
-from random import randint
+from Actions.Util import log, error
 from DocumentControl import DocumentControl
 from EZRandomWidget import *
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
+from Actions.Common import *
+from Actions.TFCnnBenchmarks import TFCnnBenchmarksStep
+from Step import Step
 
 def create_combo_widget(parent, list, default_value_index):
     new_combo = QComboBox(parent)
@@ -17,38 +20,6 @@ def create_combo_widget(parent, list, default_value_index):
         new_combo.addItem(current_item)
     new_combo.setCurrentIndex(default_value_index)
     return new_combo
-
-#############################################################################        
-# Widgets:
-#############################################################################
-
-class DefaultAttributesWidget(QWidget):
-    def __init__(self, values, parent = None):
-        super(DefaultAttributesWidget, self).__init__(parent)
-        self._values = values
-        self._line_edits = {}
-        self._initGui()
-
-    def _initGui(self):
-        self.setLayout(QGridLayout())
-        if self._values == None:
-            return
-        
-        row = 0
-        for attr_name, attr_value in self._values.iteritems():
-            le = QLineEdit()
-            le.setText(str(attr_value))
-            self._line_edits[attr_name] = le 
-            self.layout().addWidget(QLabel(attr_name), row, 0)
-            self.layout().addWidget(le, row, 1)
-            row += 1
-                
-    def save(self):
-        if self._values == None:
-            return
-        
-        for attr_name in self._values.keys():
-            self._values[attr_name] = str(self._line_edits[attr_name].text())
 
 #########
 # Custom:
@@ -68,97 +39,11 @@ class TMTeplatesWidget(QWidget):
                 
     def save(self):
         self._values["Mode"] = self.cb_mode.currentText()
-    
-    
-#############################################################################
-# Representations:        
-#############################################################################
-
-def reprName(step):
-    return step.name() 
-
-def reprNameAndAttributes(step):
-    result = step.name()
-    if step.attributes() != None:
-        result += " [" + " ".join([str(value) for value in step.attributes().values()]) + "]" 
-    return result 
-
-#############################################################################
-# Actions:        
-#############################################################################
-
-def performStub(step):
-    print "Perform %s" % str(step)
-    time.sleep(1)
-
-def performSendFrames(step):
-    print "Sending frames:"
-    num_frames = int(step.attributes()["NumFrames"])
-    for i in range(num_frames):
-        max_size = int(step.attributes()["MaxSize"])
-        min_size = int(step.attributes()["MinSize"])
-        size = randint(min_size, max_size)
-        print " + Sent frame of size %u" % size
-    
-def performDelay(step):
-    duration = int(step.attributes()["Duration"])
-    print "Sleep %u..." % duration
-    time.sleep(duration)
-
 
 #############################################################################
 # General        
 #############################################################################
-    
-class Step(object):
-    def __init__(self, name, attributes, perform, repr, attributes_widget):
-        self._name = name
-        self._attributes = attributes
-        self._perform = perform
-        self._repr = repr
-        self._attributes_widget = attributes_widget
-        self._pass = False
-
-    def setPass(self, value):
-        self._pass = value
-        
-    def name(self):
-        return self._name
-    
-    def attributes(self):
-        return self._attributes
-
-    def attributesWidget(self):
-        return self._attributes_widget(self._attributes)
-
-    def clone(self):
-        attributes = None
-        if self._attributes != None:
-            attributes = self._attributes.copy()
-        return Step(self._name, attributes, self._perform, self._repr, self._attributes_widget)
-
-    def perform(self):
-        self._perform(self)
-        
-    def __repr__(self):
-        str = self._repr(self)
-        if self._pass:
-            str += " ........ Passed."
-        return str
-        
-    def writeToXml(self, root_node):
-        step_node = etree.SubElement(root_node, "Step", Name = self._name)
-        if self._attributes != None:
-            for key, val in self._attributes.iteritems():
-                attr_node = etree.SubElement(step_node, "Attribute", Name = key, Value = val)
-        return step_node
-
-    def loadFromXml(self, step_node):
-        for attr_node in step_node.getchildren():
-            attribute_name = attr_node.attrib["Name"]
-            attribute_value = attr_node.attrib["Value"]
-            self._attributes[attribute_name] = attribute_value
-        
+       
          
 # Using a QRunnable
 # http://qt-project.org/doc/latest/qthreadpool.html
@@ -178,7 +63,6 @@ class RunTestSequenceThread(QThread):
 class TestDataItem(object):
 
     def __init__(self, name):
-        
         self._name = name
         self._widget = None
 
@@ -189,9 +73,55 @@ class TestDataItem(object):
     
     #--------------------------------------------------------------------#
     
-    def createWidget(self):
+    def getWidget(self):
         return self._widget
     
+    #--------------------------------------------------------------------#
+    
+    def createWidget(self):
+        return self._widget
+
+#############################################################################
+
+class TestDataStepList(TestDataItem):
+    
+    def __init__(self, on_step_select):
+        super(TestDataStepList, self).__init__("Steps")
+        
+        self._on_step_select = on_step_select
+        self._steps = {}
+        self._widget = QListWidget()
+        self._widget.itemSelectionChanged.connect(self._setSelectedStep)
+        
+    #--------------------------------------------------------------------#
+    
+    def _setSelectedStep(self):
+        selected_items = self._widget.selectedItems()
+        if selected_items is None:
+            return
+
+        step_class = self._steps[str(selected_items[0].text())]  
+        step = step_class()
+        self._on_step_select(step)
+ 
+    #--------------------------------------------------------------------#
+    
+    def addStep(self, step_class):
+        self._widget.addItem(QListWidgetItem(step_class.NAME))
+        self._steps[step_class.NAME] = step_class
+#         
+#     #--------------------------------------------------------------------#
+#     
+#     def writeToXml(self, parent_node):
+#         new_node = etree.SubElement(parent_node, "Attribute", Name = self._name)
+#         mode_node = etree.SubElement(step_node, "Mode")
+#         mode_node = EZRandomWidget.MODE_NAMES[self._widget.getMode()]
+#         basic_node = etree.SubElement(step_node, "Basic")
+#         basic_node.text = self._widget.getBasicText()
+#         advanced_node = etree.SubElement(step_node, "Advanced")
+#         advanced_node.text = self._widget.getAdvancedText()
+#         return new_node    
+        
 #############################################################################
 
 class TestDataAttribute(TestDataItem):
@@ -224,15 +154,15 @@ class TestDataAttribute(TestDataItem):
         
     #--------------------------------------------------------------------#
     
-    def writeToXml(self, parent_node):
-        new_node = etree.SubElement(parent_node, "Attribute", Name = self._name)
-        mode_node = etree.SubElement(step_node, "Mode")
-        mode_node = EZRandomWidget.MODE_NAMES[self._widget.getMode()]
-        basic_node = etree.SubElement(step_node, "Basic")
-        basic_node.text = self._widget.getBasicText()
-        advanced_node = etree.SubElement(step_node, "Advanced")
-        advanced_node.text = self._widget.getAdvancedText()
-        return new_node
+#     def writeToXml(self, parent_node):
+#         new_node = etree.SubElement(parent_node, "Attribute", Name = self._name)
+#         mode_node = etree.SubElement(step_node, "Mode")
+#         mode_node = EZRandomWidget.MODE_NAMES[self._widget.getMode()]
+#         basic_node = etree.SubElement(step_node, "Basic")
+#         basic_node.text = self._widget.getBasicText()
+#         advanced_node = etree.SubElement(step_node, "Advanced")
+#         advanced_node.text = self._widget.getAdvancedText()
+#         return new_node
     
     #--------------------------------------------------------------------#
     
@@ -246,18 +176,34 @@ class TestDataAttribute(TestDataItem):
 
 class TestDataFolder(TestDataItem):
     
+    class Widget(QWidget):
+        def __init__(self, folder):
+            super(TestDataFolder.Widget, self).__init__()
+            self._folder = folder
+            
+        def folder(self):
+            return self._folder
+                
+    #--------------------------------------------------------------------#
+                    
     def __init__(self, name):
         
-        super(TestDataFolder, self).__init__(name)        
+        super(TestDataFolder, self).__init__(name)
+        self._step_list = None        
         self._attributes = []
         self._sub_folders = []
         
     #--------------------------------------------------------------------#
     
     def createWidget(self):
-        self._widget = QWidget()
+        self._widget = TestDataFolder.Widget(self)
         self._widget.setLayout(QVBoxLayout())
         
+        if self._step_list is not None:
+            step_list_widget = self._step_list.createWidget()
+            self._widget.layout().addWidget(step_list_widget, 1)
+            return self._widget
+            
         for attribute in self._attributes:
             row = QWidget()
             row.setLayout(QHBoxLayout())
@@ -266,23 +212,40 @@ class TestDataFolder(TestDataItem):
             self._widget.layout().addWidget(row)
 
         if len(self._sub_folders) > 0:
-            sub_folders_widget = QTabWidget()
+            self._sub_folders_widget = QTabWidget()
             for sub_folder in self._sub_folders:
-                sub_folders_widget.addTab(sub_folder.createWidget(), sub_folder.name())
-                self._widget.layout().addWidget(sub_folders_widget, 1)
+                self._sub_folders_widget.addTab(sub_folder.createWidget(), sub_folder.name())
+                self._widget.layout().addWidget(self._sub_folders_widget, 1)
         else:
             self._widget.layout().addStretch(1)
 
         #self._widget.layout().setMargin(0)
         return self._widget
         
-        
+    #--------------------------------------------------------------------#
+    
+    def getSelectedSubFolder(self):
+        if self._sub_folders_widget is None:
+            return None
+        return self._sub_folders_widget.currentWidget().folder()        
+    
     #--------------------------------------------------------------------#
     
     def _addAttributeToObject(self, name, item):
         name = name.lower().replace(" ", "_")
         setattr(self, name, item)
         
+    #--------------------------------------------------------------------#
+    
+    def setStepList(self, step_list):
+        self._step_list = step_list
+        self._addAttributeToObject(step_list.name(), step_list)
+
+    #--------------------------------------------------------------------#
+                 
+    def getStepList(self):
+        return self._step_list
+                        
     #--------------------------------------------------------------------#
     
     def addAttribute(self, attribute):
@@ -296,12 +259,12 @@ class TestDataFolder(TestDataItem):
         self._addAttributeToObject(sub_folder.name(), sub_folder)
         
     #--------------------------------------------------------------------#
-        
-    def writeToXml(self, parent_node):
-        new_node = etree.SubElement(parent_node, "Folder", Name = self._name)
-        for item in self._items.values():
-            item.writeToXml(new_node)
-        return step_node
+#         
+#     def writeToXml(self, parent_node):
+#         new_node = etree.SubElement(parent_node, "Folder", Name = self._name)
+#         for item in self._items.values():
+#             item.writeToXml(new_node)
+#         return step_node
 # 
 #     def readFromXml(self, node):
 #         for property_node in step_node.getchildren():
@@ -313,17 +276,17 @@ class TestDataFolder(TestDataItem):
 
 #############################################################################
 
-class MySequenceWidget(QWidget):
+class SequenceWidget(QWidget):
     
     refresh_item_signal = pyqtSignal(int)
 
     #--------------------------------------------------------------------#
             
     def __init__(self, parent = None):
-        super(MySequenceWidget, self).__init__(parent)
+        super(SequenceWidget, self).__init__(parent)
         self._doc = DocumentControl(self, "Xml file (*.xml);;Any File (*.*);;", ".")
-        self._steps = {}
         self._sequence = []
+        self._selected_step = None
         self._initGui()
 
     #--------------------------------------------------------------------#
@@ -340,45 +303,44 @@ class MySequenceWidget(QWidget):
         
         self.configuration_pane = QWidget()
         self.configuration_pane.setLayout(QVBoxLayout())
-        self._setConfigurationPane(DefaultAttributesWidget(None, None))
         self.configuration_pane.setObjectName("HighLevelWidget")
         self.configuration_pane.setStyleSheet("QWidget#HighLevelWidget { border:1px solid black; }")
 
-        self.steps_folder = QTabWidget()
-        
-        self.general_tab    = self._createStepsList("General")
-        self.frames_tab     = self._createStepsList("Frames")
-        self.spy_tab        = self._createStepsList("Spy") 
-        self.config_tab     = self._createStepsList("Config") 
-        self.template_tab   = self._createStepsList("Template")
-        self.custom_tab     = self._createStepsList("Custom")
-
-                                            #Name           #Attributes             #Perform                        #Repr                   #Widget
-        self._createStep(self.general_tab,   "Delay",        {"Duration": "1"},                                   performDelay,       reprNameAndAttributes,  DefaultAttributesWidget  )
-        self._createStep(self.general_tab,   "Pause",        None,                                                performStub,        reprNameAndAttributes,  DefaultAttributesWidget  )
-        self._createStep(self.frames_tab,    "Send Frames",  {"NumFrames":"1", "MinSize":"64", "MaxSize":"4096"}, performSendFrames,  reprNameAndAttributes,  DefaultAttributesWidget  )        
-        self._createStep(self.template_tab,  "TM templates", {"Mode": "Background"},                              performStub,        reprNameAndAttributes,  TMTeplatesWidget         )        
-        self._createStep(self.spy_tab,       "Spy Before",   {"Block": "0xFFF", "RegID": "0x2"},                  performStub,        reprNameAndAttributes,  DefaultAttributesWidget  )        
-        self._createStep(self.spy_tab,       "Spy After",    None,                                                performStub,        reprNameAndAttributes,  DefaultAttributesWidget  )        
-
-
         self.configurations_folder  = self._createFolder(None, "Configurations")
-        self.general_folder         = self._createFolder(self.configurations_folder, "General")
-        self.backup_folder          = self._createFolder(self.configurations_folder, "Backup")
-        self.sequence_folder        = self._createFolder(self.configurations_folder, "Sequence")        
-        self.spy_folder             = self._createFolder(self.configurations_folder, "Spy")
+        self.steps_folder           = self._createFolder(self.configurations_folder, "Steps")
+        self.settings_folder        = self._createFolder(self.configurations_folder, "Settings")        
+        self.general_folder         = self._createFolder(self.settings_folder, "General")
+        self.backup_folder          = self._createFolder(self.settings_folder, "Backup")
+        self.sequence_folder        = self._createFolder(self.settings_folder, "Sequence")        
+        self.spy_folder             = self._createFolder(self.settings_folder, "Spy")
         self.monitors_folder        = self._createFolder(self.spy_folder, "Monitors")
         self.checkers_folder        = self._createFolder(self.spy_folder, "Checkers")
         
+#        self.global_steps_folder    = self._createFolder(self.steps_folder, "Global")
+        self.benchmark_steps_folder = self._createFolder(self.steps_folder, "Benchmarks")
+
+#         self.general_steps          = self._createStepsList(self.global_steps_folder)
+        self.benchmark_steps        = self._createStepsList(self.benchmark_steps_folder)
+
+        ##########
+        # Steps: #
+        ##########                                       
+                                                #Name           #Attributes             #Perform                        #Repr                   #Widget
+#         self._createStep(self.general_steps,    "Delay",        {"Duration": "1"},                                   performDelay,       reprNameAndAttributes,  DefaultAttributesWidget  )
+#         self._createStep(self.general_steps,    "Pause",        None,                                                performStub,        reprNameAndAttributes,  DefaultAttributesWidget  )
+#         self._createStep(self.general_steps,    "Compile TensorFlow",        None,                                   performCompileTF,   reprNameAndAttributes,  DefaultAttributesWidget  )        
+        self._addStep(self.benchmark_steps, TFCnnBenchmarksStep)
+        
+        ##################
+        # Configuration: #
+        ##################                                       
         self._createAttribute(self.backup_folder,   "Do Backup", {"False": 0, "True": 1},   "True",   False,    create_combo_box) 
         self._createAttribute(self.monitors_folder, "Reg",       {"False": 0, "True": 1},   "True",   True,     create_combo_box)
         self._createAttribute(self.monitors_folder, "Monitor",   None,                      "True",   True,     create_combo_box)        
-                
-        print self.configurations_folder.backup.do_backup.getValue()
         
-
-
-        
+        ############
+        # Buttons: #
+        ############
         self.b_add = QPushButton("<<")
         self.b_remove = QPushButton("Remove")
         self.b_move_up = QPushButton("Move &Up")
@@ -388,7 +350,7 @@ class MySequenceWidget(QWidget):
         self.b_load = QPushButton("&Load")
         self.b_run = QPushButton("&Run")
         
-        self.b_add.clicked.connect      (self._addStepsToSequence)
+        self.b_add.clicked.connect      (self._bAddClicked)
         self.b_remove.clicked.connect   (self._removeStepFromSequence)
         self.b_new.clicked.connect      (self._new)
         self.b_save.clicked.connect     (self._saveToXml)
@@ -443,18 +405,19 @@ class MySequenceWidget(QWidget):
     
     #--------------------------------------------------------------------#
 
-    def _sourceItems(self):
-        currentTab = self.steps_folder.currentWidget()
-        selectedIndexes = currentTab.selectedIndexes()
+    def _selectedSteps(self):
+        current_folder = self.steps_folder
+        step_list = current_folder.getStepList()
+        while step_list is None:
+            current_folder = current_folder.getSelectedSubFolder()
+            step_list = current_folder.getStepList()
+        selectedIndexes = step_list.getWidget().selectedIndexes()
         return selectedIndexes
     
     #--------------------------------------------------------------------#
          
-    def _createStep(self, list, name, *args):
-        step = Step(name, *args)
-        self._steps[name] = step
-        list.addItem(QListWidgetItem(step.name()))
-        return step
+    def _addStep(self, step_list, step_class):
+        step_list.addStep(step_class)
     
     #--------------------------------------------------------------------#
     
@@ -473,18 +436,9 @@ class MySequenceWidget(QWidget):
                 
     #--------------------------------------------------------------------#
     
-    def _addStepToSequence(self, step_name):
-        step = self._steps[step_name].clone()
-        self._sequence.append(step)            
+    def _addStepToSequence(self, step):
+        self._sequence.append(step)
         self.sequence_widget.addItem(QListWidgetItem(str(step)))
-        return step
-            
-    #--------------------------------------------------------------------#
-    
-    def _addStepsToSequence(self):
-        for index in self._sourceItems():
-            step_name = str(index.data().toString())
-            self._addStepToSequence(step_name)
         self.sequence_widget.setCurrentRow(len(self._sequence) - 1)
         self._setModified(True)
     
@@ -495,6 +449,11 @@ class MySequenceWidget(QWidget):
         self._setModified(True)
 
     #--------------------------------------------------------------------#
+    
+    def _bAddClicked(self):
+        self._addStepToSequence(self._selected_step)    
+
+    #--------------------------------------------------------------------#
 
     def _clear(self):
         self.sequence_widget.clear()
@@ -503,25 +462,18 @@ class MySequenceWidget(QWidget):
 
     #--------------------------------------------------------------------#
 
-    def _createStepsList(self, name):
-        list = QListWidget()
-        self.steps_folder.addTab(list, name)
-        return list
-
+    def _createStepsList(self, folder):
+        step_list = TestDataStepList(self._stepListStepSelected)
+        folder.setStepList(step_list)
+        return step_list
+    
     #--------------------------------------------------------------------#
     
-    def _setConfigurationPane(self, widget):
-        layout = self.configuration_pane.layout()
-        while layout.count() > 0: 
-            w = layout.itemAt(0).widget()
-            layout.removeWidget(w)
-            if w != None:
-                w.close()
+    def _stepListStepSelected(self, step):
+        self._selected_step = step
+        #widget = step.attributesWidget()
+        #self._setConfigurationPane(widget)
 
-        self.attributes_widget = widget
-        layout.addWidget(widget)
-        layout.addStretch(1)
-    
     #--------------------------------------------------------------------#
         
     def _sequenceStepSelected(self, selected, deselected):
@@ -531,7 +483,26 @@ class MySequenceWidget(QWidget):
         index = self.sequence_widget.currentRow()
         item = self._sequence[index]
         self._setConfigurationPane(item.attributesWidget())
+
+    #--------------------------------------------------------------------#
     
+    def _setConfigurationPane(self, widget):
+        layout = self.configuration_pane.layout()
+        if layout.count() > 0:
+            current_widget = layout.itemAt(0).widget()
+            if current_widget is widget:
+                return
+            
+            while layout.count() > 0: 
+                w = layout.itemAt(0).widget()
+                layout.removeWidget(w)
+                if w != None:
+                    w.close()
+
+        self.attributes_widget = widget
+        layout.addWidget(widget)
+        layout.addStretch(1)
+        
     #--------------------------------------------------------------------#
     
     def _refreshItem(self, index):
@@ -570,7 +541,7 @@ class MySequenceWidget(QWidget):
         print "Run sequence..."
         for index in range(len(self._sequence)):
             step = self._sequence[index]
-            print "+ %s:" % step.name(),
+            #log("+ %s:" % step.name())
             step.perform()
             step.setPass(True)
             self._emitRefreshItem(index)
@@ -617,10 +588,9 @@ class MySequenceWidget(QWidget):
                 sequence_node = sub_element
                 break
             
-        for sub_element in sequence_node.getchildren():
-            step_name = sub_element.attrib["Name"]
-            step = self._addStepToSequence(step_name)
-            step.loadFromXml(sub_element)
+        for step_node in sequence_node.getchildren():
+            step = Step.loadFromXml(step_node)
+            self._addStepToSequence(step)            
         
         self._setModified(False)        
         
@@ -631,26 +601,17 @@ class MySequenceWidget(QWidget):
         if not self._doc.close():
             evnt.ignore()
             return
-        super(MySequenceWidget, self).closeEvent(evnt)
+        super(SequenceWidget, self).closeEvent(evnt)
                 
-################################################################################################################################################################################################
+###############################################################################################################################################################
 #
 #                                                                         DEMO
 #
-################################################################################################################################################################################################
+###############################################################################################################################################################
         
 if __name__ == '__main__':
     app = QApplication([])
-    prompt = MySequenceWidget()
-
-
+    prompt = SequenceWidget()
     prompt.setGeometry(200, 30, 1024, 600)
     prompt.show()
     app.exec_()
-
-
-
-
-
-
-

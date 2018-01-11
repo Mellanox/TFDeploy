@@ -133,21 +133,14 @@ def title(msg, style = UniBorder.BORDER_STYLE_STRONG, process = None):
     log(UniBorder._get_border_char_by_part(UniBorder.BORDER_PART_TOP_LEFT_CORNER) + bar + UniBorder._get_border_char_by_part(UniBorder.BORDER_PART_TOP_RIGHT_CORNER), process)
     log(UniBorder._get_border_char_by_part(UniBorder.BORDER_PART_VERTICAL_LINE) + msg + UniBorder._get_border_char_by_part(UniBorder.BORDER_PART_VERTICAL_LINE), process)
     log(UniBorder._get_border_char_by_part(UniBorder.BORDER_PART_BOTTOM_LEFT_CORNER) + bar + UniBorder._get_border_char_by_part(UniBorder.BORDER_PART_BOTTOM_RIGHT_CORNER), process)
-    
-# -------------------------------------------------------------------- #
-
-def processCommunicateTarget(process):
-    _, err = process.communicate()
-    if process.returncode != 0:
-        error(err[:-1])            
-        error("Command failed. Sorry")
 
 # -------------------------------------------------------------------- #
 
 def processCommunicateLive(process, on_output = None, on_error = None):
     while True:
         out = process.stdout.readline()
-        err = process.stderr.readline()
+        #err = process.stderr.readline()
+        err = ""
         if (out == "") and (err == "") and (process.poll() is not None):
             break
         if (out != "") and (on_output is not None):
@@ -163,7 +156,6 @@ def waitForProcesses(processes, wait_timeout = None, on_output = None, on_error 
     '''
     log("Waiting for processes: %s" % [process.pid for process in processes])    
     threads = []
-    start_times = []
     for process in processes:
         thread = threading.Thread(target=processCommunicateLive, args=(process,on_output,on_error))
         threads.append(thread)
@@ -194,7 +186,7 @@ def waitForProcesses(processes, wait_timeout = None, on_output = None, on_error 
         time.sleep(0.1)
             
     # All remaining threads got timeout:            
-    for thread in threads:
+    for process in processes:
         error("Process %u got timeout (%.2lf)." % (process.pid, wait_timeout))
         all_ok = False
     return all_ok
@@ -203,7 +195,7 @@ def waitForProcesses(processes, wait_timeout = None, on_output = None, on_error 
 
 def executeCommand(command):
     log("Running command: %s" % command)
-    process = subprocess.Popen(command, shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     return process
 
 # -------------------------------------------------------------------- #
@@ -235,7 +227,7 @@ def copyToRemote(servers, sources, remote_dir, user = None):
 ###############################################################################################################################################################
 
 if __name__ == '__main__':
-    title("Running some processes:")
+#     title("Running some processes:")
     processes = []
     processes.append(executeCommand("echo A"))
     processes.append(executeCommand("echo B"))
@@ -246,7 +238,9 @@ if __name__ == '__main__':
     processes.append(executeCommand("sleep 2"))
     processes.append(executeCommand("echo E"))    
     processes.append(executeCommand("sleep 999"))
-    processes.append(executeCommand("echo F"))    
+    processes.append(executeCommand("echo F"))
+    processes.append(executeCommand("bash -c 'for i in {1..5}; do echo $i; sleep 1; done'"))        
 
     title("Waiting for processes:", style=UniBorder.BORDER_STYLE_DOUBLE)
-    waitForProcesses(processes, 5, log, error)    
+    waitForProcesses(processes, 5, log, error)
+    
