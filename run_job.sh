@@ -116,7 +116,6 @@ if [[ ! -z $GDB_OPTION ]]
 then
 	$cmd
 	set_done 0
-	exit
 fi
 			
 rpktold=`cat /sys/class/infiniband/$RDMA_DEVICE/ports/$RDMA_DEVICE_PORT/counters/port_rcv_packets`
@@ -212,6 +211,12 @@ do
 		total_gpu_usage=`python -c "print $total_gpu_usage + $gpu_usage"`
 	done
 	printf "%-4s, %-50s, %-5s\n" "$step" "$images_sec" "$loss"
+
+	if [[ $loss == nan ]]
+	then
+		rm $output_fifo
+		set_done 1
+	fi
 done 9< "${output_fifo}"
 rm $output_fifo
 

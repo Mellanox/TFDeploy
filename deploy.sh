@@ -204,7 +204,7 @@ then
 	rm -f $script_dir/tensorflow_pkg/*
 	bazel-bin/tensorflow/tools/pip_package/build_pip_package $script_dir/tensorflow_pkg >> $logs_dir/build.log 2>&1
 	if [[ $? -ne 0 ]]; then output_log $logs_dir/build.log; error "Build failed."; fi
-	cd -
+	cd - > /dev/null
 fi
 
 #################
@@ -292,8 +292,8 @@ done
 
 echo "Done."
 echo
-echo "----------------------------------------------------------------"
-[[ $no_terminals_mode -ne 1 ]] && tail -n 50 $logs_dir/worker_0.log
+[[ $no_terminals_mode -ne 1 ]] && tail -n 15 $logs_dir/worker_0.log
+[[ $no_terminals_mode -ne 1 ]] && grep -r " F " $logs_dir/
 
 ############
 # CLEANUP: #
@@ -320,10 +320,11 @@ done
 ###################
 # APPEND RESULTS: #
 ###################
-echo -e "\033[1;32mSuccess.\033[0;0m"
 
 result=`grep "total images/sec" $logs_dir/worker_0.log | sed -e 's!.*total images/sec: !!g'`
-[[ -z $result ]] && error "Run failed. See $logs_dir/worker_0.log for details."
+[[ -z $result ]] && error "Run failed. See $logs_dir/ for details."
+
+echo -e "\033[1;32mSuccess.\033[0;0m"
 
 local_results_file="$logs_dir/results.csv"
 global_results_file="$logs_base_dir/results.csv"
@@ -348,4 +349,5 @@ do
 		"$comment" >> $file
 done
 
+#cat $local_results_file
 echo "See logs/`basename $logs_dir` for more info."
