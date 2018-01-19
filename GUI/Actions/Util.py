@@ -150,7 +150,12 @@ def processCommunicateLive(process, on_output = None, on_error = None):
 
 # -------------------------------------------------------------------- #
 
-def waitForProcesses(processes, wait_timeout = None, on_output = None, on_error = None):
+def waitForProcesses(processes, 
+                     wait_timeout = None,
+                     on_output = None, 
+                     on_error = None,
+                     on_process_done = None,
+                     on_process_timeout = None):
     '''
     Wait for a group of processes to finish, but run them in parallel.
     '''
@@ -175,6 +180,8 @@ def waitForProcesses(processes, wait_timeout = None, on_output = None, on_error 
                     all_ok = False
                 else:
                     log("Process %u finished successfully (elapsed: %.2lf)" % (process.pid, elapsed))
+                if on_process_done is not None: 
+                    on_process_done(process)
                 processes.pop(i)
                 threads.pop(i)
                 num_remaining_processes -= 1
@@ -188,6 +195,8 @@ def waitForProcesses(processes, wait_timeout = None, on_output = None, on_error 
     # All remaining threads got timeout:            
     for process in processes:
         error("Process %u got timeout (%.2lf)." % (process.pid, wait_timeout))
+        if on_process_timeout is not None:
+            on_process_timeout(process)
         all_ok = False
     return all_ok
 
@@ -242,5 +251,5 @@ if __name__ == '__main__':
     processes.append(executeCommand("bash -c 'for i in {1..5}; do echo $i; sleep 1; done'"))        
 
     title("Waiting for processes:", style=UniBorder.BORDER_STYLE_DOUBLE)
-    waitForProcesses(processes, 5, log, error)
+    waitForProcesses(processes, wait_timeout=5, on_output=log, on_error=error)
     

@@ -1,5 +1,6 @@
 eclipse.preferences.version=1
 encoding//Actions/Common.py=utf-8
+encoding//Actions/Step.py=utf-8
 encoding//Actions/TFCnnBenchmarks.py=utf-8
 encoding//Actions/Util.py=utf-8
 encoding/EZRandomWidget.py=utf-8

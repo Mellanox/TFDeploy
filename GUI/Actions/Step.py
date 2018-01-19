@@ -10,6 +10,48 @@ import sys
 
 ###############################################################################
 
+class TestEnvironment(object):
+    # On Python 2 if we save without [] we'll get a unbound method
+    _on_out = [None]
+    _on_err = [None]
+    _on_new_process = [None]
+    _on_process_done = [None]    
+    
+    @staticmethod
+    def onOut():
+        return TestEnvironment._on_out[0]
+            
+    @staticmethod
+    def onErr():
+        return TestEnvironment._on_err[0]
+    
+    @staticmethod
+    def onNewProcess():
+        return TestEnvironment._on_new_process[0]
+
+    @staticmethod
+    def onProcessDone():
+        return TestEnvironment._on_process_done[0]
+        
+    @staticmethod
+    def setOnOut(val):
+        TestEnvironment._on_out[0] = val
+
+    @staticmethod
+    def setOnErr(val):
+        TestEnvironment._on_err[0] = val
+
+    @staticmethod
+    def setOnNewProcess(val):
+        TestEnvironment._on_new_process[0] = val        
+        
+        
+    @staticmethod
+    def setOnProcessDone(val):
+        TestEnvironment._on_process_done[0] = val        
+        
+###############################################################################
+
 class DefaultAttributesWidget(QWidget):
     
     def __init__(self, attributes, parent = None):
@@ -47,6 +89,7 @@ class DefaultAttributesWidget(QWidget):
         for row in range(len(self._line_edits)):
             self._values[row] = str(self._line_edits[row].text())
 
+
 ###############################################################################
     
 class Step(object):
@@ -61,6 +104,7 @@ class Step(object):
     def REGISTER(cls):
         def _register(stepclass):
             cls.__REGISTERED_STEPS[stepclass.NAME] = stepclass
+            print "REGISTERING '%s'" % stepclass.NAME
             return stepclass 
         return _register     
         
@@ -138,9 +182,9 @@ class Step(object):
     def loadFromXml(step_node):
         step_name = step_node.attrib["Name"]
         if not step_name in Step.__REGISTERED_STEPS:
-            error("Node: %s" % step_node)
+            error("Node: %s" % minidom.parseString(etree.tostring(step_node)).toprettyxml())
             error("Invalid step name: %s" % step_name)
-            sys.exit(1)        
+            raise
         
         step_class = Step.__REGISTERED_STEPS[step_name]
         

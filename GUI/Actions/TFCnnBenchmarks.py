@@ -1,10 +1,13 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
+from getpass import getuser, getpass
 import os
 import tempfile
 from Util import *
 from Step import Step
+from Actions.Step import TestEnvironment
+from Actions.Util import executeRemoteCommand
 
 ###############################################################################
 
@@ -24,33 +27,33 @@ class TFCnnBenchmarksStep(Step):
     ATTRIBUTE_ID_DATA_DIR = 8
     ATTRIBUTE_ID_LOG_LEVEL = 9
     
-    ATTRIBUTES = [["PS", ["12.12.12.25"]],
-                  ["Workers", ["12.12.12.26"]],
-                  ["Base Port", 5000],
+    ATTRIBUTES = [["PS", "12.12.12.25,12.12.12.26"],
+                  ["Workers", "12.12.12.25,12.12.12.26"],
+                  ["Base Port", "5000"],
                   ["Script", "~/benchmarks/scripts/tf_cnn_benchmarks/"],
                   ["Model", "trivial"],
-                  ["Batch Size", 32],
-                  ["Num GPUs", 2],
+                  ["Batch Size", "32"],
+                  ["Num GPUs", "2"],
                   ["Server Protocol", "grpc+verbs"],
                   ["Data Dir", "/data/imagenet_data/"],
-                  ["Debug Level", 0]]
+                  ["Log Level", "0"]]
 
     # -------------------------------------------------------------------- #
     
     def __init__(self, values = None):
         Step.__init__(self, values)
-        self._on_output = lambda s: log(s[:-1])
+        self._stopping = False
 
     # -------------------------------------------------------------------- #
 
     def ps(self):
-        return self._values[TFCnnBenchmarksStep.ATTRIBUTE_ID_PS]
+        return self._values[TFCnnBenchmarksStep.ATTRIBUTE_ID_PS].split(",")
     
     def workers(self):
-        return self._values[TFCnnBenchmarksStep.ATTRIBUTE_ID_WORKERS]
+        return self._values[TFCnnBenchmarksStep.ATTRIBUTE_ID_WORKERS].split(",")
     
     def base_port(self):
-        return self._values[TFCnnBenchmarksStep.ATTRIBUTE_ID_BASE_PORT]
+        return int(self._values[TFCnnBenchmarksStep.ATTRIBUTE_ID_BASE_PORT])
     
     def script(self):
         return self._values[TFCnnBenchmarksStep.ATTRIBUTE_ID_SCRIPT]
@@ -59,10 +62,10 @@ class TFCnnBenchmarksStep(Step):
         return self._values[TFCnnBenchmarksStep.ATTRIBUTE_ID_MODEL]
     
     def batch_size(self):
-        return self._values[TFCnnBenchmarksStep.ATTRIBUTE_ID_BATCH_SIZE]
+        return int(self._values[TFCnnBenchmarksStep.ATTRIBUTE_ID_BATCH_SIZE])
     
     def num_gpus(self):
-        return self._values[TFCnnBenchmarksStep.ATTRIBUTE_ID_NUM_GPUS]
+        return int(self._values[TFCnnBenchmarksStep.ATTRIBUTE_ID_NUM_GPUS])
     
     def server_protocol(self):
         return self._values[TFCnnBenchmarksStep.ATTRIBUTE_ID_SERVER_PROTOCOL]
@@ -98,7 +101,30 @@ class TFCnnBenchmarksStep(Step):
         command += " DEVICE_IP=%s" % ip
         command += " %s/run_job.sh %s %u" % (work_dir, job_name, task_id)
         process = executeRemoteCommand([ip], command)[0]
+        handler = TestEnvironment.onNewProcess()
+        if handler is not None:
+            handler(process, "[%s] %s - %u" % (ip, job_name, task_id))
         return process
+
+# -------------------------------------------------------------------- #
+
+    def _onJobDone(self, process):
+        handler = TestEnvironment.onProcessDone()
+        if handler is not None:
+            handler(process)
+        self._stopAll(process)
+        
+# -------------------------------------------------------------------- #
+
+    def _stopAll(self, process):
+        #TODO: lock
+        if self._stopping:
+            return
+        self._stopping = True
+        log("Stopping remaining processes...")
+        time.sleep(5)
+        processes = executeRemoteCommand(self._servers, "%s/clean_host.sh" % self._work_dir)
+        waitForProcesses(processes, 5, log, error)
          
 # -------------------------------------------------------------------- #
 
@@ -112,6 +138,19 @@ class TFCnnBenchmarksStep(Step):
         print "Work dir: %s" % work_dir
         print "Secript dir: %s" % script_dir 
     
+        user = getuser()
+        self._work_dir = work_dir
+        self._servers = list(set(self.ps() + self.workers()))
+            
+        #########################
+        # Kill other instances: #
+        #########################
+        kill_cmd = "ps -ef | grep tf_cnn_benchmarks.py | grep -v grep | grep %s | grep -v %s | sed -e 's@%s *\\([0-9]\\+\\) .*@\\1@g' | xargs kill -9" % (user, work_dir, user)
+        processes = executeRemoteCommand(self._servers, kill_cmd) 
+        res = waitForProcesses(processes, 5, log, error)
+        if not res:
+            sys.exit(1)
+        
         ##################
         # Build cluster: #
         ##################
@@ -124,13 +163,12 @@ class TFCnnBenchmarksStep(Step):
         for ip in self.workers():
             self._cluster_workers.append("%s:%u" % (ip, port))
             port += 1        
-        servers = list(set(self.ps() + self.workers()))
     
         #########
         # Copy: #
         #########
         title("Copying scripts:", UniBorder.BORDER_STYLE_SINGLE)    
-        processes = copyToRemote(servers, [script_dir], work_dir, user=None)
+        processes = copyToRemote(self._servers, [script_dir], work_dir, user=None)
         res = waitForProcesses(processes, 10, log, error)
         if not res:
             sys.exit(1)
@@ -148,7 +186,11 @@ class TFCnnBenchmarksStep(Step):
             ip = self.workers()[i]
             process = self._runJob(work_dir, ip, "worker", i)
             processes.append(process)
-        res = waitForProcesses(processes, 300, log, error)
+        res = waitForProcesses(processes, 
+                               wait_timeout=300, 
+                               on_output=TestEnvironment.onOut(), 
+                               on_error=TestEnvironment.onErr(),
+                               on_process_done=self._onJobDone)
         if not res:
             sys.exit(1)
         
@@ -156,7 +198,7 @@ class TFCnnBenchmarksStep(Step):
         # Cleanup: #
         ############
         title("Cleaning:", UniBorder.BORDER_STYLE_SINGLE)
-        processes = executeRemoteCommand(servers, "rm -rf %s" % work_dir, user=None)
+        processes = executeRemoteCommand(self._servers, "rm -rf %s" % work_dir, user=None)
         waitForProcesses(processes, 10, log, error)
         
         log("All done.")
@@ -168,6 +210,8 @@ class TFCnnBenchmarksStep(Step):
 ###############################################################################################################################################################
 
 if __name__ == '__main__':
+    TestEnvironment.setOnOut(log)
+    TestEnvironment.setOnErr(error)
     step = TFCnnBenchmarksStep()
     step.perform()
 

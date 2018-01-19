@@ -8,11 +8,12 @@ from xml.etree import cElementTree as etree
 from Actions.Util import log, error
 from DocumentControl import DocumentControl
 from EZRandomWidget import *
+from MultiLogWidget import MultiLogWidget, LOG_LEVEL_ERROR, LOG_LEVEL_INFO
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 from Actions.Common import *
 from Actions.TFCnnBenchmarks import TFCnnBenchmarksStep
-from Step import Step
+from Actions.Step import Step, TestEnvironment
 
 def create_combo_widget(parent, list, default_value_index):
     new_combo = QComboBox(parent)
@@ -278,6 +279,9 @@ class TestDataFolder(TestDataItem):
 
 class SequenceWidget(QWidget):
     
+    log_signal = pyqtSignal(str, object, int)
+    open_log_signal = pyqtSignal(object, str)
+    close_log_signal = pyqtSignal(object)
     refresh_item_signal = pyqtSignal(int)
 
     #--------------------------------------------------------------------#
@@ -292,9 +296,10 @@ class SequenceWidget(QWidget):
     #--------------------------------------------------------------------#
                         
     def _initGui(self):
+        self.log_signal.connect(self._log)
+        self.open_log_signal.connect(self._openLog)
+        self.close_log_signal.connect(self._closeLog)
         self.refresh_item_signal.connect(self._refreshItem)
-        
-        self.setLayout(QHBoxLayout())
         
         self.hook_selection = True
         self.sequence_widget = QListWidget()
@@ -361,8 +366,9 @@ class SequenceWidget(QWidget):
         # Panes:
         #########
         sequence_pane = QWidget()
-        sequence_pane.setLayout(QHBoxLayout())
+        sequence_pane.setLayout(QVBoxLayout())
         sequence_pane.layout().addWidget(self.sequence_widget, 1)
+        sequence_pane.layout().addWidget(self.b_run)
                 
         buttons_pane = QWidget()
         buttons_pane.setLayout(QVBoxLayout())
@@ -374,7 +380,7 @@ class SequenceWidget(QWidget):
         buttons_pane.layout().addWidget(self.b_new)
         buttons_pane.layout().addWidget(self.b_save)
         buttons_pane.layout().addWidget(self.b_load)
-        buttons_pane.layout().addWidget(self.b_run)
+        #buttons_pane.layout().addWidget(self.b_run)
         buttons_pane.layout().addStretch(1)
 
         steps_edit_pane = QWidget()
@@ -382,6 +388,16 @@ class SequenceWidget(QWidget):
         configurations_folder_widget = self.configurations_folder.createWidget()
         configurations_folder_widget.layout().setMargin(0)
 
+        self._log_widget = MultiLogWidget()
+        logs_pane = QWidget()
+        logs_pane.setLayout(QVBoxLayout())
+        logs_pane.layout().addWidget(self._log_widget)
+
+        TestEnvironment.setOnOut(self._emitLog)
+        TestEnvironment.setOnErr(self._emitError)
+        TestEnvironment.setOnNewProcess(self._emitOpenLog)
+        TestEnvironment.setOnProcessDone(self._emitCloseLog)
+        
 #         configurations_folder_widget.setObjectName("HighLevelWidget")
 #         configurations_folder_widget.setStyleSheet("QWidget#HighLevelWidget { border:1px solid black; }")        
 
@@ -393,11 +409,49 @@ class SequenceWidget(QWidget):
         steps_edit_pane.layout().addWidget(save_button)                
         #steps_edit_pane.layout().addStretch(1)
                          
-        self.layout().addWidget(sequence_pane, 3)
-        self.layout().addWidget(buttons_pane, 1)
-        self.layout().addWidget(steps_edit_pane, 3)
+        self.setLayout(QHBoxLayout())
+        self.layout().addWidget(sequence_pane, 2)
+        self.layout().addWidget(logs_pane, 5)        
+        #self.layout().addWidget(buttons_pane, 1)
+        self.layout().addWidget(steps_edit_pane, 2)
+
         #self.layout().addWidget(b_remove, 1, 1)
 
+    #--------------------------------------------------------------------#
+
+    def _log(self, line, process, log_level):
+        self._log_widget.log(line, process, log_level)
+
+    #--------------------------------------------------------------------#
+
+    def _openLog(self, process, title):
+        self._log_widget.open(process, title)
+
+    #--------------------------------------------------------------------#
+
+    def _closeLog(self, process):
+        self._log_widget.close(process)
+                            
+    #--------------------------------------------------------------------#
+    
+    def _emitLog(self, line, process):
+        self.log_signal.emit(line, process, LOG_LEVEL_INFO)
+
+    #--------------------------------------------------------------------#
+    
+    def _emitError(self, line, process):
+        self.log_signal.emit(line, process, LOG_LEVEL_ERROR)
+
+    #--------------------------------------------------------------------#
+    
+    def _emitOpenLog(self, process, title):
+        self.open_log_signal.emit(process, title)
+
+    #--------------------------------------------------------------------#
+    
+    def _emitCloseLog(self, process):
+        self.close_log_signal.emit(process)
+                                                
     #--------------------------------------------------------------------#
     
     def _setModified(self, value):
@@ -570,7 +624,7 @@ class SequenceWidget(QWidget):
         
         content = minidom.parseString(etree.tostring(xml)).toprettyxml() 
         self._doc.save(content)
-        self._setModified(False)        
+        self._setModified(False)
 
     #--------------------------------------------------------------------#
             
@@ -579,6 +633,11 @@ class SequenceWidget(QWidget):
         if content == None:
             return
         
+        self._loadFromContent(content)
+        
+    #--------------------------------------------------------------------#
+    
+    def _loadFromContent(self, content):
         self._clear()
         root_node = etree.fromstring(content)
         
@@ -593,6 +652,21 @@ class SequenceWidget(QWidget):
             self._addStepToSequence(step)            
         
         self._setModified(False)        
+        
+    #--------------------------------------------------------------------#
+    
+    def loadFromFile(self, file_path):
+        try:
+            with open(file_path, "r") as file:
+                content = file.read()        
+                self._loadFromContent(content)
+        except IOError, e:
+            print "Failed to load from file: %s" % str(e)
+            
+    #--------------------------------------------------------------------#
+    
+    def run(self):
+        self._runSequence()
         
     #--------------------------------------------------------------------#
     
@@ -612,6 +686,8 @@ class SequenceWidget(QWidget):
 if __name__ == '__main__':
     app = QApplication([])
     prompt = SequenceWidget()
-    prompt.setGeometry(200, 30, 1024, 600)
+    prompt.loadFromFile("samples/new1.xml")
+#     prompt.run()
+    prompt.setGeometry(200, 30, 1600, 800)
     prompt.show()
     app.exec_()
