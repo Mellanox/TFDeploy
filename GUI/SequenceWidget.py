@@ -1,6 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
+import argparse
 import sys
 import time
 from xml.dom import minidom
@@ -14,6 +15,7 @@ from PyQt4.QtGui import *
 from Actions.Common import *
 from Actions.TFCnnBenchmarks import TFCnnBenchmarksStep
 from Actions.Step import Step, TestEnvironment
+from Actions.TFCompile import TFCompileStep
 
 def create_combo_widget(parent, list, default_value_index):
     new_combo = QComboBox(parent)
@@ -21,25 +23,6 @@ def create_combo_widget(parent, list, default_value_index):
         new_combo.addItem(current_item)
     new_combo.setCurrentIndex(default_value_index)
     return new_combo
-
-#########
-# Custom:
-##########
-
-class TMTeplatesWidget(QWidget):
-    def __init__(self, values, parent = None):
-        super(TMTeplatesWidget, self).__init__(parent)
-        self._values = values
-        self._initGui()
-
-    def _initGui(self):
-        self.setLayout(QGridLayout())
-        self.cb_mode = create_combo_widget(self, ['Background','Performance', 'Nominal', 'Custom'], 0)
-        self.layout().addWidget(QLabel("Mode:"), 0, 0)
-        self.layout().addWidget(self.cb_mode, 0, 1)        
-                
-    def save(self):
-        self._values["Mode"] = self.cb_mode.currentText()
 
 #############################################################################
 # General        
@@ -277,7 +260,7 @@ class TestDataFolder(TestDataItem):
 
 #############################################################################
 
-class SequenceWidget(QWidget):
+class SequenceWidget(QMainWindow):
     
     log_signal = pyqtSignal(str, object, int)
     open_log_signal = pyqtSignal(object, str)
@@ -333,7 +316,8 @@ class SequenceWidget(QWidget):
                                                 #Name           #Attributes             #Perform                        #Repr                   #Widget
 #         self._createStep(self.general_steps,    "Delay",        {"Duration": "1"},                                   performDelay,       reprNameAndAttributes,  DefaultAttributesWidget  )
 #         self._createStep(self.general_steps,    "Pause",        None,                                                performStub,        reprNameAndAttributes,  DefaultAttributesWidget  )
-#         self._createStep(self.general_steps,    "Compile TensorFlow",        None,                                   performCompileTF,   reprNameAndAttributes,  DefaultAttributesWidget  )        
+#         self._createStep(self.general_steps,    "Compile TensorFlow",        None,                                   performCompileTF,   reprNameAndAttributes,  DefaultAttributesWidget  )
+        self._addStep(self.benchmark_steps, TFCompileStep)        
         self._addStep(self.benchmark_steps, TFCnnBenchmarksStep)
         
         ##################
@@ -346,21 +330,48 @@ class SequenceWidget(QWidget):
         ############
         # Buttons: #
         ############
-        self.b_add = QPushButton("<<")
-        self.b_remove = QPushButton("Remove")
-        self.b_move_up = QPushButton("Move &Up")
-        self.b_move_down = QPushButton("Move &Down")
-        self.b_new = QPushButton("&New")
-        self.b_save = QPushButton("&Save")
-        self.b_load = QPushButton("&Load")
-        self.b_run = QPushButton("&Run")
+        self.b_add = QPushButton("Add")
+        self.b_remove = QPushButton("-")
+        self.b_move_up = QPushButton("^")
+        self.b_move_down = QPushButton("v")
+        self.b_run = QPushButton("Run")
         
         self.b_add.clicked.connect      (self._bAddClicked)
         self.b_remove.clicked.connect   (self._removeStepFromSequence)
-        self.b_new.clicked.connect      (self._new)
-        self.b_save.clicked.connect     (self._saveToXml)
-        self.b_load.clicked.connect     (self._loadFromXml)
+        self.b_move_up.clicked.connect  (self._moveUpInSequence)
+        self.b_move_down.clicked.connect(self._moveDownInSequence)
         self.b_run.clicked.connect      (self._runSequenceInNewThread)
+        
+        #########
+        # Menus:
+        #########
+        newAction = QAction(QIcon('new.png'), '&New', self)        
+        newAction.setShortcut('Ctrl+N')
+        newAction.setStatusTip('New test')
+        newAction.triggered.connect(self._new)
+
+        openAction = QAction(QIcon('open.png'), '&Open', self)        
+        openAction.setShortcut('Ctrl+O')
+        openAction.setStatusTip('Open test')
+        openAction.triggered.connect(self._loadFromXml)
+
+        saveAction = QAction(QIcon('save.png'), '&Save', self)        
+        saveAction.setShortcut('Ctrl+S')
+        saveAction.setStatusTip('Save test')
+        saveAction.triggered.connect(self._saveToXml)
+
+        exitAction = QAction(QIcon('exit.png'), '&Exit', self)        
+        exitAction.setShortcut('Ctrl+Q')
+        exitAction.setStatusTip('Exit application')
+        exitAction.triggered.connect(qApp.quit)
+
+                        
+        fileMenu = self.menuBar().addMenu("&File");
+        fileMenu.addAction(newAction);
+        fileMenu.addAction(openAction);
+        fileMenu.addAction(saveAction);
+        fileMenu.addSeparator();
+        fileMenu.addAction(exitAction);
         
         #########
         # Panes:
@@ -368,53 +379,49 @@ class SequenceWidget(QWidget):
         sequence_pane = QWidget()
         sequence_pane.setLayout(QVBoxLayout())
         sequence_pane.layout().addWidget(self.sequence_widget, 1)
-        sequence_pane.layout().addWidget(self.b_run)
-                
-        buttons_pane = QWidget()
-        buttons_pane.setLayout(QVBoxLayout())
-        buttons_pane.layout().addStretch(1)
-        buttons_pane.layout().addWidget(self.b_add)
-        buttons_pane.layout().addWidget(self.b_remove)
-        buttons_pane.layout().addWidget(self.b_move_up)
-        buttons_pane.layout().addWidget(self.b_move_down)
-        buttons_pane.layout().addWidget(self.b_new)
-        buttons_pane.layout().addWidget(self.b_save)
-        buttons_pane.layout().addWidget(self.b_load)
-        #buttons_pane.layout().addWidget(self.b_run)
-        buttons_pane.layout().addStretch(1)
+        sequence_buttons_pane = QWidget()
+        sequence_buttons_pane.setLayout(QHBoxLayout())
+        sequence_buttons_pane.layout().addWidget(self.b_run)
+        sequence_buttons_pane.layout().addWidget(self.b_remove)
+        sequence_buttons_pane.layout().addWidget(self.b_move_up)
+        sequence_buttons_pane.layout().addWidget(self.b_move_down)
+        sequence_pane.layout().addWidget(sequence_buttons_pane)
 
         steps_edit_pane = QWidget()
         steps_edit_pane.setLayout(QVBoxLayout())
+
         configurations_folder_widget = self.configurations_folder.createWidget()
         configurations_folder_widget.layout().setMargin(0)
 
+        steps_select_pane = QWidget()
+        steps_select_pane.setLayout(QVBoxLayout())
+        steps_select_pane.layout().setMargin(0)
+        steps_select_pane.layout().addWidget(configurations_folder_widget)
+        steps_select_pane.layout().addWidget(self.b_add)
         self._log_widget = MultiLogWidget()
+        
         logs_pane = QWidget()
         logs_pane.setLayout(QVBoxLayout())
         logs_pane.layout().addWidget(self._log_widget)
-
-        TestEnvironment.setOnOut(self._emitLog)
-        TestEnvironment.setOnErr(self._emitError)
-        TestEnvironment.setOnNewProcess(self._emitOpenLog)
-        TestEnvironment.setOnProcessDone(self._emitCloseLog)
         
 #         configurations_folder_widget.setObjectName("HighLevelWidget")
 #         configurations_folder_widget.setStyleSheet("QWidget#HighLevelWidget { border:1px solid black; }")        
 
-        steps_edit_pane.layout().addWidget(configurations_folder_widget, 1)
+        steps_edit_pane.layout().addWidget(steps_select_pane, 1)
         steps_edit_pane.layout().addWidget(QLabel("Properties:"))
         steps_edit_pane.layout().addWidget(self.configuration_pane, 1)
         save_button = QPushButton("Update")
         save_button.clicked.connect(self._saveConfigurations)
         steps_edit_pane.layout().addWidget(save_button)                
         #steps_edit_pane.layout().addStretch(1)
-                         
-        self.setLayout(QHBoxLayout())
-        self.layout().addWidget(sequence_pane, 2)
-        self.layout().addWidget(logs_pane, 5)        
-        #self.layout().addWidget(buttons_pane, 1)
-        self.layout().addWidget(steps_edit_pane, 2)
 
+        central_widget = QWidget()                         
+        central_widget.setLayout(QHBoxLayout())
+        central_widget.layout().addWidget(sequence_pane, 2)
+        central_widget.layout().addWidget(logs_pane, 5)        
+        central_widget.layout().addWidget(steps_edit_pane, 2)
+
+        self.setCentralWidget(central_widget)
         #self.layout().addWidget(b_remove, 1, 1)
 
     #--------------------------------------------------------------------#
@@ -434,22 +441,22 @@ class SequenceWidget(QWidget):
                             
     #--------------------------------------------------------------------#
     
-    def _emitLog(self, line, process):
+    def emitLog(self, line, process):
         self.log_signal.emit(line, process, LOG_LEVEL_INFO)
 
     #--------------------------------------------------------------------#
     
-    def _emitError(self, line, process):
+    def emitError(self, line, process):
         self.log_signal.emit(line, process, LOG_LEVEL_ERROR)
 
     #--------------------------------------------------------------------#
     
-    def _emitOpenLog(self, process, title):
+    def emitOpenLog(self, process, title):
         self.open_log_signal.emit(process, title)
 
     #--------------------------------------------------------------------#
     
-    def _emitCloseLog(self, process):
+    def emitCloseLog(self, process):
         self.close_log_signal.emit(process)
                                                 
     #--------------------------------------------------------------------#
@@ -493,18 +500,49 @@ class SequenceWidget(QWidget):
     def _addStepToSequence(self, step):
         self._sequence.append(step)
         self.sequence_widget.addItem(QListWidgetItem(str(step)))
-        self.sequence_widget.setCurrentRow(len(self._sequence) - 1)
+        #self.sequence_widget.setCurrentRow(len(self._sequence) - 1)
         self._setModified(True)
+        
+    #--------------------------------------------------------------------#
+    
+    def _moveUpInSequence(self):
+        self._moveInSequence(-1)
+        
+    #--------------------------------------------------------------------#
+    
+    def _moveDownInSequence(self):
+        self._moveInSequence(1)
     
     #--------------------------------------------------------------------#
     
+    def _moveInSequence(self, delta):
+        index = self.sequence_widget.currentRow()
+        new_index = index + delta
+        if new_index < 0:
+            new_index = 0
+        if new_index >= self.sequence_widget.count():
+            new_index = self.sequence_widget.count() - 1
+        if new_index == index:
+            return
+        
+        step = self._sequence.pop(index)
+        self._sequence.insert(new_index, step)
+        item = self.sequence_widget.takeItem(index)
+        self.sequence_widget.insertItem(new_index, item)
+        self.sequence_widget.setCurrentRow(new_index)
+                
+    #--------------------------------------------------------------------#
+    
     def _removeStepFromSequence(self):
-        self.sequence.takeItem()
-        self._setModified(True)
+        index = self.sequence_widget.currentRow()
+        self.sequence_widget.takeItem(index)
+        self._sequence.pop(index)
 
     #--------------------------------------------------------------------#
     
     def _bAddClicked(self):
+        if self._selected_step is None:
+            return
         self._addStepToSequence(self._selected_step)    
 
     #--------------------------------------------------------------------#
@@ -551,11 +589,12 @@ class SequenceWidget(QWidget):
                 w = layout.itemAt(0).widget()
                 layout.removeWidget(w)
                 if w != None:
-                    w.close()
-
+                    w.hide()
+        self.configuration_pane.repaint()
         self.attributes_widget = widget
         layout.addWidget(widget)
         layout.addStretch(1)
+        widget.show()
         
     #--------------------------------------------------------------------#
     
@@ -596,7 +635,9 @@ class SequenceWidget(QWidget):
         for index in range(len(self._sequence)):
             step = self._sequence[index]
             #log("+ %s:" % step.name())
-            step.perform()
+            if not step.perform():
+                step.setPass(False)
+                return
             step.setPass(True)
             self._emitRefreshItem(index)
         print "Done."
@@ -684,10 +725,26 @@ class SequenceWidget(QWidget):
 ###############################################################################################################################################################
         
 if __name__ == '__main__':
-    app = QApplication([])
+    
+    arg_parser = argparse.ArgumentParser(description = "Yaml Utils")
+    arg_parser.add_argument("xml", nargs="?", help="A test fiel to load.")    
+    arg_parser.add_argument("-a", "--autorun", action="store_true", help="Automatic regression run (no GUI).")        
+    
+    args = arg_parser.parse_args()
+    app = QApplication([])    
     prompt = SequenceWidget()
-    prompt.loadFromFile("samples/new1.xml")
-#     prompt.run()
-    prompt.setGeometry(200, 30, 1600, 800)
-    prompt.show()
-    app.exec_()
+    if args.xml is not None:
+        prompt.loadFromFile(args.xml)            
+    if args.autorun:
+        TestEnvironment.setOnOut(log)
+        TestEnvironment.setOnErr(error)
+        prompt.run()
+    else:
+        TestEnvironment.setOnOut(prompt.emitLog)
+        TestEnvironment.setOnErr(prompt.emitError)
+        TestEnvironment.setOnNewProcess(prompt.emitOpenLog)
+        TestEnvironment.setOnProcessDone(prompt.emitCloseLog)
+        prompt.loadFromFile("samples/new1.xml")
+        prompt.setGeometry(200, 30, 1600, 800)
+        prompt.show()
+        app.exec_()

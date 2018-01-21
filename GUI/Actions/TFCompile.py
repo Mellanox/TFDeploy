@@ -1,0 +1,118 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+
+from getpass import getuser, getpass
+import os
+import tempfile
+from Util import *
+from Step import Step
+from Actions.Step import TestEnvironment
+from Actions.Util import executeRemoteCommand
+
+###############################################################################
+
+@Step.REGISTER()
+class TFCompileStep(Step):
+    
+    NAME = "TF Compile"
+    
+    ATTRIBUTE_ID_TENSORFLOW_HOME = 0
+    ATTRIBUTE_ID_CONFIG_CUDA = 1
+    ATTRIBUTE_ID_ADDITIONAL_FLAGS = 2
+    ATTRIBUTE_ID_INSTALL_SERVERS = 3
+    
+    ATTRIBUTES = [["TensorFlow home", "~/tensorflow"],
+                  ["CUDA", "True"],
+                  ["Additional build flags", ""],
+                  ["Install on servers", "12.12.12.25,12.12.12.26"]]
+
+    # -------------------------------------------------------------------- #
+    
+    def __init__(self, values = None):
+        Step.__init__(self, values)
+        self._stopping = False
+
+    # -------------------------------------------------------------------- #
+
+    def tensorflow_home(self):
+        return self._values[TFCompileStep.ATTRIBUTE_ID_TENSORFLOW_HOME]
+    def config_cuda(self):
+        return bool(self._values[TFCompileStep.ATTRIBUTE_ID_CONFIG_CUDA])
+    def additional_flags(self):
+        return self._values[TFCompileStep.ATTRIBUTE_ID_ADDITIONAL_FLAGS].split(",")
+    def install_servers(self):
+        return self._values[TFCompileStep.ATTRIBUTE_ID_INSTALL_SERVERS].split(",")
+    
+    # -------------------------------------------------------------------- #
+    
+    def __repr__(self):
+        return TFCompileStep.NAME + " " + self.tensorflow_home()
+         
+    # -------------------------------------------------------------------- #
+
+    def perform(self):
+        ##########
+        # Build: #
+        ##########
+        title("Building:", UniBorder.BORDER_STYLE_SINGLE)
+        config_cuda="--config=cuda" if self.config_cuda() else ""
+        if self.additional_flags() == [""]:
+            additional_flags = ""
+        else:
+            additional_flags = "--copt \"%s\"" % " ".join(self.additional_flags())
+        cmd = "cd %s; bazel build -c opt %s %s //tensorflow/tools/pip_package:build_pip_package" % (self.tensorflow_home(),
+                                                                                                    config_cuda,
+                                                                                                    additional_flags)
+        process = executeCommand(cmd)
+        res = waitForProcesses([process], 
+                               wait_timeout=3600, 
+                               on_output=TestEnvironment.onOut(), 
+                               on_error=TestEnvironment.onErr(),
+                               on_process_done=TestEnvironment.onProcessDone())
+        if not res:
+            return False
+    
+        cmd = "cd %s; bazel-bin/tensorflow/tools/pip_package/build_pip_package tensorflow_pkg" % (self.tensorflow_home())
+        process = executeCommand(cmd)
+        res = waitForProcesses([process], wait_timeout=60)
+        if not res:
+            return False
+
+        ############
+        # Install: #
+        ############
+        title("Installing:", UniBorder.BORDER_STYLE_SINGLE)
+        src_dir = os.path.join(self.tensorflow_home(), "tensorflow_pkg")
+        temp_dir_name = "tmp." + next(tempfile._get_candidate_names()) + next(tempfile._get_candidate_names())
+        temp_dir = os.path.join(tempfile._get_default_tempdir(), temp_dir_name)
+                
+        processes = copyToRemote(self.install_servers(), [src_dir], temp_dir)
+        res = waitForProcesses(processes, wait_timeout=10)
+        if not res:
+            return False
+    
+        cmd = "pip install --user --upgrade %s/tensorflow-*" % temp_dir
+        processes = executeRemoteCommand(self.install_servers(), cmd)
+        res = waitForProcesses(processes, wait_timeout=60)
+        if not res:
+            return False
+
+        ##########
+        # Clean: #
+        ##########
+        title("Cleaning:", UniBorder.BORDER_STYLE_SINGLE)
+        processes = executeRemoteCommand(self.install_servers(), "rm -rf %s" % temp_dir)
+        waitForProcesses(processes, wait_timeout=10)        
+
+###############################################################################################################################################################
+#
+#                                                                         DEMO
+#
+###############################################################################################################################################################
+
+if __name__ == '__main__':
+    TestEnvironment.setOnOut(log)
+    TestEnvironment.setOnErr(error)
+    step = TFCompileStep()
+    step.perform()
+

@@ -152,8 +152,9 @@ def processCommunicateLive(process, on_output = None, on_error = None):
 
 def waitForProcesses(processes, 
                      wait_timeout = None,
-                     on_output = None, 
-                     on_error = None,
+                     on_output = log, 
+                     on_error = error,
+                     on_process_start = None,
                      on_process_done = None,
                      on_process_timeout = None):
     '''
@@ -165,6 +166,8 @@ def waitForProcesses(processes,
         thread = threading.Thread(target=processCommunicateLive, args=(process,on_output,on_error))
         threads.append(thread)
         thread.start()
+        if on_process_start is not None:
+            on_process_start(process)
 
     all_ok = True
     elapsed = 0
