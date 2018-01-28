@@ -8,6 +8,7 @@ from Util import *
 from Step import Step
 from Actions.Step import TestEnvironment
 from Actions.Util import executeRemoteCommand
+import sys
 
 ###############################################################################
 
@@ -44,6 +45,7 @@ class TFCnnBenchmarksStep(Step):
         Step.__init__(self, values)
         self._stopping = False
         self._titles = {}
+        self._files = {}
 
     # -------------------------------------------------------------------- #
 
@@ -100,17 +102,13 @@ class TFCnnBenchmarksStep(Step):
         command += " TF_DATA_DIR=%s" % self.data_dir()
         command += " DEVICE_IP=%s" % ip
         command += " %s/run_job.sh %s %u" % (work_dir, job_name, task_id)
-        process = executeRemoteCommand([ip], command)[0]
-        self._titles[process] = "[%s] %s - %u" % (ip, job_name, task_id)
+        title = "[%s] %s - %u" % (ip, job_name, task_id)
+        log_file_name = "%s_%u.log" % (job_name, task_id)
+        log_file_path = os.path.join(TestEnvironment.logsFolder(), log_file_name)
+        factory = BasicProcess.getFactory(title, log_file_path)
+        process = executeRemoteCommand([ip], command, factory = factory)[0]
         return process
 
-    # -------------------------------------------------------------------- #
-    
-    def _onJobStart(self, process):
-        handler = TestEnvironment.onNewProcess()
-        if handler is not None:
-            handler(process, self._titles[process])
-        
     # -------------------------------------------------------------------- #
 
     def _onJobDone(self, process):
@@ -138,9 +136,6 @@ class TFCnnBenchmarksStep(Step):
         work_dir = os.path.join(tempfile._get_default_tempdir(), work_dir_name)
         script_dir = os.path.dirname(self._values[TFCnnBenchmarksStep.ATTRIBUTE_ID_SCRIPT]) 
         
-        print "Work dir: %s" % work_dir
-        print "Secript dir: %s" % script_dir 
-    
         user = getuser()
         self._work_dir = work_dir
         self._servers = list(set(self.ps() + self.workers()))
@@ -149,10 +144,9 @@ class TFCnnBenchmarksStep(Step):
         # Kill other instances: #
         #########################
         kill_cmd = "ps -ef | grep tf_cnn_benchmarks.py | grep -v grep | grep %s | grep -v %s | sed -e 's@%s *\\([0-9]\\+\\) .*@\\1@g' | xargs kill -9" % (user, work_dir, user)
-        processes = executeRemoteCommand(self._servers, kill_cmd) 
-        res = waitForProcesses(processes, 5, log, error)
+        res = self.runInline(kill_cmd, self._servers, wait_timeout = 5)
         if not res:
-            sys.exit(1)
+            return False
         
         ##################
         # Build cluster: #
@@ -171,8 +165,7 @@ class TFCnnBenchmarksStep(Step):
         # Copy: #
         #########
         title("Copying scripts:", UniBorder.BORDER_STYLE_SINGLE)    
-        processes = copyToRemote(self._servers, [script_dir], work_dir, user=None)
-        res = waitForProcesses(processes, 10, log, error)
+        res = self.runSCP(self._servers, [script_dir], work_dir, wait_timeout = 10)
         if not res:
             sys.exit(1)
     
@@ -193,7 +186,7 @@ class TFCnnBenchmarksStep(Step):
                                wait_timeout=300, 
                                on_output=TestEnvironment.onOut(), 
                                on_error=TestEnvironment.onErr(),
-                               on_process_start=self._onJobStart,
+                               on_process_start=TestEnvironment.onNewProcess(),
                                on_process_done=self._onJobDone)
         if not res:
             sys.exit(1)
@@ -204,6 +197,7 @@ class TFCnnBenchmarksStep(Step):
         title("Cleaning:", UniBorder.BORDER_STYLE_SINGLE)
         processes = executeRemoteCommand(self._servers, "rm -rf %s" % work_dir)
         waitForProcesses(processes, wait_timeout=10)
+        return True
 
 ###############################################################################################################################################################
 #

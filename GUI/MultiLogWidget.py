@@ -1,21 +1,17 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
+import os
+import re
 from random import randint
-from PyQt4.QtCore import *
-from PyQt4.QtGui import *
+from PyQt4.QtCore import QPoint,QString,QSize
+from PyQt4.QtGui import QMdiArea,QMdiSubWindow,QPlainTextEdit,QVBoxLayout,QPushButton,QApplication,QWidget
+import Actions.Log
 
 ###############################################################################
 
-LOG_LEVEL_FATAL = 0
-LOG_LEVEL_ERROR = 1
-LOG_LEVEL_WARNING = 2
-LOG_LEVEL_INFO = 3
-LOG_LEVEL_DEBUG = 4
-LOG_LEVEL_NONE = 5
-
 LogColorsForLevel = ["purple", "red", "orange", None, None, None]
-LogLevelNames = ["FATAL", "ERROR", "WARNING", "INFO", "DEBUG", "NONE"] 
+ 
         
 ###############################################################################
 
@@ -24,7 +20,7 @@ class LogWidget(QMdiSubWindow):
     def __init__(self, log_id, title = None, parent = None):
         super(LogWidget, self).__init__(parent)
         if title is None:
-            title = log_id
+            title = str(log_id)
         self._initGui(title)
         
     #--------------------------------------------------------------------#
@@ -33,34 +29,50 @@ class LogWidget(QMdiSubWindow):
         self.setWindowTitle(str(title))
         self._te_log = QPlainTextEdit()
         self._te_log.setLineWrapMode(QPlainTextEdit.NoWrap)
-        self.layout().addWidget(self._te_log)
+        self._te_log.setStyleSheet("font-family: monospace;");
         
+        #self._te_log.setReadOnly(True)
+        self.layout().addWidget(self._te_log)
+            
     #--------------------------------------------------------------------#
     
-    def append(self, line, log_level = LOG_LEVEL_INFO):
+    def append(self, line, log_level = Actions.Log.LOG_LEVEL_INFO):
         color = LogColorsForLevel[log_level]
         if color is not None: 
             line = "<font color='%s'>%s</font>" % (color, line)
-        self._te_log.setReadOnly(True)
-        self._te_log.appendHtml(line)
-        scrollbar = self._te_log.verticalScrollBar() 
-        scrollbar.setValue(scrollbar.maximum())            
 
+        scrollbar = self._te_log.verticalScrollBar()
+        follow = scrollbar.value() == scrollbar.maximum() 
+        self._te_log.appendHtml(QString.fromUtf8(line))
+        if follow:
+            scrollbar.setValue(scrollbar.maximum())
+
+    #--------------------------------------------------------------------#
+    
+    def close(self):
+        pass
+        
 ###############################################################################
 
 class MultiLogWidget(QMdiArea):
     
-    GLOBAL_LOG = object()
+    class GlobalLog(object):
+        def __repr__(self):
+            return "main"
+        
+    GLOBAL_LOG = GlobalLog()
     SUB_WINDOW_DEFAULT_RATIO_X = 0.8
     SUB_WINDOW_DEFAULT_RATIO_Y = 0.8
-    CASCADE_SKIP_PIXELS_X = 10 
+    CASCADE_SKIP_PIXELS_X = 25 
     CASCADE_SKIP_PIXELS_Y = 25
     
     #--------------------------------------------------------------------#
     
-    def __init__(self, parent = None):
+    def __init__(self, logs_folder = None, parent = None):
         super(MultiLogWidget, self).__init__(parent)
-        self.logs_ = {} 
+        self._logs = {}
+        self._logs_folder = logs_folder 
+        
         self.cascade_x_id = 0
         self.cascade_y_id = 0
         
@@ -89,23 +101,29 @@ class MultiLogWidget(QMdiArea):
     #--------------------------------------------------------------------#
     
     def _getOrCreateLog(self, log_id, title):
-        if log_id in self.logs_:
-            return self.logs_[log_id]
-        log = LogWidget(log_id, title)
-        self.logs_[log_id] = log
-        return log 
+        if log_id in self._logs:
+            return self._logs[log_id]
+        log_widget = LogWidget(log_id, title)
+        self._logs[log_id] = log_widget
+        return log_widget 
     
     #--------------------------------------------------------------------#
     
     def _removeLog(self, log_id):
-        if log_id in self.logs_:
-            return self.logs_.pop(log_id)
+        if log_id in self._logs:
+            return self._logs.pop(log_id)
         return None
+        
+    #--------------------------------------------------------------------#
+    
+    def setLogsFolder(self, logs_folder):
+        self._logs_folder = logs_folder
         
     #--------------------------------------------------------------------#
     
     def open(self, log_id = GLOBAL_LOG, title = None):
         log = self._getOrCreateLog(log_id, title)
+        
         if not log in self.subWindowList():
             pos = self._getNextWindowPosition()
             size = QSize(self.width() * MultiLogWidget.SUB_WINDOW_DEFAULT_RATIO_X, 
@@ -113,8 +131,9 @@ class MultiLogWidget(QMdiArea):
             self.addSubWindow(log)
             log.resize(size)
             log.move(pos)
-            
-        log.show()
+
+        if not log.isVisible():
+            log.show()
         return log 
 
     #--------------------------------------------------------------------#
@@ -122,11 +141,19 @@ class MultiLogWidget(QMdiArea):
     def close(self, log_id = GLOBAL_LOG):
         log = self._removeLog(log_id)
         if log is not None:
+            log.close()
             self.removeSubWindow(log)
+        self.cascade_x_id -= 1
+        self.cascade_y_id -= 1            
+    
+    #--------------------------------------------------------------------#
+    
+    def isOpen(self, log_id):
+        return log_id in self._logs
         
     #--------------------------------------------------------------------#
     
-    def log(self, line, log_id = GLOBAL_LOG, log_level = LOG_LEVEL_INFO):
+    def log(self, line, log_id = GLOBAL_LOG, log_level = Actions.Log.LOG_LEVEL_INFO):
         log = self.open(log_id)
         log.append(line, log_level)
         
@@ -146,9 +173,11 @@ def test():
     global log_id
     
     log_level = randint(0, 5)
-    mlog.log("%s Line #%u" % (LogLevelNames[log_level], x), log_id, log_level)
+    if not mlog.isOpen(log_id):
+        mlog.open(log_id, "Title for log #%u" % log_id)
+    mlog.log("☀ %s Line #%u ☀" % (Actions.Log.LogLevelNames[log_level], x), log_id, log_level)
     x += 1
-    log_id = (log_id + 1) % 30
+    log_id = (log_id + 1) % 8
 
 #--------------------------------------------------------------------#
        
@@ -156,7 +185,7 @@ if __name__ == '__main__':
     app = QApplication([])
     prompt = QWidget()
     prompt.setLayout(QVBoxLayout())
-    mlog = MultiLogWidget()
+    mlog = MultiLogWidget(".")
     
     button = QPushButton("Push me")
     button.clicked.connect(test)
@@ -168,10 +197,3 @@ if __name__ == '__main__':
     prompt.show()
     #prompt.setData([[7,0,1,2],[8,3,4,5]], ["R","F","G","H"], ["S","T"])
     app.exec_()
-
-
-
-
-
-
-

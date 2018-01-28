@@ -67,6 +67,13 @@ class DocumentControl(object):
             self._doSave(content)
 
     #--------------------------------------------------------------------#
+    
+    def filePath(self):
+        if self._file_path is None:
+            return None
+        return str(self._file_path)
+    
+    #--------------------------------------------------------------------#
         
     def new(self):
         if not self._promptModified():
@@ -87,13 +94,17 @@ class DocumentControl(object):
         
     #--------------------------------------------------------------------#
             
-    def load(self):
-        if not self._promptModified():
-            return None
-        
-        file_path = QFileDialog(self._parent).getOpenFileName(self._parent, "Load File", self._default_folder, self._file_filters)
-        if len(file_path) == 0 or not os.path.isfile(file_path):
-            return None
+    def load(self, file_path = None):
+        if file_path is None:
+            if not self._promptModified():
+                return None
+            
+            file_path = QFileDialog(self._parent).getOpenFileName(self._parent, "Load File", self._default_folder, self._file_filters)
+            if len(file_path) == 0 or not os.path.isfile(file_path):
+                return None
+        else:
+            if not os.path.isfile(file_path):
+                raise IOError("Bad file: %s" % file_path)
         
         self._file_path = file_path
         self._modified = False

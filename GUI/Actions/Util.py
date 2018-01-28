@@ -2,146 +2,61 @@
 # -*- coding: utf-8 -*-
 
 import subprocess
-import sys
 import time
 import threading
+from Log import log,error,title,UniBorder
+import sys
 
-# -------------------------------------------------------------------- #
+###############################################################################
 
-class UniBorder():
-    
-    BAR = []
-    
-    ##################
-    # Border styles: #
-    ##################
-    BORDER_STYLE_SINGLE  = 0
-    BORDER_STYLE_STRONG  = 1
-    BORDER_STYLE_DOUBLE  = 2
-    BORDER_STYLE_ASCII   = 3
-    
-    #################
-    # Border parts: #
-    #################
-    BORDER_PART_VERTICAL_LINE                   = 0
-    BORDER_PART_HORIZONAL_LINE                  = 1
-    BORDER_PART_TOP_LEFT_CORNER                 = 2
-    BORDER_PART_TOP_RIGHT_CORNER                = 3
-    BORDER_PART_BOTTOM_LEFT_CORNER              = 4
-    BORDER_PART_BOTTOM_RIGHT_CORNER             = 5
-    BORDER_PART_TOP_LEFT_CORNER_ROUND           = 6
-    BORDER_PART_TOP_RIGHT_CORNER_ROUND          = 7
-    BORDER_PART_BOTTOM_LEFT_CORNER_ROUND        = 8
-    BORDER_PART_BOTTOM_RIGHT_CORNER_ROUND       = 9
-    BORDER_PART_TOP_T                           = 10
-    BORDER_PART_BOTTOM_T                        = 11
-    BORDER_PART_RIGHT_T                         = 12
-    BORDER_PART_LEFT_T                          = 13
-    BORDER_PART_CROSS                           = 14
-    BORDER_PART_NONE                            = 15
-    
-    VERTICAL_POSITION_HAS_TOP       = 1
-    VERTICAL_POSITION_HAS_BOTTOM    = 2
-    
-    HORIZONAL_POSITION_HAS_LEFT     = 1
-    HORIZONAL_POSITION_HAS_RIGHT    = 2
- 
-    _border_chars = [[ "│", "┃", "║", "|" ],
-                     [ "─", "━", "═", "-" ],
-                     [ "┌", "┏", "╔", "+" ],
-                     [ "┐", "┓", "╗", "+" ],
-                     [ "└", "┗", "╚", "+" ],
-                     [ "┘", "┛", "╝", "+" ],
-                     [ "╭", "┏", "╔", "+" ],
-                     [ "╮", "┓", "╗", "+" ],
-                     [ "╰", "┗", "╚", "+" ],
-                     [ "╯", "┛", "╝", "+" ],
-                     [ "┬", "┳", "╦", "+" ],
-                     [ "┴", "┻", "╩", "+" ],
-                     [ "┤", "┫", "╢", "+" ],
-                     [ "├", "┣", "╟", "+" ],
-                     [ "┼", "╋", "╬", "+" ],
-                     [ " ", " ", " ", " " ]]
-          
-                                #  Nothing                      HAS LEFT                          HAS RIGHT                        HAS LEFT + RIGHT                     
-    _junction_part_by_position = [[BORDER_PART_NONE,            BORDER_PART_HORIZONAL_LINE,        BORDER_PART_HORIZONAL_LINE,     BORDER_PART_HORIZONAL_LINE   ],  # Nothing
-                                  [BORDER_PART_VERTICAL_LINE,   BORDER_PART_BOTTOM_RIGHT_CORNER,   BORDER_PART_BOTTOM_LEFT_CORNER, BORDER_PART_BOTTOM_T         ],  # HAS TOP
-                                  [BORDER_PART_VERTICAL_LINE,   BORDER_PART_TOP_RIGHT_CORNER,      BORDER_PART_TOP_LEFT_CORNER,    BORDER_PART_TOP_T            ],  # HAS BOTTOM
-                                  [BORDER_PART_VERTICAL_LINE,   BORDER_PART_RIGHT_T,               BORDER_PART_LEFT_T,             BORDER_PART_CROSS            ]]  # TOP + BOTTOM
-
-    default_style = BORDER_STYLE_STRONG
+class BasicProcess(object):
+        
+    @classmethod
+    def getFactory(cls, title, log_file_path):
+        def op(instance, server):
+            return cls(instance, title, log_file_path, server)
+        return op 
         
     # -------------------------------------------------------------------- #
     
-    @staticmethod
-    def _get_vertical_position(has_top, has_bottom):
-        return has_top * UniBorder.VERTICAL_POSITION_HAS_TOP + has_bottom * UniBorder.VERTICAL_POSITION_HAS_BOTTOM
+    def __init__(self, instance, title, log_file_path, server):
+        self.instance = instance
+        self.title = title
+        self.log_file_path = log_file_path
+        self.server = server
+        
+        self._log_file = None
+        
+    # -------------------------------------------------------------------- #
+            
+    def openLog(self):
+        if self.log_file_path is None:
+            return
+        log("%u: See log %s\n" % (self.instance.pid, self.log_file_path))
+        self._log_file = open(self.log_file_path, "w") 
 
     # -------------------------------------------------------------------- #
     
-    @staticmethod
-    def _get_horizonal_position(has_left, has_right):
-        return has_left * UniBorder.HORIZONAL_POSITION_HAS_LEFT + has_right * UniBorder.HORIZONAL_POSITION_HAS_RIGHT
-                                             
+    def closeLog(self):
+        if self._log_file is not None:
+            self._log_file.close()
+            
     # -------------------------------------------------------------------- #
     
-    @staticmethod
-    def _get_border_char_by_part(border_part, style = None):
-        if style is None:
-            style = UniBorder.default_style        
-        return UniBorder._border_chars[border_part][style]
-    
-    # -------------------------------------------------------------------- #
+    def log(self, line, log_level):
+        if self._log_file is not None:
+            self._log_file.write(line + "\n")
+            self._log_file.flush()
 
-    @staticmethod    
-    def _get_border_part_by_direction(vertical_position, horizonal_position):
-        return UniBorder._junction_part_by_position[vertical_position][horizonal_position]
-    
-    # -------------------------------------------------------------------- #
-    
-    @staticmethod    
-    def _get_border_char(has_top, has_bottom, has_left, has_right, style = None):
-        if style is None:
-            style = UniBorder.default_style
-        vertical_position   = UniBorder._get_vertical_position(has_top, has_bottom)
-        horizonal_position  = UniBorder._get_horizonal_position(has_left, has_right)
-        border_part         = UniBorder._get_border_part_by_direction(vertical_position, horizonal_position, style)
-        return UniBorder._get_border_char_by_part(border_part)    
-    
-# -------------------------------------------------------------------- #
 
-def log_write(msg, process, stream):
-    pid = "" if process is None else " %u" % process.pid
-    stream.write("[%s%s] %s\n" % (time.strftime("%Y-%m-%d %H:%M:%S"), pid, msg))
-    stream.flush()
-    
-# -------------------------------------------------------------------- #
-
-def log(msg, process = None):
-    log_write(msg, process, sys.stdout)
-
-# -------------------------------------------------------------------- #
-
-def error(msg, process = None):
-    log_write(msg, process, sys.stderr)
-
-# -------------------------------------------------------------------- #
-
-def title(msg, style = UniBorder.BORDER_STYLE_STRONG, process = None):
-    UniBorder.default_style = style
-    bar = UniBorder._get_border_char_by_part(UniBorder.BORDER_PART_HORIZONAL_LINE) * len(msg)
-    log(UniBorder._get_border_char_by_part(UniBorder.BORDER_PART_TOP_LEFT_CORNER) + bar + UniBorder._get_border_char_by_part(UniBorder.BORDER_PART_TOP_RIGHT_CORNER), process)
-    log(UniBorder._get_border_char_by_part(UniBorder.BORDER_PART_VERTICAL_LINE) + msg + UniBorder._get_border_char_by_part(UniBorder.BORDER_PART_VERTICAL_LINE), process)
-    log(UniBorder._get_border_char_by_part(UniBorder.BORDER_PART_BOTTOM_LEFT_CORNER) + bar + UniBorder._get_border_char_by_part(UniBorder.BORDER_PART_BOTTOM_RIGHT_CORNER), process)
-
-# -------------------------------------------------------------------- #
+###############################################################################        
 
 def processCommunicateLive(process, on_output = None, on_error = None):
     while True:
-        out = process.stdout.readline()
+        out = process.instance.stdout.readline()
         #err = process.stderr.readline()
         err = ""
-        if (out == "") and (err == "") and (process.poll() is not None):
+        if (out == "") and (err == "") and (process.instance.poll() is not None):
             break
         if (out != "") and (on_output is not None):
             on_output(out[:-1], process)
@@ -151,16 +66,17 @@ def processCommunicateLive(process, on_output = None, on_error = None):
 # -------------------------------------------------------------------- #
 
 def waitForProcesses(processes, 
-                     wait_timeout = None,
+                     wait_timeout = sys.maxint,
                      on_output = log, 
                      on_error = error,
                      on_process_start = None,
                      on_process_done = None,
-                     on_process_timeout = None):
+                     verbose = True):
     '''
     Wait for a group of processes to finish, but run them in parallel.
     '''
-    log("Waiting for processes: %s" % [process.pid for process in processes])    
+    if verbose:
+        log("Waiting for processes: %s" % [process.instance.pid for process in processes])    
     threads = []
     for process in processes:
         thread = threading.Thread(target=processCommunicateLive, args=(process,on_output,on_error))
@@ -178,11 +94,14 @@ def waitForProcesses(processes,
             process = processes[i]
             thread = threads[i]
             if not thread.is_alive():
-                if process.returncode != 0:
-                    error("Process %u exited with error code %u (elapsed: %.2lf)" % (process.pid, process.returncode, elapsed))
+                retcode = process.instance.returncode
+                pid = process.instance.pid
+                if retcode != 0:
+                    error("Process %u exited with error code %u (elapsed: %.2lf)" % (pid, retcode, elapsed))
                     all_ok = False
                 else:
-                    log("Process %u finished successfully (elapsed: %.2lf)" % (process.pid, elapsed))
+                    if verbose:
+                        log("Process %u finished successfully (elapsed: %.2lf)" % (pid, elapsed))
                 if on_process_done is not None: 
                     on_process_done(process)
                 processes.pop(i)
@@ -197,40 +116,43 @@ def waitForProcesses(processes,
             
     # All remaining threads got timeout:            
     for process in processes:
-        error("Process %u got timeout (%.2lf)." % (process.pid, wait_timeout))
-        if on_process_timeout is not None:
-            on_process_timeout(process)
+        error("Process %u got timeout (%.2lf)." % (process.instance.pid, wait_timeout))
+        if on_process_done is not None:
+            on_process_done(process)
         all_ok = False
     return all_ok
 
 # -------------------------------------------------------------------- #
 
-def executeCommand(command):
-    log("Running command: %s" % command)
-    process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-    return process
+def executeCommand(command, factory = None, server = None, verbose = True):
+    if factory is None:
+        factory = BasicProcess.getFactory(None, None)
+    if verbose:
+        log("Running command: %s" % command)
+    instance = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    return factory(instance, server)
 
 # -------------------------------------------------------------------- #
 
-def executeRemoteCommand(servers, command, user = None):
+def executeRemoteCommand(servers, command, user = None, factory = None, verbose = True):
     processes = []
     for server in servers:
         remote = server if user is None else "%s@%s" % (user, server)
-        process = executeCommand("ssh %s -C \"%s\"" % (remote, command))
+        cmd = "ssh %s -C \"%s\"" % (remote, command)
+        process = executeCommand(cmd, factory = factory, server = server, verbose = verbose)
         processes.append(process)
     return processes
 
 # -------------------------------------------------------------------- #
 
-def copyToRemote(servers, sources, remote_dir, user = None):
+def copyToRemote(servers, sources, remote_dir, user = None, factory = None, verbose = True):
     processes = []    
     for server in servers:
         remote = server if user is None else "%s@%s" % (user, server)
-        remote_copy_cmd = "scp -r " + " ".join(sources) + " %s:%s" % (remote, remote_dir)
-        process = executeCommand(remote_copy_cmd)
+        cmd = "scp -r " + " ".join(sources) + " %s:%s" % (remote, remote_dir)
+        process = executeCommand(cmd, factory = factory, server = server, verbose = verbose)
         processes.append(process)
     return processes
-
 
 ###############################################################################################################################################################
 #

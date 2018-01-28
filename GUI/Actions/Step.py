@@ -2,11 +2,12 @@
 # -*- coding: utf-8 -*-
 
 import copy
-from Actions.Util import log, error, title, UniBorder
+
+from Actions.Util import *
+from Actions.Log import *
 from PyQt4.QtGui import QWidget, QGridLayout, QLineEdit, QLabel
 from xml.dom import minidom
 from xml.etree import cElementTree as etree
-import sys
 
 ###############################################################################
 
@@ -15,7 +16,8 @@ class TestEnvironment(object):
     _on_out = [None]
     _on_err = [None]
     _on_new_process = [None]
-    _on_process_done = [None]    
+    _on_process_done = [None]
+    _logs_folder = [None]
     
     @staticmethod
     def onOut():
@@ -28,11 +30,15 @@ class TestEnvironment(object):
     @staticmethod
     def onNewProcess():
         return TestEnvironment._on_new_process[0]
-
+        
     @staticmethod
     def onProcessDone():
         return TestEnvironment._on_process_done[0]
-        
+
+    @staticmethod
+    def logsFolder():
+        return TestEnvironment._logs_folder[0] 
+                
     @staticmethod
     def setOnOut(val):
         TestEnvironment._on_out[0] = val
@@ -45,10 +51,13 @@ class TestEnvironment(object):
     def setOnNewProcess(val):
         TestEnvironment._on_new_process[0] = val        
         
-        
     @staticmethod
     def setOnProcessDone(val):
-        TestEnvironment._on_process_done[0] = val        
+        TestEnvironment._on_process_done[0] = val
+        
+    @staticmethod
+    def setLogsFolder(val):
+        TestEnvironment._logs_folder[0] = val
         
 ###############################################################################
 
@@ -155,14 +164,57 @@ class Step(object):
     
     def perform(self):
         print "Empty."
-        
+
+    # -------------------------------------------------------------------- #
+    
+    def _runCommand(self, cmd, servers, wait_timeout, on_output, on_error, on_process_start, on_process_done, factory):
+        processes = []
+        if servers is None:
+            processes.append(executeCommand(cmd))
+        else:
+            processes.extend(executeRemoteCommand(servers, cmd))
+        return waitForProcesses(processes, 
+                                wait_timeout=wait_timeout,
+                                on_output=on_output,
+                                on_error=on_error,
+                                on_process_start=on_process_start,
+                                on_process_done=on_process_done)
+
+    # -------------------------------------------------------------------- #
+    
+    def runInline(self, cmd, servers = None, wait_timeout = None):
+        ''' Run and output to global log '''
+        return self._runCommand(cmd, servers, wait_timeout, log, error, None, None, factory=None)
+
+    # -------------------------------------------------------------------- #
+    
+    def runSeperate(self, cmd, servers = None, title = None, log_file_path = None, wait_timeout = None):
+        ''' Run and output to process log '''
+        factory = BasicProcess.getFactory(title, log_file_path)
+        return self._runCommand(cmd, 
+                                servers, 
+                                wait_timeout, 
+                                TestEnvironment.onOut(), 
+                                TestEnvironment.onErr(), 
+                                TestEnvironment.onNewProcess(), 
+                                TestEnvironment.onProcessDone(),
+                                factory = factory)
+                
+    # -------------------------------------------------------------------- #
+    
+    def runSCP(self, servers, sources, remote_dir, wait_timeout=None):
+        ''' Run SCP. Always inline. '''
+        processes = copyToRemote(servers, sources, remote_dir)
+        return waitForProcesses(processes, 
+                                wait_timeout=wait_timeout, 
+                                on_output=log, 
+                                on_error=error)
+                
     # -------------------------------------------------------------------- #
             
     def __repr__(self):
         s = type(self).NAME
         s += " [" + " ".join(self.values()) + "]" 
-        if self._pass:
-            s += " ........ Passed."
         return s
         
     # -------------------------------------------------------------------- #

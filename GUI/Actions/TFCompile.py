@@ -60,21 +60,18 @@ class TFCompileStep(Step):
             additional_flags = ""
         else:
             additional_flags = "--copt \"%s\"" % " ".join(self.additional_flags())
-        cmd = "cd %s; bazel build -c opt %s %s //tensorflow/tools/pip_package:build_pip_package" % (self.tensorflow_home(),
-                                                                                                    config_cuda,
-                                                                                                    additional_flags)
-        process = executeCommand(cmd)
-        res = waitForProcesses([process], 
-                               wait_timeout=3600, 
-                               on_output=TestEnvironment.onOut(), 
-                               on_error=TestEnvironment.onErr(),
-                               on_process_done=TestEnvironment.onProcessDone())
+        cmd = "cd %s; rm -rf tensorflow_pkg; bazel build -c opt %s %s //tensorflow/tools/pip_package:build_pip_package" % (self.tensorflow_home(),
+                                                                                                                           config_cuda,
+                                                                                                                           additional_flags)
+        res = self.runSeperate(cmd, 
+                               title = "Build %s" % self.tensorflow_home(), 
+                               log_file = "build.log", 
+                               wait_timeout = 3600)
         if not res:
             return False
     
         cmd = "cd %s; bazel-bin/tensorflow/tools/pip_package/build_pip_package tensorflow_pkg" % (self.tensorflow_home())
-        process = executeCommand(cmd)
-        res = waitForProcesses([process], wait_timeout=60)
+        res = self.runInline(cmd, wait_timeout=60)
         if not res:
             return False
 
@@ -85,9 +82,7 @@ class TFCompileStep(Step):
         src_dir = os.path.join(self.tensorflow_home(), "tensorflow_pkg")
         temp_dir_name = "tmp." + next(tempfile._get_candidate_names()) + next(tempfile._get_candidate_names())
         temp_dir = os.path.join(tempfile._get_default_tempdir(), temp_dir_name)
-                
-        processes = copyToRemote(self.install_servers(), [src_dir], temp_dir)
-        res = waitForProcesses(processes, wait_timeout=10)
+        res = self.runSCP(self.install_servers(), [src_dir], temp_dir, wait_timeout=10)
         if not res:
             return False
     
@@ -102,7 +97,8 @@ class TFCompileStep(Step):
         ##########
         title("Cleaning:", UniBorder.BORDER_STYLE_SINGLE)
         processes = executeRemoteCommand(self.install_servers(), "rm -rf %s" % temp_dir)
-        waitForProcesses(processes, wait_timeout=10)        
+        waitForProcesses(processes, wait_timeout=10)
+        return True
 
 ###############################################################################################################################################################
 #
