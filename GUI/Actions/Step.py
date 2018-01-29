@@ -130,12 +130,17 @@ class Step(object):
         if values is None:
             values = [att[1] for att in attributes]
         self._values = values   # The attribute values of individual step
-        self._pass = False  # Status
+        self._status = None  # Status
         
     # -------------------------------------------------------------------- #
     
-    def setPass(self, value):
-        self._pass = value
+    def setStatus(self, value):
+        self._status = value
+    
+    # -------------------------------------------------------------------- #
+    
+    def status(self):
+        return self._status
     
     # -------------------------------------------------------------------- #
         
@@ -165,6 +170,11 @@ class Step(object):
     def perform(self):
         print "Empty."
 
+    # -------------------------------------------------------------------- #
+    
+    def stopOnFailure(self):
+        return True
+    
     # -------------------------------------------------------------------- #
     
     def _runCommand(self, cmd, servers, wait_timeout, on_output, on_error, on_process_start, on_process_done, factory):

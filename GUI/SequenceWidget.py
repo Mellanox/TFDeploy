@@ -474,12 +474,22 @@ class SequenceWidget(QMainWindow):
                    
     # -------------------------------------------------------------------- #
     
-    def _logToMainLog(self, msg, process):
+    def _logToMainOp(self, msg, process):
         self.emitLog(msg, self._main_process)
 
     # -------------------------------------------------------------------- #
     
-    def _errorToMainLog(self, msg, process):
+    def _errorToMainOp(self, msg, process):
+        self.emitError(msg, self._main_process)
+
+    #--------------------------------------------------------------------#
+    
+    def logToMain(self, msg):
+        self.emitLog(msg, self._main_process)
+
+    # -------------------------------------------------------------------- #
+    
+    def errorToMain(self, msg):
         self.emitError(msg, self._main_process)
 
     #--------------------------------------------------------------------#
@@ -490,7 +500,6 @@ class SequenceWidget(QMainWindow):
     #--------------------------------------------------------------------#
     
     def _onProcessDone(self, process):
-        stdoutLog("PROCESS %u FINISHED WITH CODE %u" % (process.instance.pid, process.instance.returncode))
         if process.instance.returncode == 0:
             self.emitCloseLog(process)
         
@@ -642,10 +651,13 @@ class SequenceWidget(QMainWindow):
     #--------------------------------------------------------------------#
     
     def _refreshItem(self, index):
-        item = self._sequence[index]
+        step = self._sequence[index]
+        text = str(step)
+        if step.status() is not None:
+            text += " - " + step.status() 
         self.hook_selection = False
         self.sequence_widget.takeItem(index)
-        self.sequence_widget.insertItem(index, str(item))
+        self.sequence_widget.insertItem(index, text)
         self.sequence_widget.setCurrentRow(index)
         self.hook_selection = True
     
@@ -663,27 +675,42 @@ class SequenceWidget(QMainWindow):
             self._refreshItem(index)
 
     #--------------------------------------------------------------------#
+    
+    def _setStepStatus(self, step, index, status):
+        step.setStatus(status)
+        self._emitRefreshItem(index)
+
+    #--------------------------------------------------------------------#
                 
     def _reset(self):
         for index in range(len(self._sequence)):
             step = self._sequence[index]
-            step.setPass(False)
-            self._emitRefreshItem(index)
+            self._setStepStatus(step, index, None)
+
+    #--------------------------------------------------------------------#
     
+    def _runStep(self, index):
+        step = self._sequence[index]
+        self._setStepStatus(step, index, "Running...")
+        self.logToMain("<h1>%s</h1>" % step.name())
+        res = step.perform()
+        if res:
+            self._setStepStatus(step, index, "Passed.")
+        else:
+            self._setStepStatus(step, index, "Failed.")
+            if step.stopOnFailure():
+                return False
+        return True
+                                    
     #--------------------------------------------------------------------#
             
     def _runSequence(self):
         self._reset()
-        print "Run sequence..."
+        self.logToMain("Run sequence...")
         for index in range(len(self._sequence)):
-            step = self._sequence[index]
-            log("<h1>%s</h1>" % step.name())
-            if not step.perform():
-                step.setPass(False)
+            if not self._runStep(index):
                 break
-            step.setPass(True)
-            self._emitRefreshItem(index)
-        print "Done."
+        self.logToMain("Done.")
         self._emitRunSequenceDone()
         
     #--------------------------------------------------------------------#
@@ -716,7 +743,7 @@ class SequenceWidget(QMainWindow):
         TestEnvironment.setLogsFolder(logs_dir)
         self._main_process = BasicProcess(None, "Running: %s" % xmlPath, os.path.join(logs_dir, "main.log"), None)
         self._openLog(self._main_process)
-        setLogOps(self._logToMainLog, self._errorToMainLog)
+        setLogOps(self._logToMainOp, self._errorToMainOp)
         self.sequence_widget.setEnabled(False)
         self.edit_pane.hide()
         self._runSequenceInNewThread()
