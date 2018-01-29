@@ -275,6 +275,7 @@ class SequenceWidget(QMainWindow):
         self._doc = DocumentControl(self, "Xml file (*.xml);;Any File (*.*);;", ".")
         self._sequence = []
         self._selected_step = None
+        self._main_process = None
         self._initGui()
 
     #--------------------------------------------------------------------#
@@ -427,10 +428,11 @@ class SequenceWidget(QMainWindow):
     #--------------------------------------------------------------------#
 
     def _log(self, line, process, log_level):
-        if process is None or process.log_file_path is None:
-            self._main_log_file.write(line + "\n")
-        else:
-            process.log(line, log_level)
+        if process is None:
+            sys.stdout.write(line + "\n")
+            sys.stdout.flush()
+            
+        process.log(line, log_level)
         self._log_widget.log(line, process, log_level)
 
     #--------------------------------------------------------------------#
@@ -472,13 +474,13 @@ class SequenceWidget(QMainWindow):
                    
     # -------------------------------------------------------------------- #
     
-    def _globalLog(self, msg, process):
-        self.emitLog(msg, process)
+    def _logToMainLog(self, msg, process):
+        self.emitLog(msg, self._main_process)
 
     # -------------------------------------------------------------------- #
     
-    def _globalError(self, msg, process):
-        self.emitError(msg, process)
+    def _errorToMainLog(self, msg, process):
+        self.emitError(msg, self._main_process)
 
     #--------------------------------------------------------------------#
     
@@ -488,17 +490,17 @@ class SequenceWidget(QMainWindow):
     #--------------------------------------------------------------------#
     
     def _onProcessDone(self, process):
+        stdoutLog("PROCESS %u FINISHED WITH CODE %u" % (process.instance.pid, process.instance.returncode))
         if process.instance.returncode == 0:
             self.emitCloseLog(process)
         
     #--------------------------------------------------------------------#
     
-    def captureDefaultLog(self):
+    def setTestEnvironment(self):
         TestEnvironment.setOnOut(self.emitLog)
         TestEnvironment.setOnErr(self.emitError)
         TestEnvironment.setOnNewProcess(self._onNewProcess)
         TestEnvironment.setOnProcessDone(self._onProcessDone)
-        setLogOps(self._globalLog, self._globalError)
 
     #--------------------------------------------------------------------#
     
@@ -696,20 +698,25 @@ class SequenceWidget(QMainWindow):
         self.sequence_widget.setEnabled(True)
         self.b_run.setEnabled(True)
         self.edit_pane.show()
-        self._main_log_file.close()
+        self._main_process.closeLog()
+        self._main_process = None
+        setLogOps(logWriteOp, errorWriteOp)
     
     #--------------------------------------------------------------------#
     
     def _run(self):
+        xmlPath = self._doc.filePath()
         if self._doc.filePath() is None:
             test_name = "unnamed_test"
         else:
-            test_name = re.sub("[^0-9a-zA-Z]", "_", self._doc.filePath())
+            test_name = re.sub("[^0-9a-zA-Z]", "_", xmlPath)
         time_prefix = time.strftime("%Y_%m_%d_%H_%M_%S")
         logs_dir = os.path.join("test_logs", time_prefix + "_" + test_name)
         os.makedirs(logs_dir)
         TestEnvironment.setLogsFolder(logs_dir)
-        self._main_log_file = open(os.path.join(logs_dir, "main.log"), "w")
+        self._main_process = BasicProcess(None, "Running: %s" % xmlPath, os.path.join(logs_dir, "main.log"), None)
+        self._openLog(self._main_process)
+        setLogOps(self._logToMainLog, self._errorToMainLog)
         self.sequence_widget.setEnabled(False)
         self.edit_pane.hide()
         self._runSequenceInNewThread()
@@ -789,7 +796,7 @@ if __name__ == '__main__':
     args = arg_parser.parse_args()
     app = QApplication([])    
     prompt = SequenceWidget()
-    prompt.captureDefaultLog()
+    prompt.setTestEnvironment()
     if args.xml is not None:
         prompt.loadFromXml(args.xml)            
     

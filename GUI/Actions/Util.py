@@ -32,7 +32,8 @@ class BasicProcess(object):
     def openLog(self):
         if self.log_file_path is None:
             return
-        log("%u: See log %s\n" % (self.instance.pid, self.log_file_path))
+        if self.instance is not None:
+            log("%u: See log %s\n" % (self.instance.pid, self.log_file_path))
         self._log_file = open(self.log_file_path, "w") 
 
     # -------------------------------------------------------------------- #

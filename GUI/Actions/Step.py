@@ -182,13 +182,20 @@ class Step(object):
 
     # -------------------------------------------------------------------- #
     
-    def runInline(self, cmd, servers = None, wait_timeout = None):
+    def runInline(self, cmd, servers = None, wait_timeout = sys.maxint):
         ''' Run and output to global log '''
-        return self._runCommand(cmd, servers, wait_timeout, log, error, None, None, factory=None)
+        return self._runCommand(cmd, 
+                                servers, 
+                                wait_timeout, 
+                                log, 
+                                error, 
+                                None, 
+                                None,
+                                None)
 
     # -------------------------------------------------------------------- #
     
-    def runSeperate(self, cmd, servers = None, title = None, log_file_path = None, wait_timeout = None):
+    def runSeperate(self, cmd, servers = None, title = None, log_file_path = None, wait_timeout = sys.maxint):
         ''' Run and output to process log '''
         factory = BasicProcess.getFactory(title, log_file_path)
         return self._runCommand(cmd, 

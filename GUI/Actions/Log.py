@@ -125,20 +125,20 @@ def _streamWrite(stream, data):
 
 # -------------------------------------------------------------------- #
 
-def _logWrite(data, process):
+def logWriteOp(data, process):
     _streamWrite(sys.stdout, data)
 
 # -------------------------------------------------------------------- #
 
-def _errorWrite(data, process):
+def errorWriteOp(data, process):
     _streamWrite(sys.stderr, data)
 
 # -------------------------------------------------------------------- #
     
 g_log_level = LOG_LEVEL_INFO
 g_file_level = LOG_LEVEL_ALL 
-g_log_op = _logWrite
-g_error_op = _errorWrite
+g_log_op = logWriteOp
+g_error_op = errorWriteOp
 
 # -------------------------------------------------------------------- #
 
@@ -184,6 +184,16 @@ def log(msg, process = None):
 def error(msg, process = None):
     _doLog(msg, process, g_error_op)
 
+# -------------------------------------------------------------------- #
+
+def stdoutLog(msg, process = None):
+    _doLog(msg, process, logWriteOp)
+
+# -------------------------------------------------------------------- #
+
+def stderrLog(msg, process = None):
+    _streamWrite(msg, process, errorWriteOp)
+    
 # -------------------------------------------------------------------- #
 
 def title(msg, style = UniBorder.BORDER_STYLE_STRONG, process = None):

@@ -110,6 +110,13 @@ class TFCnnBenchmarksStep(Step):
         return process
 
     # -------------------------------------------------------------------- #
+    
+    def _onOut(self, line, process):
+        op = TestEnvironment.onOut()
+        if op is not None:
+            op(line, process)
+            
+    # -------------------------------------------------------------------- #
 
     def _onJobDone(self, process):
         handler = TestEnvironment.onProcessDone()
@@ -126,8 +133,7 @@ class TFCnnBenchmarksStep(Step):
         self._stopping = True
         log("Stopping remaining processes...")
         time.sleep(5)
-        processes = executeRemoteCommand(self._servers, "%s/clean_host.sh" % self._work_dir)
-        waitForProcesses(processes, 5, log, error)
+        self.runInline("%s/clean_host.sh" % self._work_dir, self._servers)
          
 # -------------------------------------------------------------------- #
 
@@ -167,7 +173,7 @@ class TFCnnBenchmarksStep(Step):
         title("Copying scripts:", UniBorder.BORDER_STYLE_SINGLE)    
         res = self.runSCP(self._servers, [script_dir], work_dir, wait_timeout = 10)
         if not res:
-            sys.exit(1)
+            return False
     
         ########
         # Run: #
@@ -189,7 +195,7 @@ class TFCnnBenchmarksStep(Step):
                                on_process_start=TestEnvironment.onNewProcess(),
                                on_process_done=self._onJobDone)
         if not res:
-            sys.exit(1)
+            return False
         
         ############
         # Cleanup: #
@@ -208,6 +214,7 @@ class TFCnnBenchmarksStep(Step):
 if __name__ == '__main__':
     TestEnvironment.setOnOut(log)
     TestEnvironment.setOnErr(error)
+    TestEnvironment.setLogsFolder(os.path.join("~", "test_logs"))
     step = TFCnnBenchmarksStep()
     step.perform()
 
