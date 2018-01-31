@@ -98,7 +98,7 @@ def waitForProcesses(processes,
                 retcode = process.instance.returncode
                 pid = process.instance.pid
                 if retcode != 0:
-                    error("Process %u exited with error code %u (elapsed: %.2lf)" % (pid, retcode, elapsed))
+                    error("Process %u exited with error code %d (elapsed: %.2lf)" % (pid, (0xdeadbeef if retcode is None else retcode), elapsed))
                     all_ok = False
                 else:
                     if verbose:

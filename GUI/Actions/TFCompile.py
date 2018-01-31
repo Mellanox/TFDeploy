@@ -6,7 +6,7 @@ import os
 import tempfile
 from Util import *
 from Step import Step
-from Actions.Step import TestEnvironment
+from Actions.TestEnvironment import TestEnvironment
 from Actions.Util import executeRemoteCommand
 
 ###############################################################################

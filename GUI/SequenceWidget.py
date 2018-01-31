@@ -13,7 +13,8 @@ from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 from Actions.Common import *
 from Actions.TFCnnBenchmarks import TFCnnBenchmarksStep
-from Actions.Step import Step, TestEnvironment
+from Actions.Step import Step
+from Actions.TestEnvironment import TestEnvironment
 from Actions.TFCompile import TFCompileStep
 from Actions.Util import BasicProcess
 
@@ -281,6 +282,8 @@ class SequenceWidget(QMainWindow):
     #--------------------------------------------------------------------#
                         
     def _initGui(self):
+        self.setWindowTitle("EZTester2")
+        self.setWindowIcon(QIcon("/usr/share/icons/Humanity/categories/16/applications-development.svg"))
         self.log_signal.connect(self._log)
         self.open_log_signal.connect(self._openLog)
         self.close_log_signal.connect(self._closeLog)
