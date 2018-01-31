@@ -53,12 +53,29 @@ class FormattedTable(object):
         self.columns = []
         self.rows = []
         self.groups = []
-        self.output = sys.stdout
+        self.output = None
+        self._bind = False
         
         ##########
         # Style: #
         ##########
         self.border_style = UniBorder.BORDER_STYLE_STRONG
+        
+    # -------------------------------------------------------------------- #
+    
+    def bind(self, output = sys.stdout, print_header = True):
+        self.output = output
+        self._bind = True
+        if print_header:
+            self._calculate_column_widths()
+            self._calculate_group_widths(False)            
+            self._print_headers()
+            
+    # -------------------------------------------------------------------- #
+    
+    def unbind(self):
+        self._print_footers()
+        self._bind = False
         
     # -------------------------------------------------------------------- #
     
@@ -78,6 +95,8 @@ class FormattedTable(object):
     
     def add_row(self, row):
         self.rows.append(row)
+        if self._bind:
+            self._print_row(row)
     
     # -------------------------------------------------------------------- #
 
@@ -321,8 +340,10 @@ if __name__ == '__main__':
     table.add_column(FormattedTable.Column("Column B"))
     table.add_column(FormattedTable.Column("Column C"))
     table.add_column(FormattedTable.Column("Column D"))
+    table.bind()
     table.add_row(["A1", "B1", "C1", "D1"])
     table.add_row(["A2", "B2", "C2", "D2"])
     table.add_bar()
     table.add_row(["A3", "B3", "C3", "D3"])
-    table.print_formatted()
+    table.unbind()
+    table.print_as_csv()

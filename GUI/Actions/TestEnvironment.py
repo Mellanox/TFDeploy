@@ -1,6 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-from GPUMonitor import GPUMontior, CPUMontior
+
+from GPUMonitor import Monitor
 
 ###############################################################################
 
@@ -11,8 +12,7 @@ class TestEnvironment(object):
     _on_new_process = [None]
     _on_process_done = [None]
     _logs_folder = [None]
-    _gpu_monitors = {}
-    _cpu_monitors = {}    
+    _monitors = {}
     
     @staticmethod
     def onOut():
@@ -55,19 +55,17 @@ class TestEnvironment(object):
         TestEnvironment._logs_folder[0] = val
         
     @staticmethod
-    def getGPUMonitor(server):
-        if server in TestEnvironment._gpu_monitors:
-            return TestEnvironment._gpu_monitors[server]
-        monitor = GPUMontior(server, None, 0, 1)
-        TestEnvironment._gpu_monitors[server] = monitor
+    def getCPUMonitor(server, graph_file = None):
+        if server in TestEnvironment._monitors:
+            return TestEnvironment._monitors[server]
+        monitor = Monitor(server, graph_file, 0, 1)
+        TestEnvironment._monitors[server] = monitor
         return monitor
-    
+
     @staticmethod
-    def getCPUMonitor(server, pid):
-        key = (server, pid)
-        if key in TestEnvironment._cpu_monitors:
-            return TestEnvironment._cpu_monitors[key]
-        monitor = CPUMontior(server, pid, None, 0, 1)
-        TestEnvironment._cpu_monitors[key] = monitor
-        return monitor    
-        
+    def getGPUMonitor(server, graph_file = None):
+        if server in TestEnvironment._monitors:
+            return TestEnvironment._monitors[server]
+        monitor = Monitor(server, graph_file, 0, 1)
+        TestEnvironment._monitors[server] = monitor
+        return monitor
