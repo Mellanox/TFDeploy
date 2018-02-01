@@ -157,7 +157,7 @@ do
 		done
 		gpus_usage=$new_gpus_usage
 	else
-		process_stats=`top -b -p $child_pid -n 1 | grep $tf_cnn_benchmarks.py`
+		process_stats=`top -b -p $child_pid -n 1 | tail -1`
 		cpu_usage=`echo $process_stats | cut -d' ' -f9`; [[ -z $cpu_usage ]] && cpu_usage=0
 		mem_usage=`echo $process_stats | cut -d' ' -f10`; [[ -z $mem_usage ]] && mem_usage=0
 		[[ $TF_NUM_GPUS -gt 0 ]] && gpus_usage=`nvidia-smi | grep -e " [0-9]\+% " | sed -e 's!.* \([0-9]\+\)% .*!\1!g'`
@@ -219,5 +219,7 @@ do
 	fi
 done 9< "${output_fifo}"
 rm $output_fifo
+wait $child_pid
+res=$?
 
-set_done 0
+set_done $res
