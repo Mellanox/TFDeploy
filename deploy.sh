@@ -325,6 +325,7 @@ result=`grep "total images/sec" $logs_dir/worker_0.log | sed -e 's!.*total image
 [[ -z $result ]] && error "Run failed. See $logs_dir/ for details."
 
 echo -e "\033[1;32mSuccess.\033[0;0m"
+notify-send -i face-smile "Test passed." >& /dev/null
 
 local_results_file="$logs_dir/results.csv"
 global_results_file="$logs_base_dir/results.csv"
