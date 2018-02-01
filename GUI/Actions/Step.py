@@ -150,7 +150,7 @@ class Step(object):
                                 log, 
                                 error, 
                                 None, 
-                                None,
+                                checkRetCode,
                                 None)
 
     # -------------------------------------------------------------------- #

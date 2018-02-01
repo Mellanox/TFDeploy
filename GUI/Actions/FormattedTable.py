@@ -12,7 +12,7 @@ class FormattedTable(object):
 
     class Column(object):
     
-        def __init__(self, name, adjust_width=True, min_width=1):
+        def __init__(self, name, min_width=1, adjust_width=True):
             self.name = name
             self.adjust_width = adjust_width
             self.width = min_width
@@ -68,13 +68,17 @@ class FormattedTable(object):
         self._bind = True
         if print_header:
             self._calculate_column_widths()
-            self._calculate_group_widths(False)            
-            self._print_headers()
+            self._calculate_group_widths(False)
+            if output is sys.stdout:            
+                self._print_headers()
+            else:
+                self._print_csv_headers()
             
     # -------------------------------------------------------------------- #
     
     def unbind(self):
-        self._print_footers()
+        if self.output is sys.stdout:
+            self._print_footers()
         self._bind = False
         
     # -------------------------------------------------------------------- #
@@ -96,12 +100,18 @@ class FormattedTable(object):
     def add_row(self, row):
         self.rows.append(row)
         if self._bind:
-            self._print_row(row)
+            if self.output is sys.stdout:
+                self._print_row(row)
+            else:
+                self._print_csv_row(row)
     
     # -------------------------------------------------------------------- #
 
     def add_bar(self):
         self.rows.append(FormattedTable.BAR)
+        if self._bind:
+            if self.output is sys.stdout:
+                self._print_bar(self.COLUMN_CONNECTIONS(), self.COLUMN_CONNECTIONS())
     
     # -------------------------------------------------------------------- #
     
@@ -127,7 +137,6 @@ class FormattedTable(object):
     
     def _print(self, text):
         self.output.write(text)
-
     
     # -------------------------------------------------------------------- #
         

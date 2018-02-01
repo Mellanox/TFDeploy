@@ -1,15 +1,14 @@
 #!/bin/bash
 
-work_dir=`dirname $0`
-cd $work_dir
+script_dir=`dirname $0`
+cd $script_dir
 
 job_name=$1
 task_index=$2
 
 title="[$(dirname $0)]: `hostname`  - $job_name:$task_index"
-echo -ne "\033]0;$title\007"
+#echo -ne "\033]0;$title\007"
 
-echo -e "\033[1;32m"
 echo "Running `hostname`:"
 echo "   + Job Name: $job_name" 
 echo "   + Task Index: $task_index"
@@ -46,6 +45,19 @@ then
 		export RDMA_SL=1
 		export RDMA_MTU=512
 		export RDMA_TRAFFIC_CLASS=8
+
+################  UCX  ######################
+                export UCX_NET_DEVICES=$RDMA_DEVICE:$RDMA_DEVICE_PORT 
+# Ucx should be compiled ./contrib/configure-devel --enable-debug 
+		#export UCX_IB_ETH_PAUSE_ON=y
+		#export UCX_LOG_LEVEL=trace 
+
+################  GRPC debugging ############
+		#export GRPC_VERBOSITY=DEBUG
+		#export GRPC_TRACE=api,call_combiner
+		#export GRPC_TRACE=queue_pluck,flowctl,http1,http2_stream_state,http,op_failure
+		#export GRPC_TRACE=client_channel,call_error,channel,server_channel,channel_stack_builder,connectivity_state  #all
+                echo "   + UCX device: $UCX_NET_DEVICES"
 		echo "   + RDMA device: $RDMA_DEVICE"
 		echo "   + RDMA port: $RDMA_DEVICE_PORT"
 		echo "   + RDMA GID INDEX: $RDMA_GID_INDEX"
@@ -58,14 +70,13 @@ then
 	    echo "   + RDMA traffic class: $RDMA_TRAFFIC_CLASS"
 		if [[ -z `echo $ibdev_line | grep Up` ]]
 		then
-			echo -e "\033[1;31mDevice is down.\033[0;0m"
+			echo -e "Device is down."
 			set_done 1
 		fi
 	else
 		echo " + Not an RDMA device."
 	fi
 fi
-echo -e "\033[0;0m"
 
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda/lib64/
 if [[ $job_name == "ps" ]]
@@ -73,9 +84,9 @@ then
 	export CUDA_VISIBLE_DEVICES=""
 fi
 
-[[ $TF_CPP_MIN_VLOG_LEVEL == "x" ]] && GDB_OPTION="/usr/local/cuda/bin/cuda-memcheck"
+[[ $TF_CPP_MIN_VLOG_LEVEL == "x" ]] && GDB_OPTION="gdb --args"
 [[ $TF_CPP_MIN_VLOG_LEVEL == "p" ]] && TF_ADDITIONAL_FLAGS="$TF_ADDITIONAL_FLAGS --trace_file=trace_${job_name}_${task_index}.json"
-cmd="$GDB_OPTION python -u $work_dir/$BENCHMARK_NAME"
+cmd="$GDB_OPTION python -u $script_dir/tf_cnn_benchmarks.py"
 
 if [[ ! -z $TF_PS_HOSTS ]]
 then
@@ -97,7 +108,7 @@ fi
 
 cmd="$cmd $TF_ADDITIONAL_FLAGS"
 
-echo -ne "\033[1;33m$cmd\033[0;0m\n"
+echo -ne "$cmd\n"
 
 if [[ ! -z $GDB_OPTION ]]
 then
@@ -117,94 +128,10 @@ total_tmbps=0
 ################################
 # Run command and format stats #
 ################################
-output_fifo="fifo_${job_name}_${task_index}"
-mkfifo $output_fifo
-$cmd >& $output_fifo &
+$cmd &
 child_pid=$!
-while read -r -u 9 line
-do
-	if [[ ! "$line" =~ images/sec ]]
-	then
-		echo $line
-		continue
-	fi
+echo "PROCESS ID: $child_pid"
+wait $child_pid
+res=$?
+set_done $res
 
-	if [[ "$line" =~ total\ images/sec ]]
-	then
-		step="###"
-		loss=""
-		images_sec="$line"
-		cpu_usage=`python -c "print $total_cpu_usage / 10.0"`
-		rmbps=`python -c "print '%u' % ($total_rmbps / 11.0)"`
-		tmbps=`python -c "print '%u' % ($total_tmbps / 11.0)"`
-		gpu_usage=`python -c "print '%u' % ($total_gpu_usage / 22.0)"`
-		for dummy in $gpus_usage 
-		do
-			new_gpus_usage="$new_gpus_usage $gpu_usage"
-		done
-		gpus_usage=$new_gpus_usage
-	else
-		process_stats=`top -b -p $child_pid -n 1 | grep $BENCHMARK_NAME`
-		cpu_usage=`echo $process_stats | cut -d' ' -f9`; [[ -z $cpu_usage ]] && cpu_usage=0
-		mem_usage=`echo $process_stats | cut -d' ' -f10`; [[ -z $mem_usage ]] && mem_usage=0
-		[[ $TF_NUM_GPUS -gt 0 ]] && gpus_usage=`nvidia-smi | grep -e " [0-9]\+% " | sed -e 's!.* \([0-9]\+\)% .*!\1!g'`
-		total_cpu_usage=`python -c "print $total_cpu_usage + $cpu_usage"`
-	
-		rpkt=`cat /sys/class/infiniband/$RDMA_DEVICE/ports/$RDMA_DEVICE_PORT/counters/port_rcv_packets`
-		rdta=`cat /sys/class/infiniband/$RDMA_DEVICE/ports/$RDMA_DEVICE_PORT/counters/port_rcv_data`
-		rpktd=$((rpkt - rpktold))
-		rdtad=$((rdta - rdtaold))
-		rmbps=$((rdtad * 4 * 8 / 1000 / 1000))
-		total_rmbps=`python -c "print $total_rmbps + $rmbps"`
-	
-		tpkt=`cat /sys/class/infiniband/$RDMA_DEVICE/ports/$RDMA_DEVICE_PORT/counters/port_xmit_packets`
-		tdta=`cat /sys/class/infiniband/$RDMA_DEVICE/ports/$RDMA_DEVICE_PORT/counters/port_xmit_data`
-		tpktd=$((tpkt - tpktold))
-		tdtad=$((tdta - tdtaold))
-		tmbps=$((tdtad * 4 * 8 / 1000 / 1000))
-		total_tmbps=`python -c "print $total_tmbps + $tmbps"`
-	
-		rpktold=$rpkt; rdtaold=$rdta;
-		tpktold=$tpkt; tdtaold=$tdta;
-		
-		################
-		# Print header #
-		################
-		if [[ -z $step ]]
-		then
-			printf "%-6s, %-3s, %-12s, " "CPU" "MEM" "RX/TX (Mbit)"
-			[[ $TF_NUM_GPUS -gt 0 ]] && gpus_usage=`nvidia-smi | grep -e " [0-9]\+% " | sed -e 's!.* \([0-9]\+\)% .*!\1!g'`
-			gpu_id=0
-			for gpu_usage in $gpus_usage
-			do
-				printf "%-6s, " "GPU-$gpu_id"
-				gpu_id=$((gpu_id+1))
-			done
-			printf "%-4s, %-50s, %-5s\n" "Step" "Img/sec" "loss"
-		fi
-
-		step=`echo $line | cut -d' ' -f1`
-		loss=`echo $line | sed -e 's!.*images/sec.*) *\([0-9\.]*\)!\1!g'`
-		images_sec=`echo $line | sed -e 's!.*\(images/sec.*)\) .*!\1!g'`
-	fi
-
-	##############
-	# Print line #
-	##############
-	printf "%-6.1f, %-3s, %-12s, " "$cpu_usage" "$mem_usage" "$rmbps/$tmbps"
-	for gpu_usage in $gpus_usage 
-	do
-		printf "%-6s, " "$gpu_usage%"
-		total_gpu_usage=`python -c "print $total_gpu_usage + $gpu_usage"`
-	done
-	printf "%-4s, %-50s, %-5s\n" "$step" "$images_sec" "$loss"
-
-	if [[ $loss == nan ]]
-	then
-		rm $output_fifo
-		set_done 1
-	fi
-done 9< "${output_fifo}"
-rm $output_fifo
-
-set_done 0

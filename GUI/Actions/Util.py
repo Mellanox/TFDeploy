@@ -66,12 +66,17 @@ def processCommunicateLive(process, on_output = None, on_error = None):
 
 # -------------------------------------------------------------------- #
 
+def checkRetCode(process):
+    return process.instance.returncode == 0
+
+# -------------------------------------------------------------------- #
+
 def waitForProcesses(processes, 
                      wait_timeout = sys.maxint,
                      on_output = log, 
                      on_error = error,
                      on_process_start = None,
-                     on_process_done = None,
+                     on_process_done = checkRetCode,
                      verbose = True):
     '''
     Wait for a group of processes to finish, but run them in parallel.
@@ -99,12 +104,11 @@ def waitForProcesses(processes,
                 pid = process.instance.pid
                 if retcode != 0:
                     error("Process %u exited with error code %d (elapsed: %.2lf)" % (pid, (0xdeadbeef if retcode is None else retcode), elapsed))
-                    all_ok = False
                 else:
                     if verbose:
                         log("Process %u finished successfully (elapsed: %.2lf)" % (pid, elapsed))
-                if on_process_done is not None: 
-                    on_process_done(process)
+                is_ok = on_process_done(process)
+                all_ok = all_ok and is_ok
                 processes.pop(i)
                 threads.pop(i)
                 num_remaining_processes -= 1
@@ -118,9 +122,8 @@ def waitForProcesses(processes,
     # All remaining threads got timeout:            
     for process in processes:
         error("Process %u got timeout (%.2lf)." % (process.instance.pid, wait_timeout))
-        if on_process_done is not None:
-            on_process_done(process)
-        all_ok = False
+        is_ok = on_process_done(process)
+        all_ok = all_ok and is_ok
     return all_ok
 
 # -------------------------------------------------------------------- #

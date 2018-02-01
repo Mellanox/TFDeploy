@@ -8,10 +8,11 @@ from Actions.Util import executeCommand, waitForProcesses, executeRemoteCommand
 import sys
 import re
 from Actions.FormattedTable import FormattedTable
+from Actions.Log import log
 
 ###############################################################################
 
-class PerformanceValue(object):
+class StatsValue(object):
     def __init__(self):
         self.val = 0.0
         self.total = 0.0
@@ -33,27 +34,65 @@ class PerformanceValue(object):
         self.avg = self.total / self.count
         self.time = time.time()
         
+    # -------------------------------------------------------------------- #
+    
+    def reduce(self, other):
+        self.total += other.total
+        self.count += other.count
+        self.avg = self.total / self.count
+        self.min = min(self.min, other.min)
+        self.max = max(self.max, other.max)
+        if self.time < other.time:
+            self.time = other.time
+            self.val = other.val    
+        
 ###############################################################################
 
-class PerformanceMeasurement(object):
+class Measurement(StatsValue):
     
     def __init__(self, name, measure_rate = False):
+        super(Measurement, self).__init__()
         self.name = name
-        self.current = PerformanceValue()
         if measure_rate:
-            self.rate = PerformanceValue()
+            self.rate = StatsValue()
         else:
             self.rate = None
     
     # -------------------------------------------------------------------- #
     
     def update(self, val):
-        if (self.rate is not None) and (self.current.count > 0):
-            dx = self.current.val - val
-            dy = (self.current.time - time.time()) * 1000000.0 # time in seconds
+        if (self.rate is not None) and (self.count > 0):
+            dx = val - self.val
+            dy = time.time() - self.time # time in seconds
             rate = dx / dy
             self.rate.update(rate)
-        self.current.update(val)
+        StatsValue.update(self, val)
+        
+    # -------------------------------------------------------------------- #
+    
+    def reduce(self, other):
+        if (self.rate is not None) and (other.rate is not None):
+            self.rate.reduce(other.rate)
+        StatsValue.reduce(self, other)
+        
+###############################################################################
+        
+class CommonPerformanceMeasurements(object):
+    def __init__(self):
+        self.gpu = Measurement("GPU")
+        self.cpu = Measurement("CPU")
+        self.mem = Measurement("MEM")
+        self.rx = Measurement("RDTA", True)
+        self.tx = Measurement("TDTA", True)
+    
+    # -------------------------------------------------------------------- #
+    
+    def reduce(self, other):
+        self.gpu.reduce(other.gpu)
+        self.cpu.reduce(other.cpu)
+        self.mem.reduce(other.mem)
+        self.rx.reduce(other.rx)
+        self.tx.reduce(other.tx)
 
 ###############################################################################
 
@@ -88,7 +127,7 @@ class Monitor(object):
                 self._table.add_column(FormattedTable.Column("avg", min_width=6), group_name)
                 self._table.add_column(FormattedTable.Column("min", min_width=6), group_name)
                 self._table.add_column(FormattedTable.Column("max", min_width=6), group_name)
-                if measurement.rate:
+                if measurement.rate is not None:
                     group_name = measurement.name + "-Rate"
                     self._table.add_column(FormattedTable.Column("val", min_width=6), group_name)
                     self._table.add_column(FormattedTable.Column("avg", min_width=6), group_name)
@@ -124,11 +163,11 @@ class Monitor(object):
         
         row = []
         for measurement in self._measurements:
-            row.append("%.2lf" % measurement.current.val)
-            row.append("%.2lf" % measurement.current.avg)
-            row.append("%.2lf" % measurement.current.min)
-            row.append("%.2lf" % measurement.current.max)
-            if measurement.rate:
+            row.append("%.2lf" % measurement.val)
+            row.append("%.2lf" % measurement.avg)
+            row.append("%.2lf" % measurement.min)
+            row.append("%.2lf" % measurement.max)
+            if measurement.rate is not None:
                 row.append("%.2lf" % measurement.rate.val)
                 row.append("%.2lf" % measurement.rate.avg)
                 row.append("%.2lf" % measurement.rate.min)
@@ -151,8 +190,14 @@ class Monitor(object):
 
     # -------------------------------------------------------------------- #
 
+    def measurements(self):
+        return self._measurements
+    
+    # -------------------------------------------------------------------- #
+    
     def __getitem__(self, measurement_name):
         return self._measurements_by_name[measurement_name]
+ 
 
 ###############################################################################
 
@@ -213,7 +258,7 @@ class GPUSampler(Sampler):
         
         if len(self._measurements) == 0:
             for i in range(len(results)):
-                self._measurements.append(PerformanceMeasurement("GPU-%u" % i))
+                self._measurements.append(Measurement("GPU-%u" % i))
         else:
             for i in range(len(results)):
                 val = results[i]
@@ -227,8 +272,8 @@ class CPUAndMemSampler(Sampler):
     def __init__(self, pid):
         super(CPUAndMemSampler, self).__init__()
         self._pid = pid
-        self._cpu = PerformanceMeasurement("CPU")
-        self._mem = PerformanceMeasurement("MEM")
+        self._cpu = Measurement("CPU")
+        self._mem = Measurement("MEM")
         self._measurements = [self._cpu, self._mem]
     
     # -------------------------------------------------------------------- #
@@ -246,44 +291,55 @@ class CPUAndMemSampler(Sampler):
         return self._runCommand(cmd, parser)
     
 ###############################################################################
-# 
-# class TXRXMontior(Monitor):
-# 
-#     def __init__(self, server, device, port, out, time_interval = 0.1, sample_ratio = 30):
-#         super(CPUMontior, self).__init__(server, out, time_interval, sample_ratio)
-#         self._pid = pid
+ 
+class RXTXSampler(Sampler):
+ 
+    def __init__(self, device, port):
+        super(RXTXSampler, self).__init__()
+        self._device = device
+        self._port = port
+        self._rpkt = Measurement("RPKT", True)
+        self._rdta = Measurement("RDTA", True)
+        self._tpkt = Measurement("TPKT", True)
+        self._tdta = Measurement("TDTA", True)
+        self._measurements = [self._rpkt, self._rdta, self._tpkt, self._tdta]
+     
+    # -------------------------------------------------------------------- #
+             
+    def update(self):
+        counters_dir = os.path.join("/sys", "class", "infiniband", self._device, "ports", str(self._port), "counters")
+        rpkt_path = os.path.join(counters_dir, "port_rcv_packets")
+        rdta_path = os.path.join(counters_dir, "port_rcv_data")
+        tpkt_path = os.path.join(counters_dir, "port_xmit_packets")
+        tdta_path = os.path.join(counters_dir, "port_xmit_data")
+        rpkt = int(open(rpkt_path, "r").read())
+        rdta = int(open(rdta_path, "r").read()) * 4 * 8 / 1000000.0
+        tpkt = int(open(tpkt_path, "r").read())
+        tdta = int(open(tdta_path, "r").read()) * 4 * 8 / 1000000.0
+        self._rpkt.update(rpkt)
+        self._rdta.update(rdta)
+        self._tpkt.update(tpkt)
+        self._tdta.update(tdta)
+#         print "RPKT: %u. RDTA: %u. TPKT: %u. TDTA: %u" % (rpkt, rdta, tpkt, tdta)
+        
+#         rpkt=`cat /sys/class/infiniband/$RDMA_DEVICE/ports/$RDMA_DEVICE_PORT/counters/port_rcv_packets`
+#         rdta=`cat /sys/class/infiniband/$RDMA_DEVICE/ports/$RDMA_DEVICE_PORT/counters/port_rcv_data`
+#         rpktd=$((rpkt - rpktold))
+#         rdtad=$((rdta - rdtaold))
+#         rmbps=$((rdtad * 4 * 8 / 1000 / 1000))
+#         total_rmbps=`python -c "print $total_rmbps + $rmbps"`
 #     
-#     # -------------------------------------------------------------------- #
-#             
-#     def monitorAction(self):
-#         results = []
-#         def _onOut(line, process):
-#             results.append(float(line.split()[8]))
-# 
-# #         rpkt=`cat /sys/class/infiniband/$RDMA_DEVICE/ports/$RDMA_DEVICE_PORT/counters/port_rcv_packets`
-# #         rdta=`cat /sys/class/infiniband/$RDMA_DEVICE/ports/$RDMA_DEVICE_PORT/counters/port_rcv_data`
-# #         rpktd=$((rpkt - rpktold))
-# #         rdtad=$((rdta - rdtaold))
-# #         rmbps=$((rdtad * 4 * 8 / 1000 / 1000))
-# #         total_rmbps=`python -c "print $total_rmbps + $rmbps"`
-# #     
-# #         tpkt=`cat /sys/class/infiniband/$RDMA_DEVICE/ports/$RDMA_DEVICE_PORT/counters/port_xmit_packets`
-# #         tdta=`cat /sys/class/infiniband/$RDMA_DEVICE/ports/$RDMA_DEVICE_PORT/counters/port_xmit_data`
-# #         tpktd=$((tpkt - tpktold))
-# #         tdtad=$((tdta - tdtaold))
-# #         tmbps=$((tdtad * 4 * 8 / 1000 / 1000))
-# #         total_tmbps=`python -c "print $total_tmbps + $tmbps"`
-# #     
-# #         rpktold=$rpkt; rdtaold=$rdta;
-# #         tpktold=$tpkt; tdtaold=$tdta;
-#                     
-#         cmd = "top -b -p %u -n 1 | tail -1" % self._pid
-#         processes = executeRemoteCommand([self._server], cmd, verbose=False)
-#         res = waitForProcesses(processes, on_output=_onOut, verbose=False)
-#         if not res:
-#             self.stop()
-#             return None
-#         return results[0]
+#         tpkt=`cat /sys/class/infiniband/$RDMA_DEVICE/ports/$RDMA_DEVICE_PORT/counters/port_xmit_packets`
+#         tdta=`cat /sys/class/infiniband/$RDMA_DEVICE/ports/$RDMA_DEVICE_PORT/counters/port_xmit_data`
+#         tpktd=$((tpkt - tpktold))
+#         tdtad=$((tdta - tdtaold))
+#         tmbps=$((tdtad * 4 * 8 / 1000 / 1000))
+#         total_tmbps=`python -c "print $total_tmbps + $tmbps"`
+#     
+#         rpktold=$rpkt; rdtaold=$rdta;
+#         tpktold=$tpkt; tdtaold=$tdta;
+                     
+        return True
        
 ###############################################################################################################################################################
 #
@@ -302,6 +358,7 @@ if __name__ == '__main__':
     monitor = Monitor(server = None, out = sys.stdout, log_ratio=1)
     monitor.addSampler(GPUSampler())
     monitor.addSampler(CPUAndMemSampler(process.instance.pid))
+    monitor.addSampler(RXTXSampler("mlx5_0", 1))
     print "Monitor starting..."
     monitor.start()
     waitForProcesses([process], wait_timeout = 10, verbose=False)

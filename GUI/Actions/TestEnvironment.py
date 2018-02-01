@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-from GPUMonitor import Monitor
+from GPUMonitor import Monitor, GPUSampler, CPUAndMemSampler
 
 ###############################################################################
 
@@ -12,7 +12,6 @@ class TestEnvironment(object):
     _on_new_process = [None]
     _on_process_done = [None]
     _logs_folder = [None]
-    _monitors = {}
     
     @staticmethod
     def onOut():
@@ -53,19 +52,3 @@ class TestEnvironment(object):
     @staticmethod
     def setLogsFolder(val):
         TestEnvironment._logs_folder[0] = val
-        
-    @staticmethod
-    def getCPUMonitor(server, graph_file = None):
-        if server in TestEnvironment._monitors:
-            return TestEnvironment._monitors[server]
-        monitor = Monitor(server, graph_file, 0, 1)
-        TestEnvironment._monitors[server] = monitor
-        return monitor
-
-    @staticmethod
-    def getGPUMonitor(server, graph_file = None):
-        if server in TestEnvironment._monitors:
-            return TestEnvironment._monitors[server]
-        monitor = Monitor(server, graph_file, 0, 1)
-        TestEnvironment._monitors[server] = monitor
-        return monitor

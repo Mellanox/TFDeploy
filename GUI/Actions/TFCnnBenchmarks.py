@@ -11,24 +11,22 @@ from Actions.Util import executeRemoteCommand
 from Actions.FormattedTable import FormattedTable
 import sys
 import re
+from GPUMonitor import Measurement, Monitor, GPUSampler,\
+    CPUAndMemSampler, RXTXSampler, CommonPerformanceMeasurements
 
 ###############################################################################
 
-class PerformanceMeasurement(object):
+class TFPerformanceMeasurements(CommonPerformanceMeasurements):
     def __init__(self):
-        self.avg = 0.0
-        self.min = 0.0
-        self.max = 0.0
-
-class PerformanceReuslts(object):
-    def __init__(self):
-        self.cpu = PerformanceMeasurement()
-        self.gpu = PerformanceMeasurement()
-        self.mem = PerformanceMeasurement()
-        self.tx_bytes = PerformanceMeasurement()
-        self.rx_bytes = PerformanceMeasurement()
-        self.images_sec = PerformanceMeasurement()
-     
+        super(TFPerformanceMeasurements, self).__init__()
+        self.images_sec = Measurement("IMG/SEC")
+        
+    # -------------------------------------------------------------------- #
+    
+    def reduce(self, other):
+        CommonPerformanceMeasurements.reduce(self, other)
+        self.images_sec.reduce(other.images_sec)
+        
 ###############################################################################
 
 @Step.REGISTER()
@@ -47,11 +45,11 @@ class TFCnnBenchmarksStep(Step):
     ATTRIBUTE_ID_DATA_DIR = 8
     ATTRIBUTE_ID_LOG_LEVEL = 9
     
-    ATTRIBUTES = [["PS", "12.12.12.25", "12.12.12.26"],
-                  ["Workers", "12.12.12.25", "12.12.12.26"],
+    ATTRIBUTES = [["PS", "12.12.12.25"],
+                  ["Workers", "12.12.12.26"],
                   ["Base Port", "5000"],
                   ["Script", "~/benchmarks/scripts/tf_cnn_benchmarks/"],
-                  ["Model", "vgg16"],
+                  ["Model", "trivial"],
                   ["Batch Size", "32"],
                   ["Num GPUs", "2"],
                   ["Server Protocol", "grpc+verbs"],
@@ -64,6 +62,7 @@ class TFCnnBenchmarksStep(Step):
         Step.__init__(self, values)
         self._stopping = False
         self._processes = []
+        self._perf = TFPerformanceMeasurements()
         self._openPerformanceFile()        
 
     # -------------------------------------------------------------------- #
@@ -113,37 +112,114 @@ class TFCnnBenchmarksStep(Step):
         performance_file_path = os.path.join(TestEnvironment.logsFolder(), "performance.csv")
         first_time = not os.path.exists(performance_file_path)
         self._performance_file = open(performance_file_path, "a+")
-        if first_time:
-            self._performance_file.write("%-30s, %-12s, %-5s, %-14s, %-11s, %-8s, %-3s, %-10s\n"
-                                         % ("Date", "Model", "Batch", "Protocol", "GPUs/Server", "#Workers", "#PS", "Images/sec"))
-            self._performance_file.flush()
-
+        self._performance_table = FormattedTable()
+        self._performance_table.add_column(FormattedTable.Column("Date", 20))
+        self._performance_table.add_column(FormattedTable.Column("Benchmark", 20))
+        self._performance_table.add_column(FormattedTable.Column("Model", 12))
+        self._performance_table.add_column(FormattedTable.Column("Batch", 5))
+        self._performance_table.add_column(FormattedTable.Column("Protocol", 14))
+        self._performance_table.add_column(FormattedTable.Column("GPUs/Server", 11))
+        self._performance_table.add_column(FormattedTable.Column("#Workers", 8))
+        self._performance_table.add_column(FormattedTable.Column("#PS", 3))
+        self._performance_table.add_column(FormattedTable.Column("Images/sec", 10))
+        self._performance_table.add_column(FormattedTable.Column("CPU", 7))
+        self._performance_table.add_column(FormattedTable.Column("GPU", 5))
+        self._performance_table.add_column(FormattedTable.Column("MEM", 5))
+        self._performance_table.add_column(FormattedTable.Column("RX/TX (Mbit/sec)", 16))
+        self._performance_table.add_column(FormattedTable.Column("Max RX/TX (Mbit/sec)", 19))
+        self._performance_table.bind(self._performance_file, first_time)
+                
     # -------------------------------------------------------------------- #
     
     def _appendToPerformanceFile(self):
         ''' Overall step performance (average all workers). '''
-        n = len(self._performance_results)
-        avg_images_sec = 0.0
-        avg_cpu = 0.0
-        avg_gpu = 0.0
-        for process in self._processes:
-            avg_images_sec += process.results.images_sec.avg
-            avg_cpu += process.results.cpu.avg
-            avg_gpu += process.results.gpu.avg
-        avg_images_sec /= n
-        avg_cpu /= n
-        avg_gpu /= n
         
-        self._performance_file.write("%-30s, %-12s, %-5u, %-14s, %-11u, %-8u, %-3u, %-10s\n"
-                                     % (time.strftime("%Y-%m-%d %H:%M:%S"),
-                                        self.model(),
-                                        self.batch_size(),
-                                        self.server_protocol(),
-                                        self.num_gpus(),
-                                        len(self.workers()),
-                                        len(self.ps()),
-                                        avg_images_sec))
+        log("Appending to results file: %s" % self._performance_file.name) 
+        row = [time.strftime("%Y-%m-%d %H:%M:%S"),
+               "TF cnn benchmarks",
+               self.model(),
+               self.batch_size(),
+               self.server_protocol(),
+               self.num_gpus(),
+               len(self.workers()),
+               len(self.ps()),
+               "%.2lf" % self._perf.images_sec.avg,               
+               "%.2lf" % self._perf.cpu.avg,
+               "%.2lf" % self._perf.gpu.avg,
+               "%.2lf" % self._perf.mem.avg,
+               "%.2lf/%.2lf" % (self._perf.rx.rate.avg, self._perf.tx.rate.avg),
+               "%.2lf/%.2lf" % (self._perf.rx.rate.max, self._perf.tx.rate.max)]
+        self._performance_table.add_row(row)
+        self._performance_table.unbind()
         self._performance_file.close()
+
+    # -------------------------------------------------------------------- #
+    
+    def _startProcessMonitors(self, process):
+        file_base = os.path.splitext(process.log_file_path)[0]
+        process.cpu_graph = open(file_base + ".cpu.csv", "w")
+        process.gpu_graph = open(file_base + ".gpu.csv", "w")
+        log("Server %s: starting monitors:\n"
+            "   + CPU: %s\n"
+            "   + GPU: %s"
+             % (process.server, process.cpu_graph.name, process.gpu_graph.name), process)
+
+        process.gpu_monitor = Monitor(process.server, process.gpu_graph, time_interval = 0, log_ratio = 1)
+        process.gpu_monitor.addSampler(GPUSampler())
+        process.common_monitor = Monitor(process.server, process.cpu_graph, time_interval = 0.1, log_ratio = 1)
+        process.common_monitor.addSampler(CPUAndMemSampler(process.remote_pid))
+        process.common_monitor.addSampler(RXTXSampler(process.rdma_device, process.rdma_port))
+
+        process.perf = TFPerformanceMeasurements()                        
+        process.perf.gpu = process.gpu_monitor["GPU-0"]
+        process.perf.cpu = process.common_monitor["CPU"]
+        process.perf.mem = process.common_monitor["MEM"]
+        process.perf.rx = process.common_monitor["RDTA"]
+        process.perf.tx = process.common_monitor["TDTA"]
+        process.perf.images_sec = Measurement("IMG/SEC")
+
+        process.gpu_monitor.start()
+        process.common_monitor.start()
+        
+        process.table = FormattedTable()
+        process.table.add_column(FormattedTable.Column("STEP", 4))
+        process.table.add_column(FormattedTable.Column("CPU", 7))
+        process.table.add_column(FormattedTable.Column("MEM", 5))
+        process.table.add_column(FormattedTable.Column("GPU", 5))
+        process.table.add_column(FormattedTable.Column("RX/TX (MBit/sec)", 12))
+        process.table.add_column(FormattedTable.Column("Max RX/TX (MBit/sec)", 12))
+        process.table.add_column(FormattedTable.Column("images/sec", 12))
+        process.table.add_column(FormattedTable.Column("+/-", 7))
+        process.table.add_column(FormattedTable.Column("jitter", 6))
+        process.table.add_column(FormattedTable.Column("loss", 6))
+        process.table.bind(sys.stdout)        
+
+    # -------------------------------------------------------------------- #
+    
+    def _stopProcessMonitors(self, process):
+        process.common_monitor.stop()
+        process.gpu_monitor.stop()
+        process.cpu_graph.close()
+        process.gpu_graph.close()
+                
+        row = ["---",
+               "%.2lf" % process.perf.cpu.avg, 
+               "%.2lf" % process.perf.mem.val, 
+               "%.2lf" % process.perf.gpu.avg, 
+               "%.2lf/%.2lf" % (process.perf.rx.rate.avg, process.perf.tx.rate.avg), 
+               "%.2lf/%.2lf" % (process.perf.rx.rate.max, process.perf.tx.rate.max),
+               "%.2lf" % process.perf.images_sec.avg, 
+               "---", 
+               "---", 
+               "---"]
+        process.table.add_bar()
+        process.table.add_row(row)
+        process.table.unbind()
+
+        log("Server %s: stopped monitors." % process.server, process)
+
+        # Append to global performance results:
+        self._perf.reduce(process.perf)
 
     # -------------------------------------------------------------------- #
     
@@ -158,12 +234,13 @@ class TFCnnBenchmarksStep(Step):
         command += " TF_CPP_MIN_VLOG_LEVEL=%s" % self.log_level()
         command += " TF_DATA_DIR=%s" % self.data_dir()
         command += " DEVICE_IP=%s" % ip
-        command += " %s/run_job.sh %s %u" % (work_dir, job_name, task_id)
+        command += " %s/run_job2.sh %s %u" % (work_dir, job_name, task_id)
         title = "[%s] %s - %u" % (ip, job_name, task_id)
         log_file_name = "%s_%u.log" % (job_name, task_id)
         log_file_path = os.path.join(TestEnvironment.logsFolder(), log_file_name)
         factory = BasicProcess.getFactory(title, log_file_path)
         process = executeRemoteCommand([ip], command, factory = factory)[0]
+        process.is_worker = job_name == "worker"
         self._processes.append(process)
         return process
 
@@ -172,20 +249,15 @@ class TFCnnBenchmarksStep(Step):
     def _onOut(self, line, process):
         if "PROCESS ID: " in line:
             process.remote_pid = int(line.split("PROCESS ID: ")[1])
-            process.gpu_monitor = TestEnvironment.getGPUMonitor(process.server)
-            process.cpu_monitor = TestEnvironment.getCPUMonitor(process.server, process.remote_pid) 
+        elif "RDMA device: " in line:
+            process.rdma_device = line.split("RDMA device: ")[1]
+        elif "RDMA port: " in line:
+            process.rdma_port = int(line.split("RDMA port: ")[1])
         elif "Img/sec" in line:
-            log("Server %s: starting monitors." % process.server, process)
-            process.gpu_monitor.start()
-            process.cpu_monitor.start()
-            process.results = PerformanceReuslts()
-            line = "%-7s, %-4s, %-5s, %-12s, %-12s, %-5s, %-6s, %-6s" % ("CPU", "MEM", "GPU", "RX/TX (Mbit)", "images/sec", "+/-", "jitter", "loss")
-            log(line, process)
+            self._startProcessMonitors(process)
         elif "images/sec" in line:
             if "total " in line:
-                log("Server %s: stopping monitors." % process.server, process)
-                process.cpu_monitor.stop()
-                process.gpu_monitor.stop()
+                self._stopProcessMonitors(process)
             else:
                 # https://regex101.com/
                 m = re.match("([0-9]+)\s+images\/sec: ([0-9\.]+) \+\/- ([0-9\.]+) \(jitter = ([0-9\.]+)\)\s+([0-9\.]+)", line)
@@ -198,19 +270,22 @@ class TFCnnBenchmarksStep(Step):
                 deviation = float(m.group(3))
                 jitter = float(m.group(4))
                 loss = float(m.group(5))
-                    
-                gpu_val = None
-                while gpu_val is None:
-                    gpu_val = process.gpu_monitor.get()
-                cpu_val = None
-                while cpu_val is None:
-                    cpu_val = process.cpu_monitor.get()
-                    
-                _, _, _, process.results.gpu.avg, process.results.gpu.min, process.results.gpu.max = gpu_val 
-                _, _, _, process.results.cpu.avg, process.results.cpu.min, process.results.cpu.max = cpu_val
                 
-                line = "%-7.2lf, %-4.1lf, %-5.2lf, %-12s, %-12.2lf, %-5.2lf, %-6.2lf, %-6.2lf" % (process.results.cpu.avg, 0.0, process.results.gpu.avg, "%u/%u" % (0, 0), images_sec, deviation, jitter, loss)
-                log(line, process)
+                process.perf.images_sec.update(images_sec)
+                row = ["%u" % step,
+                       "%.2lf" % process.perf.cpu.avg, 
+                       "%.2lf" % process.perf.mem.val, 
+                       "%.2lf" % process.perf.gpu.avg, 
+                       "%.2lf/%.2lf" % (process.perf.rx.rate.avg, process.perf.tx.rate.avg), 
+                       "%.2lf/%.2lf" % (process.perf.rx.rate.max, process.perf.tx.rate.max),
+                       "%.2lf" % process.perf.images_sec.avg,
+                       "%.2lf" % images_sec, 
+                       "%.2lf" % deviation, 
+                       "%.2lf" % jitter, 
+                       "%.2lf" % loss]
+                process.table.add_row(row)
+        elif "---------------" in line:
+            pass
         else:
             log(line, process)                
             
@@ -220,18 +295,23 @@ class TFCnnBenchmarksStep(Step):
         handler = TestEnvironment.onProcessDone()
         if handler is not None:
             handler(process)
-        self._stopAll(process)
+            
+        self._processes.remove(process)
+        if not self._stopping:
+            self._stopping = True  #TODO: lock
+            self._stopAll(process)
+        
+        return process.instance.returncode in [0, 143]
         
     # -------------------------------------------------------------------- #
 
     def _stopAll(self, process):
-        #TODO: lock
-        if self._stopping:
-            return
-        self._stopping = True
         log("Stopping remaining processes...")
-        time.sleep(5)
-        self.runInline("%s/clean_host.sh" % self._work_dir, self._servers)
+        wait_time_for_workers_to_exit_gracefully = len(self.workers()) - 1 if process.is_worker else 0
+        time.sleep(wait_time_for_workers_to_exit_gracefully)
+        
+        for process in self._processes:
+            self.runInline("kill -15 %u" % process.remote_pid, servers=[process.server])
          
 # -------------------------------------------------------------------- #
 
@@ -294,6 +374,8 @@ class TFCnnBenchmarksStep(Step):
                                on_process_done=self._onJobDone)
         if not res:
             return False
+
+        self._appendToPerformanceFile()
         
         ############
         # Cleanup: #
@@ -301,8 +383,6 @@ class TFCnnBenchmarksStep(Step):
         title("Cleaning:", UniBorder.BORDER_STYLE_SINGLE)
         processes = executeRemoteCommand(self._servers, "rm -rf %s" % work_dir)
         waitForProcesses(processes, wait_timeout=10)
-        
-        self._appendToPerformanceFile()
         return True
 
 ###############################################################################################################################################################
