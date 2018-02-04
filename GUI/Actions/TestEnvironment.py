@@ -1,25 +1,14 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-
-from GPUMonitor import Monitor, GPUSampler, CPUAndMemSampler
+from Actions.Util import checkRetCode
 
 ###############################################################################
 
 class TestEnvironment(object):
     # On Python 2 if we save without [] we'll get a unbound method
-    _on_out = [None]
-    _on_err = [None]
     _on_new_process = [None]
-    _on_process_done = [None]
+    _on_process_done = [checkRetCode]
     _logs_folder = [None]
-    
-    @staticmethod
-    def onOut():
-        return TestEnvironment._on_out[0]
-            
-    @staticmethod
-    def onErr():
-        return TestEnvironment._on_err[0]
     
     @staticmethod
     def onNewProcess():
@@ -32,14 +21,6 @@ class TestEnvironment(object):
     @staticmethod
     def logsFolder():
         return TestEnvironment._logs_folder[0] 
-                
-    @staticmethod
-    def setOnOut(val):
-        TestEnvironment._on_out[0] = val
-
-    @staticmethod
-    def setOnErr(val):
-        TestEnvironment._on_err[0] = val
 
     @staticmethod
     def setOnNewProcess(val):

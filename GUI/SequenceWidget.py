@@ -432,8 +432,7 @@ class SequenceWidget(QMainWindow):
 
     def _log(self, line, process, log_level):
         if process is None:
-            sys.stdout.write(line + "\n")
-            sys.stdout.flush()
+            process = process = self._main_process
             
         process.log(line, log_level)
         self._log_widget.log(line, process, log_level)
@@ -477,13 +476,13 @@ class SequenceWidget(QMainWindow):
                    
     # -------------------------------------------------------------------- #
     
-    def _logToMainOp(self, msg, process):
-        self.emitLog(msg, self._main_process)
+    def logOp(self, msg, process):
+        self.emitLog(msg, process)
 
     # -------------------------------------------------------------------- #
     
-    def _errorToMainOp(self, msg, process):
-        self.emitError(msg, self._main_process)
+    def errorOp(self, msg, process):
+        self.emitError(msg, process)
 
     #--------------------------------------------------------------------#
     
@@ -503,14 +502,14 @@ class SequenceWidget(QMainWindow):
     #--------------------------------------------------------------------#
     
     def _onProcessDone(self, process):
-        if process.instance.returncode == 0:
+        if process.instance.returncode in [0, 143]:
             self.emitCloseLog(process)
+            return True
+        return False
         
     #--------------------------------------------------------------------#
     
     def setTestEnvironment(self):
-        TestEnvironment.setOnOut(self.emitLog)
-        TestEnvironment.setOnErr(self.emitError)
         TestEnvironment.setOnNewProcess(self._onNewProcess)
         TestEnvironment.setOnProcessDone(self._onProcessDone)
 
@@ -746,7 +745,7 @@ class SequenceWidget(QMainWindow):
         TestEnvironment.setLogsFolder(logs_dir)
         self._main_process = BasicProcess(None, "Running: %s" % xmlPath, os.path.join(logs_dir, "main.log"), None)
         self._openLog(self._main_process)
-        setLogOps(self._logToMainOp, self._errorToMainOp)
+        setLogOps(self.logOp, self.errorOp)
         self.sequence_widget.setEnabled(False)
         self.edit_pane.hide()
         self._runSequenceInNewThread()

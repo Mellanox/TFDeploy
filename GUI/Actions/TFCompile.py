@@ -65,7 +65,7 @@ class TFCompileStep(Step):
                                                                                                                            additional_flags)
         res = self.runSeperate(cmd, 
                                title = "Build %s" % self.tensorflow_home(), 
-                               log_file = "build.log", 
+                               log_file_path = os.path.join(TestEnvironment.logsFolder(), "build.log"),
                                wait_timeout = 3600)
         if not res:
             return False
@@ -87,8 +87,10 @@ class TFCompileStep(Step):
             return False
     
         cmd = "pip install --user --upgrade %s/tensorflow-*" % temp_dir
-        processes = executeRemoteCommand(self.install_servers(), cmd)
-        res = waitForProcesses(processes, wait_timeout=60)
+        res = self.runSeperate(cmd, 
+                               title = "Installing...", 
+                               servers = self.install_servers(),
+                               log_file_path = os.path.join(TestEnvironment.logsFolder(), "install.log"))
         if not res:
             return False
 
@@ -97,7 +99,9 @@ class TFCompileStep(Step):
         ##########
         title("Cleaning:", UniBorder.BORDER_STYLE_SINGLE)
         processes = executeRemoteCommand(self.install_servers(), "rm -rf %s" % temp_dir)
-        waitForProcesses(processes, wait_timeout=10)
+        res = waitForProcesses(processes, wait_timeout=10)
+        if not res:
+            return False
         return True
 
 ###############################################################################################################################################################
@@ -107,8 +111,7 @@ class TFCompileStep(Step):
 ###############################################################################################################################################################
 
 if __name__ == '__main__':
-    TestEnvironment.setOnOut(log)
-    TestEnvironment.setOnErr(error)
+    TestEnvironment.setLogsFolder("/tmp/test_logs")
     step = TFCompileStep()
     step.perform()
 

@@ -191,7 +191,7 @@ def stdoutLog(msg, process = None):
 
 def stderrLog(msg, process = None):
     _streamWrite(msg, process, errorWriteOp)
-    
+        
 # -------------------------------------------------------------------- #
 
 def title(msg, style = UniBorder.BORDER_STYLE_STRONG, process = None):
@@ -201,6 +201,18 @@ def title(msg, style = UniBorder.BORDER_STYLE_STRONG, process = None):
     log(UniBorder._get_border_char_by_part(UniBorder.BORDER_PART_VERTICAL_LINE) + msg + UniBorder._get_border_char_by_part(UniBorder.BORDER_PART_VERTICAL_LINE), process)
     log(UniBorder._get_border_char_by_part(UniBorder.BORDER_PART_BOTTOM_LEFT_CORNER) + bar + UniBorder._get_border_char_by_part(UniBorder.BORDER_PART_BOTTOM_RIGHT_CORNER), process)
 
+###############################################################################
+
+class LogWriter(object):
+    def __init__(self, process):
+        self._process = process
+    
+    # -------------------------------------------------------------------- #
+    
+    def write(self, data):
+        if data.endswith("\n"): # Patch.
+            data = data[:-1]
+        log(data, self._process)
 
 ###############################################################################################################################################################
 #

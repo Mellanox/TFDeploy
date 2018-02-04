@@ -13,6 +13,7 @@ import sys
 import re
 from GPUMonitor import Measurement, Monitor, GPUSampler,\
     CPUAndMemSampler, RXTXSampler, CommonPerformanceMeasurements
+from Actions.Log import LogWriter
 
 ###############################################################################
 
@@ -45,11 +46,11 @@ class TFCnnBenchmarksStep(Step):
     ATTRIBUTE_ID_DATA_DIR = 8
     ATTRIBUTE_ID_LOG_LEVEL = 9
     
-    ATTRIBUTES = [["PS", "12.12.12.25"],
-                  ["Workers", "12.12.12.26"],
+    ATTRIBUTES = [["PS", "12.12.12.25,12.12.12.26"],
+                  ["Workers", "12.12.12.25,12.12.12.26"],
                   ["Base Port", "5000"],
                   ["Script", "~/benchmarks/scripts/tf_cnn_benchmarks/"],
-                  ["Model", "trivial"],
+                  ["Model", "vgg16"],
                   ["Batch Size", "32"],
                   ["Num GPUs", "2"],
                   ["Server Protocol", "grpc+verbs"],
@@ -63,7 +64,6 @@ class TFCnnBenchmarksStep(Step):
         self._stopping = False
         self._processes = []
         self._perf = TFPerformanceMeasurements()
-        self._openPerformanceFile()        
 
     # -------------------------------------------------------------------- #
 
@@ -126,7 +126,7 @@ class TFCnnBenchmarksStep(Step):
         self._performance_table.add_column(FormattedTable.Column("GPU", 5))
         self._performance_table.add_column(FormattedTable.Column("MEM", 5))
         self._performance_table.add_column(FormattedTable.Column("RX/TX (Mbit/sec)", 16))
-        self._performance_table.add_column(FormattedTable.Column("Max RX/TX (Mbit/sec)", 19))
+        self._performance_table.add_column(FormattedTable.Column("Max RX/TX (Mbit/sec)", 20))
         self._performance_table.bind(self._performance_file, first_time)
                 
     # -------------------------------------------------------------------- #
@@ -192,7 +192,7 @@ class TFCnnBenchmarksStep(Step):
         process.table.add_column(FormattedTable.Column("+/-", 7))
         process.table.add_column(FormattedTable.Column("jitter", 6))
         process.table.add_column(FormattedTable.Column("loss", 6))
-        process.table.bind(sys.stdout)        
+        process.table.bind(LogWriter(process))
 
     # -------------------------------------------------------------------- #
     
@@ -278,7 +278,6 @@ class TFCnnBenchmarksStep(Step):
                        "%.2lf" % process.perf.gpu.avg, 
                        "%.2lf/%.2lf" % (process.perf.rx.rate.avg, process.perf.tx.rate.avg), 
                        "%.2lf/%.2lf" % (process.perf.rx.rate.max, process.perf.tx.rate.max),
-                       "%.2lf" % process.perf.images_sec.avg,
                        "%.2lf" % images_sec, 
                        "%.2lf" % deviation, 
                        "%.2lf" % jitter, 
@@ -311,7 +310,7 @@ class TFCnnBenchmarksStep(Step):
         time.sleep(wait_time_for_workers_to_exit_gracefully)
         
         for process in self._processes:
-            self.runInline("kill -15 %u" % process.remote_pid, servers=[process.server])
+            self.runInline("kill -15 %u >& /dev/null" % process.remote_pid, servers=[process.server])
          
 # -------------------------------------------------------------------- #
 
@@ -356,6 +355,8 @@ class TFCnnBenchmarksStep(Step):
         ########
         # Run: #
         ########
+        self._openPerformanceFile()
+        
         title("Running:", UniBorder.BORDER_STYLE_SINGLE)
         processes = []
         for i in range(len(self.ps())):
@@ -367,9 +368,8 @@ class TFCnnBenchmarksStep(Step):
             process = self._runJob(work_dir, ip, "worker", i)
             processes.append(process)
         res = waitForProcesses(processes, 
-                               wait_timeout=300, 
-                               on_output=self._onOut, 
-                               on_error=TestEnvironment.onErr(),
+                               wait_timeout=600,
+                               on_output=self._onOut,
                                on_process_start=TestEnvironment.onNewProcess(),
                                on_process_done=self._onJobDone)
         if not res:
@@ -392,8 +392,6 @@ class TFCnnBenchmarksStep(Step):
 ###############################################################################################################################################################
 
 if __name__ == '__main__':
-    TestEnvironment.setOnOut(log)
-    TestEnvironment.setOnErr(error)
     logs_dir = os.path.join("/tmp", "test_logs")
     TestEnvironment.setLogsFolder(logs_dir)
     if not os.path.exists(logs_dir):

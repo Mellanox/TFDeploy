@@ -6,6 +6,7 @@ import time
 import threading
 from Log import log,error,title,UniBorder
 import sys
+import os
 
 ###############################################################################
 
@@ -22,6 +23,9 @@ class BasicProcess(object):
     def __init__(self, instance, title, log_file_path, server):
         self.instance = instance
         self.title = title
+        if (log_file_path is not None) and (self.instance is not None):
+            base, ext = os.path.splitext(log_file_path)
+            log_file_path = "%s_%u%s" % (base, instance.pid, ext)
         self.log_file_path = log_file_path
         self.server = server
         
@@ -32,8 +36,7 @@ class BasicProcess(object):
     def openLog(self):
         if self.log_file_path is None:
             return
-        if self.instance is not None:
-            log("%u: See log %s\n" % (self.instance.pid, self.log_file_path))
+        log("See log %s\n" % self.log_file_path)
         self._log_file = open(self.log_file_path, "w") 
 
     # -------------------------------------------------------------------- #

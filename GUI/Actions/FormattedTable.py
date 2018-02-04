@@ -9,6 +9,10 @@ from Actions.Log import UniBorder
 class FormattedTable(object):
 
     BAR = []
+    
+    TYPE_CSV = 0
+    TYPE_UNIBORDER = 1
+    
 
     class Column(object):
     
@@ -63,7 +67,7 @@ class FormattedTable(object):
         
     # -------------------------------------------------------------------- #
     
-    def bind(self, output = sys.stdout, print_header = True):
+    def bind(self, output = sys.stdout, print_header = True, type = TYPE_CSV):
         self.output = output
         self._bind = True
         if print_header:

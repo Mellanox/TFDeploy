@@ -8,6 +8,7 @@ from Actions.Log import *
 from PyQt4.QtGui import QWidget, QGridLayout, QLineEdit, QLabel
 from xml.dom import minidom
 from xml.etree import cElementTree as etree
+from Actions.TestEnvironment import TestEnvironment
 
 ###############################################################################
 
@@ -124,19 +125,24 @@ class Step(object):
     
     def stopOnFailure(self):
         return True
+
+    # -------------------------------------------------------------------- #
+    
+    @staticmethod
+    def logToMainProcess(msg, process):
+        log(msg, None)
     
     # -------------------------------------------------------------------- #
     
-    def _runCommand(self, cmd, servers, wait_timeout, on_output, on_error, on_process_start, on_process_done, factory):
+    def _runCommand(self, cmd, servers, wait_timeout, on_output, on_process_start, on_process_done, factory):
         processes = []
         if servers is None:
-            processes.append(executeCommand(cmd))
+            processes.append(executeCommand(cmd, factory=factory))
         else:
-            processes.extend(executeRemoteCommand(servers, cmd))
-        return waitForProcesses(processes, 
+            processes.extend(executeRemoteCommand(servers, cmd, factory=factory))
+        return waitForProcesses(processes,
                                 wait_timeout=wait_timeout,
                                 on_output=on_output,
-                                on_error=on_error,
                                 on_process_start=on_process_start,
                                 on_process_done=on_process_done)
 
@@ -144,14 +150,13 @@ class Step(object):
     
     def runInline(self, cmd, servers = None, wait_timeout = sys.maxint):
         ''' Run and output to global log '''
-        return self._runCommand(cmd, 
-                                servers, 
-                                wait_timeout, 
-                                log, 
-                                error, 
-                                None, 
-                                checkRetCode,
-                                None)
+        return self._runCommand(cmd,
+                                servers,
+                                wait_timeout = wait_timeout,
+                                on_output = Step.logToMainProcess,
+                                on_process_start = None, 
+                                on_process_done = checkRetCode,
+                                factory = None)
 
     # -------------------------------------------------------------------- #
     
@@ -160,9 +165,8 @@ class Step(object):
         factory = BasicProcess.getFactory(title, log_file_path)
         return self._runCommand(cmd, 
                                 servers, 
-                                wait_timeout, 
-                                TestEnvironment.onOut(), 
-                                TestEnvironment.onErr(), 
+                                wait_timeout,
+                                log,
                                 TestEnvironment.onNewProcess(), 
                                 TestEnvironment.onProcessDone(),
                                 factory = factory)
