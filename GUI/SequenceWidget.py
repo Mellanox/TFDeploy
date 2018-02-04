@@ -273,7 +273,7 @@ class SequenceWidget(QMainWindow):
             
     def __init__(self, parent = None):
         super(SequenceWidget, self).__init__(parent)
-        self._doc = DocumentControl(self, "Xml file (*.xml);;Any File (*.*);;", ".")
+        self._doc = DocumentControl(self, "ML tester", "Xml file (*.xml);;Any File (*.*);;", ".")
         self._sequence = []
         self._selected_step = None
         self._main_process = None
@@ -282,7 +282,6 @@ class SequenceWidget(QMainWindow):
     #--------------------------------------------------------------------#
                         
     def _initGui(self):
-        self.setWindowTitle("EZTester2")
         self.setWindowIcon(QIcon("/usr/share/icons/Humanity/categories/16/applications-development.svg"))
         self.log_signal.connect(self._log)
         self.open_log_signal.connect(self._openLog)
@@ -356,28 +355,33 @@ class SequenceWidget(QMainWindow):
         newAction = QAction(QIcon('new.png'), '&New', self)        
         newAction.setShortcut('Ctrl+N')
         newAction.setStatusTip('New test')
-        newAction.triggered.connect(self._new)
+        newAction.triggered.connect(self._newAction)
 
-        openAction = QAction(QIcon('open.png'), '&Open', self)        
+        openAction = QAction(QIcon('open.png'), '&Open...', self)        
         openAction.setShortcut('Ctrl+O')
         openAction.setStatusTip('Open test')
-        openAction.triggered.connect(self.loadFromXml)
+        openAction.triggered.connect(self._loadAction)
 
         saveAction = QAction(QIcon('save.png'), '&Save', self)        
         saveAction.setShortcut('Ctrl+S')
         saveAction.setStatusTip('Save test')
-        saveAction.triggered.connect(self._saveToXml)
+        saveAction.triggered.connect(self._saveAction)
+
+        saveAsAction = QAction(QIcon('save_as.png'), 'Save &As...', self)        
+        saveAsAction.setShortcut('Ctrl+S')
+        saveAsAction.setStatusTip('Save test')
+        saveAsAction.triggered.connect(self._saveAsAction)
 
         exitAction = QAction(QIcon('exit.png'), '&Exit', self)        
         exitAction.setShortcut('Ctrl+Q')
         exitAction.setStatusTip('Exit application')
         exitAction.triggered.connect(qApp.quit)
-
                         
         fileMenu = self.menuBar().addMenu("&File");
         fileMenu.addAction(newAction);
         fileMenu.addAction(openAction);
-        fileMenu.addAction(saveAction);
+        fileMenu.addAction(saveAction);        
+        fileMenu.addAction(saveAsAction);
         fileMenu.addSeparator();
         fileMenu.addAction(exitAction);
         
@@ -515,8 +519,8 @@ class SequenceWidget(QMainWindow):
 
     #--------------------------------------------------------------------#
     
-    def _setModified(self, value):
-        self._doc.setModified(value)
+    def _setModified(self):
+        self._doc.setModified(True)
     
     #--------------------------------------------------------------------#
 
@@ -555,7 +559,6 @@ class SequenceWidget(QMainWindow):
         self._sequence.append(step)
         self.sequence_widget.addItem(QListWidgetItem(str(step)))
         #self.sequence_widget.setCurrentRow(len(self._sequence) - 1)
-        self._setModified(True)
         
     #--------------------------------------------------------------------#
     
@@ -597,14 +600,14 @@ class SequenceWidget(QMainWindow):
     def _bAddClicked(self):
         if self._selected_step is None:
             return
-        self._addStepToSequence(self._selected_step)    
+        self._addStepToSequence(self._selected_step)
+        self._setModified()    
 
     #--------------------------------------------------------------------#
 
     def _clear(self):
         self.sequence_widget.clear()
         self._sequence = []
-        self._setModified(True)
 
     #--------------------------------------------------------------------#
 
@@ -749,35 +752,54 @@ class SequenceWidget(QMainWindow):
         self.sequence_widget.setEnabled(False)
         self.edit_pane.hide()
         self._runSequenceInNewThread()
+
+    #--------------------------------------------------------------------#
+    
+    def _newAction(self):
+        self._doc.new()
+        self._clear()
         
     #--------------------------------------------------------------------#
     
-    def _new(self):
-        self._doc.new()
-        self._clear()
-        self._setModified(False)        
-        
-    #--------------------------------------------------------------------#
-            
-    def _saveToXml(self):
+    def _getXmlContent(self):
         xml = etree.Element("root")
         sequence_xml = etree.SubElement(xml, "Sequence")
         for step in self._sequence:
             sub_element = step.writeToXml(sequence_xml)
-        
-        content = minidom.parseString(etree.tostring(xml)).toprettyxml() 
-        self._doc.save(content)
-        self._setModified(False)
-
+        content = minidom.parseString(etree.tostring(xml)).toprettyxml()
+        return content 
+         
     #--------------------------------------------------------------------#
             
-    def loadFromXml(self, file_path=None):
+    def _saveAction(self, is_checked):
+        content = self._getXmlContent()
+        self._doc.save(content)
+
+    #--------------------------------------------------------------------#
+    
+    def _saveAsAction(self, is_checked):
+        content = self._getXmlContent()
+        self._doc.saveAs(content)
+        
+    #--------------------------------------------------------------------#
+            
+    def _loadFromXml(self, file_path=None):
         content = self._doc.load(file_path)
         if content == None:
             return
         
         self._loadFromContent(content)
+
+    #--------------------------------------------------------------------#
+    
+    def _loadAction(self, is_checked):
+        self._loadFromXml(None)
         
+    #--------------------------------------------------------------------#
+            
+    def loadFromXml(self, file_path=None):
+        self._loadFromXml(file_path)
+                
     #--------------------------------------------------------------------#
     
     def _loadFromContent(self, content):
@@ -793,8 +815,6 @@ class SequenceWidget(QMainWindow):
         for step_node in sequence_node.getchildren():
             step = Step.loadFromXml(step_node)
             self._addStepToSequence(step)            
-        
-        self._setModified(False)        
             
     #--------------------------------------------------------------------#
     

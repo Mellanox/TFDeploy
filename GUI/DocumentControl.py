@@ -1,13 +1,12 @@
 
-import sys
 import os
-from PyQt4.QtCore import *
-from PyQt4.QtGui import *
+from PyQt4.Qt import QMessageBox, QPushButton, QFileDialog
 
 class DocumentControl(object):
     
-    def __init__(self, parent, file_filters, default_folder):
+    def __init__(self, parent, title, file_filters, default_folder):
         self._parent = parent
+        self._title = title
         self._file_filters = file_filters
         self._default_folder = default_folder
         self._modified = False
@@ -39,14 +38,25 @@ class DocumentControl(object):
         elif msgBox.clickedButton() == cancel_button:
             return False
         else:
-            pass                        
+            pass
                    
+    #--------------------------------------------------------------------#
+    
+    def _updateTitle(self):
+        title = self._title
+        if self._modified:
+            title = "*" + title
+        if self._file_path is not None:
+            title = title + " - " + self._file_path
+        self._parent.setWindowTitle(title)
+                        
     #--------------------------------------------------------------------#
     
     def _doSave(self, content):
         with open(self._file_path, "w") as file:
             file.write(content)
         self._modified = False
+        self._updateTitle()
                            
     #--------------------------------------------------------------------#                           
     
@@ -81,16 +91,28 @@ class DocumentControl(object):
         
         self._file_path = None
         self._modified = False
+        self._updateTitle()
         
     #--------------------------------------------------------------------#
     
     def setModified(self, value):
         self._modified = value
+        self._updateTitle()        
+        
+    #--------------------------------------------------------------------#
+        
+    def isModified(self):
+        return self._modified
                 
     #--------------------------------------------------------------------#        
     
     def save(self, content):
         self._saveOrSaveAs(content)
+
+    #--------------------------------------------------------------------#        
+    
+    def saveAs(self, content):
+        self._doSaveAs(content)
         
     #--------------------------------------------------------------------#
             
@@ -108,6 +130,7 @@ class DocumentControl(object):
         
         self._file_path = file_path
         self._modified = False
+        self._updateTitle()        
         with open(self._file_path, "r") as file:
             content = file.read()
             
