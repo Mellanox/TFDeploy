@@ -45,8 +45,8 @@ class TFCompileStep(Step):
     
     # -------------------------------------------------------------------- #
     
-    def __repr__(self):
-        return TFCompileStep.NAME + " " + self.tensorflow_home()
+    def attributesRepr(self):
+        return self.tensorflow_home()
          
     # -------------------------------------------------------------------- #
 

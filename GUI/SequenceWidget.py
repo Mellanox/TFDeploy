@@ -292,19 +292,29 @@ class SequenceWidget(QMainWindow):
         self.hook_selection = True
         self.sequence_widget = QListWidget()
         self.sequence_widget.selectionModel().selectionChanged.connect(self._sequenceStepSelected)
+#        self.sequence_widget.setRowCount(0)
+#        self.sequence_widget.setColumnCount(3)
+#        self.sequence_widget.setHorizontalHeaderLabels(["Step", "Name", "Attributes"])
+#        self.sequence_widget.horizontalHeader().setResizeMode(0, QHeaderView.ResizeToContents)
+#        self.sequence_widget.horizontalHeader().setResizeMode(1, QHeaderView.ResizeToContents)
+#        self.sequence_widget.horizontalHeader().setResizeMode(2, QHeaderView.Stretch)
+#        self.sequence_widget.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.progress_status = QListWidget()
         
         self.configuration_pane = QWidget()
         self.configuration_pane.setLayout(QVBoxLayout())
         self.configuration_pane.setObjectName("HighLevelWidget")
         self.configuration_pane.setStyleSheet("QWidget#HighLevelWidget { border:1px solid black; }")
+        
+        self._attributes_widget = QWidget()
+        self.configuration_pane.layout().addWidget(self._attributes_widget, 0)
 
         self.configurations_folder  = self._createFolder(None, "Configurations")
         self.steps_folder           = self._createFolder(self.configurations_folder, "Steps")
-        self.settings_folder        = self._createFolder(self.configurations_folder, "Settings")        
+        self.settings_folder        = self._createFolder(self.configurations_folder, "Settings")
         self.general_folder         = self._createFolder(self.settings_folder, "General")
         self.backup_folder          = self._createFolder(self.settings_folder, "Backup")
-        self.sequence_folder        = self._createFolder(self.settings_folder, "Sequence")        
+        self.sequence_folder        = self._createFolder(self.settings_folder, "Sequence")
         self.spy_folder             = self._createFolder(self.settings_folder, "Spy")
         self.monitors_folder        = self._createFolder(self.spy_folder, "Monitors")
         self.checkers_folder        = self._createFolder(self.spy_folder, "Checkers")
@@ -340,39 +350,36 @@ class SequenceWidget(QMainWindow):
         self.b_move_up = QPushButton("^")
         self.b_move_down = QPushButton("v")
         self.b_run = QPushButton("Run")
-        self.b_update = QPushButton("Update")
         
         self.b_add.clicked.connect      (self._bAddClicked)
         self.b_remove.clicked.connect   (self._removeStepFromSequence)
         self.b_move_up.clicked.connect  (self._moveUpInSequence)
         self.b_move_down.clicked.connect(self._moveDownInSequence)
         self.b_run.clicked.connect      (self._run)
-        self.b_update.clicked.connect   (self._saveConfigurations)
         
         #########
         # Menus:
         #########
-        newAction = QAction(QIcon('new.png'), '&New', self)        
+        newAction = QAction(QIcon('new.png'), '&New', self)
         newAction.setShortcut('Ctrl+N')
         newAction.setStatusTip('New test')
         newAction.triggered.connect(self._newAction)
 
-        openAction = QAction(QIcon('open.png'), '&Open...', self)        
+        openAction = QAction(QIcon('open.png'), '&Open...', self)
         openAction.setShortcut('Ctrl+O')
-        openAction.setStatusTip('Open test')
+        openAction.setStatusTip('Open test...')
         openAction.triggered.connect(self._loadAction)
 
-        saveAction = QAction(QIcon('save.png'), '&Save', self)        
+        saveAction = QAction(QIcon('save.png'), '&Save', self)
         saveAction.setShortcut('Ctrl+S')
         saveAction.setStatusTip('Save test')
         saveAction.triggered.connect(self._saveAction)
 
-        saveAsAction = QAction(QIcon('save_as.png'), 'Save &As...', self)        
-        saveAsAction.setShortcut('Ctrl+S')
-        saveAsAction.setStatusTip('Save test')
+        saveAsAction = QAction(QIcon('save_as.png'), 'Save &As...', self)
+        saveAsAction.setStatusTip('Save test as...')
         saveAsAction.triggered.connect(self._saveAsAction)
 
-        exitAction = QAction(QIcon('exit.png'), '&Exit', self)        
+        exitAction = QAction(QIcon('exit.png'), '&Exit', self)
         exitAction.setShortcut('Ctrl+Q')
         exitAction.setStatusTip('Exit application')
         exitAction.triggered.connect(qApp.quit)
@@ -421,12 +428,11 @@ class SequenceWidget(QMainWindow):
         self.edit_pane.layout().addWidget(steps_select_pane, 1)
         self.edit_pane.layout().addWidget(QLabel("Properties:"))
         self.edit_pane.layout().addWidget(self.configuration_pane, 1)
-        self.edit_pane.layout().addWidget(self.b_update)                
 
-        central_widget = QWidget()                         
+        central_widget = QWidget()
         central_widget.setLayout(QHBoxLayout())
         central_widget.layout().addWidget(sequence_pane, 2)
-        central_widget.layout().addWidget(logs_pane, 5)        
+        central_widget.layout().addWidget(logs_pane, 5)
         central_widget.layout().addWidget(self.edit_pane, 2)
 
         self.setCentralWidget(central_widget)
@@ -554,11 +560,22 @@ class SequenceWidget(QMainWindow):
         return attribute
                 
     #--------------------------------------------------------------------#
+#    
+#    def _addSequenceCell(self, r, c, data):                
+#        item = TableDataItem(data)
+#        item.setFlags(item.flags() ^ Qt.ItemIsEditable)
+#        self.sequence_widget.setItem(r, c, item)
+#        
+    #--------------------------------------------------------------------#
     
     def _addStepToSequence(self, step):
         self._sequence.append(step)
         self.sequence_widget.addItem(QListWidgetItem(str(step)))
-        #self.sequence_widget.setCurrentRow(len(self._sequence) - 1)
+#        n = self.sequence_widget.rowCount()
+#        self.sequence_widget.insertRow(n)
+#        self._addSequenceCell(n, 0, step.status())
+#        self._addSequenceCell(n, 1, step.name())
+#        self._addSequenceCell(n, 2, step.attributesRepr())
         
     #--------------------------------------------------------------------#
     
@@ -601,7 +618,7 @@ class SequenceWidget(QMainWindow):
         if self._selected_step is None:
             return
         self._addStepToSequence(self._selected_step)
-        self._setModified()    
+        self._setModified()
 
     #--------------------------------------------------------------------#
 
@@ -637,22 +654,31 @@ class SequenceWidget(QMainWindow):
     
     def _setConfigurationPane(self, widget):
         layout = self.configuration_pane.layout()
-        if layout.count() > 0:
-            current_widget = layout.itemAt(0).widget()
-            if current_widget is widget:
-                return
-            
-            while layout.count() > 0: 
-                w = layout.itemAt(0).widget()
-                layout.removeWidget(w)
-                if w != None:
-                    w.hide()
-        self.configuration_pane.repaint()
-        self.attributes_widget = widget
-        layout.addWidget(widget)
-        layout.addStretch(1)
-        widget.show()
+        widget_exists = False
+        for i in range(layout.count()):
+            if widget == layout.itemAt(i).widget():
+                widget_exists = True
+                break
         
+        if not widget_exists:
+            widget.bindTextChanged(self._onAttributeChanged)
+            layout.addWidget(widget)
+            layout.addStretch(1) 
+
+        self._attributes_widget.hide()
+        self._attributes_widget = widget
+        self._attributes_widget.show()
+    
+    #--------------------------------------------------------------------#
+    
+    def _onAttributeChanged(self, attribute_index):
+        def op(text):
+            self._attributes_widget._values[attribute_index] = text 
+            step_index = self.sequence_widget.currentRow()
+            self._refreshItem(step_index)
+            self._setModified()
+        return op
+    
     #--------------------------------------------------------------------#
     
     def _refreshItem(self, index):
@@ -660,24 +686,11 @@ class SequenceWidget(QMainWindow):
         text = str(step)
         if step.status() is not None:
             text += " - " + step.status() 
-        self.hook_selection = False
-        self.sequence_widget.takeItem(index)
-        self.sequence_widget.insertItem(index, text)
-        self.sequence_widget.setCurrentRow(index)
-        self.hook_selection = True
     
     #--------------------------------------------------------------------#
     
     def _emitRefreshItem(self, index):
         self.refresh_item_signal.emit(index)
-    
-    #--------------------------------------------------------------------#
-        
-    def _saveConfigurations(self):
-        if self.attributes_widget != None:
-            self.attributes_widget.save()
-            index = self.sequence_widget.currentRow()
-            self._refreshItem(index)
 
     #--------------------------------------------------------------------#
     
@@ -728,7 +741,6 @@ class SequenceWidget(QMainWindow):
     
     def _runSequenceDone(self):
         self.sequence_widget.setEnabled(True)
-        self.b_run.setEnabled(True)
         self.edit_pane.show()
         self._main_process.closeLog()
         self._main_process = None
@@ -749,7 +761,6 @@ class SequenceWidget(QMainWindow):
         self._main_process = BasicProcess(None, "Running: %s" % xmlPath, os.path.join(logs_dir, "main.log"), None)
         self._openLog(self._main_process)
         setLogOps(self.logOp, self.errorOp)
-        self.sequence_widget.setEnabled(False)
         self.edit_pane.hide()
         self._runSequenceInNewThread()
 
@@ -814,7 +825,7 @@ class SequenceWidget(QMainWindow):
             
         for step_node in sequence_node.getchildren():
             step = Step.loadFromXml(step_node)
-            self._addStepToSequence(step)            
+            self._addStepToSequence(step)
             
     #--------------------------------------------------------------------#
     
@@ -839,15 +850,15 @@ class SequenceWidget(QMainWindow):
 if __name__ == '__main__':
     
     arg_parser = argparse.ArgumentParser(description = "Yaml Utils")
-    arg_parser.add_argument("xml", nargs="?", help="A test file to load.")    
-    arg_parser.add_argument("-a", "--autorun", action="store_true", help="Automatic regression run (no GUI).")        
+    arg_parser.add_argument("xml", nargs="?", help="A test file to load.")
+    arg_parser.add_argument("-a", "--autorun", action="store_true", help="Automatic regression run (no GUI).")
     
     args = arg_parser.parse_args()
     app = QApplication([])    
     prompt = SequenceWidget()
     prompt.setTestEnvironment()
     if args.xml is not None:
-        prompt.loadFromXml(args.xml)            
+        prompt.loadFromXml(args.xml)
     
     if args.autorun:
         prompt.run()

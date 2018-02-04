@@ -33,6 +33,13 @@ class DefaultAttributesWidget(QWidget):
             self.layout().addWidget(le, row, 1)
 
     # -------------------------------------------------------------------- #
+    
+    def bindTextChanged(self, handler):
+        for row in range(len(self._line_edits)):
+            le = self._line_edits[row]
+            le.textChanged.connect(handler(row))
+        
+    # -------------------------------------------------------------------- #
 
     def load(self, values):
         self._values = values 
@@ -70,9 +77,7 @@ class Step(object):
         
     @classmethod
     def GET_WIDGET(cls):
-        if cls.WIDGET is None:
-            cls.WIDGET = cls.WIDGET_CLASS(cls.ATTRIBUTES)
-        return cls.WIDGET
+        return cls.WIDGET_CLASS(cls.ATTRIBUTES)
     
     # -------------------------------------------------------------------- #
     
@@ -82,6 +87,7 @@ class Step(object):
             values = [att[1] for att in attributes]
         self._values = values   # The attribute values of individual step
         self._status = None  # Status
+        self._widget = None
         
     # -------------------------------------------------------------------- #
     
@@ -111,10 +117,11 @@ class Step(object):
 
     # -------------------------------------------------------------------- #
     
-    def attributesWidget(self):
-        widget = type(self).GET_WIDGET()
-        widget.load(self._values)
-        return widget
+    def attributesWidget(self, parent = None):
+        if self._widget is None:
+            self._widget = type(self).GET_WIDGET()
+            self._widget.load(self._values)
+        return self._widget
 
     # -------------------------------------------------------------------- #
     
@@ -180,13 +187,16 @@ class Step(object):
                                 wait_timeout=wait_timeout, 
                                 on_output=log, 
                                 on_error=error)
-                
+    
     # -------------------------------------------------------------------- #
-            
+    
+    def attributesRepr(self):
+        return ""
+    
+    # -------------------------------------------------------------------- #
+    
     def __repr__(self):
-        s = type(self).NAME
-        s += " [" + " ".join(self.values()) + "]" 
-        return s
+        return self.name() + ": " + self.attributesRepr() 
         
     # -------------------------------------------------------------------- #
             

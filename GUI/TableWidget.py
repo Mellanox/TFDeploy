@@ -1,10 +1,9 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-import sys
 from random import randint
-from PyQt4.QtCore import *
-from PyQt4.QtGui import *
+from PyQt4.Qt import QTableWidget, QTableWidgetItem, QApplication, QWidget, QVBoxLayout,\
+    QPushButton, QSize, Qt
 
 ################################################################################################################################################################################################
 

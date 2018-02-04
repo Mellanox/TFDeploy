@@ -99,12 +99,11 @@ class TFCnnBenchmarksStep(Step):
     
     # -------------------------------------------------------------------- #
     
-    def __repr__(self):
-        return "%s [%s, %s, %u GPUs, batch %u]" % (TFCnnBenchmarksStep.NAME,
-                                                   self.model(),
-                                                   self.server_protocol(),
-                                                   self.num_gpus(),
-                                                   self.batch_size()) 
+    def attributesRepr(self):
+        return "%s, %s, %u GPUs, batch %u" % (self.model(),
+                                              self.server_protocol(),
+                                              self.num_gpus(),
+                                              self.batch_size()) 
 
     # -------------------------------------------------------------------- #
     
