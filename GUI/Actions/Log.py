@@ -126,15 +126,11 @@ def _streamWrite(stream, data):
 
 def logWriteOp(data, process, log_level):
     _streamWrite(sys.stdout, data)
-    if process is not None:
-        process.log(data, log_level)
 
 # -------------------------------------------------------------------- #
 
 def errorWriteOp(data, process, log_level):
     _streamWrite(sys.stderr, data)
-    if process is not None:
-        process.log(data, log_level)
 
 # -------------------------------------------------------------------- #
     
@@ -190,8 +186,13 @@ def _doLog(msg, process, op, log_level):
         pid = " %u" % process.instance.pid
         
     msg = "[%s%s] %s" % (time.strftime("%Y-%m-%d %H:%M:%S"), pid, msg)
-    if op is not None:
-        op(msg, process, log_level)
+    if log_level <= g_log_level:
+        if op is not None:
+            op(msg, process, log_level)
+    
+    if log_level <= g_file_level:
+        if process is not None:
+            process.log(msg, log_level)
     
 # -------------------------------------------------------------------- #
 
@@ -215,25 +216,26 @@ def stderrLog(msg, process = None):
         
 # -------------------------------------------------------------------- #
 
-def title(msg, style = UniBorder.BORDER_STYLE_STRONG, process = None):
+def title(msg, style = UniBorder.BORDER_STYLE_STRONG, process = None, log_level = LOG_LEVEL_NOTE):
     UniBorder.default_style = style
     bar = UniBorder._get_border_char_by_part(UniBorder.BORDER_PART_HORIZONAL_LINE) * len(msg)
-    log(UniBorder._get_border_char_by_part(UniBorder.BORDER_PART_TOP_LEFT_CORNER) + bar + UniBorder._get_border_char_by_part(UniBorder.BORDER_PART_TOP_RIGHT_CORNER), process)
-    log(UniBorder._get_border_char_by_part(UniBorder.BORDER_PART_VERTICAL_LINE) + msg + UniBorder._get_border_char_by_part(UniBorder.BORDER_PART_VERTICAL_LINE), process)
-    log(UniBorder._get_border_char_by_part(UniBorder.BORDER_PART_BOTTOM_LEFT_CORNER) + bar + UniBorder._get_border_char_by_part(UniBorder.BORDER_PART_BOTTOM_RIGHT_CORNER), process)
+    log(UniBorder._get_border_char_by_part(UniBorder.BORDER_PART_TOP_LEFT_CORNER) + bar + UniBorder._get_border_char_by_part(UniBorder.BORDER_PART_TOP_RIGHT_CORNER), process, log_level)
+    log(UniBorder._get_border_char_by_part(UniBorder.BORDER_PART_VERTICAL_LINE) + msg + UniBorder._get_border_char_by_part(UniBorder.BORDER_PART_VERTICAL_LINE), process, log_level)
+    log(UniBorder._get_border_char_by_part(UniBorder.BORDER_PART_BOTTOM_LEFT_CORNER) + bar + UniBorder._get_border_char_by_part(UniBorder.BORDER_PART_BOTTOM_RIGHT_CORNER), process, log_level)
 
 ###############################################################################
 
 class LogWriter(object):
-    def __init__(self, process):
+    def __init__(self, process, log_level = LOG_LEVEL_INFO):
         self._process = process
+        self._log_level = log_level
     
     # -------------------------------------------------------------------- #
     
     def write(self, data):
         if data.endswith("\n"): # Patch.
             data = data[:-1]
-        log(data, self._process)
+        log(data, self._process, self._log_level)
 
 ###############################################################################################################################################################
 #
@@ -242,14 +244,22 @@ class LogWriter(object):
 ###############################################################################################################################################################
 
 class DummyProcess(object):
+    class Instance():
+        def __init__(self, pid):
+            self.pid = pid
+            
     def __init__(self, pid):
-        self.pid = pid
+        self.instance = DummyProcess.Instance(pid)
         
-def _testLogWrite(data, process):
-    _logWrite("### TEST ### " + data, process)
+    def log(self, msg, log_level):
+        pass
+        
+
+def _testLogWrite(data, process, log_level):
+    _streamWrite(sys.stdout, "### TEST ### " + data)
     
-def _testErrorWrite(data, process):
-    _errorWrite("### TEST ### " + data, process)
+def _testErrorWrite(data, process, log_level):
+    _streamWrite(sys.stdout, "### TEST ### " + data)
     
 if __name__ == '__main__':
     title("A title 1", UniBorder.BORDER_STYLE_ASCII)

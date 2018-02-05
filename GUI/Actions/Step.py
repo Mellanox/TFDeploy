@@ -71,7 +71,7 @@ class Step(object):
     def REGISTER(cls):
         def _register(stepclass):
             cls.__REGISTERED_STEPS[stepclass.NAME] = stepclass
-            print "REGISTERING '%s'" % stepclass.NAME
+            # print "REGISTERING '%s'" % stepclass.NAME
             return stepclass 
         return _register     
         

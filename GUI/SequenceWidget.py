@@ -6,7 +6,8 @@ import os
 from xml.dom import minidom
 from xml.etree import cElementTree as etree
 from Actions.Log import LOG_LEVEL_INFO, LOG_LEVEL_ERROR, setLogOps,\
-    setMainProcess, getMainProcess
+    setMainProcess, getMainProcess, LOG_LEVEL_NOTE, log, setLogLevel,\
+    LOG_LEVEL_ALL
 from DocumentControl import DocumentControl
 from EZRandomWidget import *
 from MultiLogWidget import MultiLogWidget
@@ -347,7 +348,7 @@ class SequenceWidget(QMainWindow):
     #--------------------------------------------------------------------#
                         
     def _initGui(self):
-        self.setWindowIcon(QIcon("/usr/share/icons/Humanity/categories/16/applications-development.svg"))
+        self.setWindowIcon(QIcon("/usr/share/icons/Humanity/categories/16/preferences-desktop.svg"))
         self.log_signal.connect(self._log)
         self.open_log_signal.connect(self._openLog)
         self.close_log_signal.connect(self._closeLog)
@@ -514,8 +515,6 @@ class SequenceWidget(QMainWindow):
         if process is None:
             print line
             return
-
-        process.log(line, log_level)
         self._log_widget.log(line, process, log_level)
 
     #--------------------------------------------------------------------#
@@ -556,16 +555,6 @@ class SequenceWidget(QMainWindow):
         self.emitLog(msg, process, log_level)
 
     # -------------------------------------------------------------------- #
-    
-    def logToMain(self, msg):
-        self.emitLog(msg, getMainProcess(), LOG_LEVEL_INFO)
-
-    # -------------------------------------------------------------------- #
-    
-    def errorToMain(self, msg):
-        self.emitError(msg, getMainProcess(), LOG_LEVEL_INFO)
-
-    #--------------------------------------------------------------------#
     
     def _onNewProcess(self, process):
         self.emitOpenLog(process)
@@ -793,7 +782,7 @@ class SequenceWidget(QMainWindow):
     def _runStep(self, index):
         step = self._sequence[index]
         self._setStepStatus(step, index, "Running...")
-        self.logToMain("<h2>Step %u - %s</h2>" % (index, str(step)))
+        log("<h2>Step %u - %s</h2>" % (index, str(step)), log_level = LOG_LEVEL_NOTE)
         self._setStepLogsDir(step, index)
         res = step.perform()
         if res:
@@ -808,11 +797,9 @@ class SequenceWidget(QMainWindow):
             
     def _runSequence(self):
         self._reset()
-        self.logToMain("Run sequence...")
         for index in range(len(self._sequence)):
             if not self._runStep(index):
                 break
-        self.logToMain("Done.")
         self._emitRunSequenceDone()
         
     #--------------------------------------------------------------------#
@@ -824,6 +811,7 @@ class SequenceWidget(QMainWindow):
     #--------------------------------------------------------------------#
     
     def _runSequenceDone(self):
+        log("Done.", log_level = LOG_LEVEL_NOTE)
         self.sequence_widget.setEnabled(True)
         self.edit_pane.show()
         getMainProcess().closeLog()
@@ -836,7 +824,9 @@ class SequenceWidget(QMainWindow):
         self.sequence_widget.setEnabled(False)
         self.edit_pane.hide()
         self._setTestLogsDir()
-        main_process = BasicProcess(None, "Running: %s" % self._doc.filePath(), os.path.join(self._test_logs_dir, "main.log"), None)
+        title = "Running: %s" % self._doc.filePath()
+        log(title, log_level = LOG_LEVEL_NOTE)
+        main_process = BasicProcess(None, title, os.path.join(self._test_logs_dir, "main.log"), None)
         self._openLog(main_process)
         setMainProcess(main_process)
         self._runSequenceInNewThread()
@@ -941,6 +931,7 @@ if __name__ == '__main__':
     arg_parser = argparse.ArgumentParser(description = "Yaml Utils")
     arg_parser.add_argument("xml", nargs="?", help="A test file to load.")
     arg_parser.add_argument("-a", "--autorun", action="store_true", help="Automatic regression run (no GUI).")
+    arg_parser.add_argument("-L", "--log_level", type=int, default="3", help="Log level.")    
     
     args = arg_parser.parse_args()
     app = QApplication([])    
@@ -949,12 +940,14 @@ if __name__ == '__main__':
         prompt.loadFromXml(args.xml)
     
     if args.autorun:
+        setLogLevel(args.log_level, LOG_LEVEL_ALL)        
         TestEnvironment.setOnNewProcess(_onNewProcess)
         TestEnvironment.setOnProcessDone(_onProcessDone)
         prompt.run()
     else:
+        setLogLevel(LOG_LEVEL_INFO, LOG_LEVEL_ALL)
         prompt.setTestEnvironment()
-        prompt.loadFromXml("samples/performance_regression_lab.xml")
+        prompt.loadFromXml("samples/performance_regression.xml")
         prompt.setGeometry(200, 30, 1600, 600)
         #prompt.showMaximized()
         prompt.show()

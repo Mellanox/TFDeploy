@@ -13,7 +13,7 @@ import sys
 import re
 from GPUMonitor import Measurement, Monitor, GPUSampler,\
     CPUAndMemSampler, RXTXSampler, CommonPerformanceMeasurements
-from Actions.Log import LogWriter
+from Actions.Log import LogWriter, LOG_LEVEL_INFO
 
 ###############################################################################
 
@@ -46,11 +46,11 @@ class TFCnnBenchmarksStep(Step):
     ATTRIBUTE_ID_DATA_DIR = 8
     ATTRIBUTE_ID_LOG_LEVEL = 9
     
-    ATTRIBUTES = [["PS", "12.12.12.25,12.12.12.26"],
-                  ["Workers", "12.12.12.25,12.12.12.26"],
+    ATTRIBUTES = [["PS", "12.12.12.25"],
+                  ["Workers", "12.12.12.26"],
                   ["Base Port", "5000"],
                   ["Script", "~/benchmarks/scripts/tf_cnn_benchmarks/"],
-                  ["Model", "vgg16"],
+                  ["Model", "trivial"],
                   ["Batch Size", "32"],
                   ["Num GPUs", "2"],
                   ["Server Protocol", "grpc+verbs"],
@@ -120,16 +120,16 @@ class TFCnnBenchmarksStep(Step):
         self._performance_table.addColumn(FormattedTable.Column("GPUs/Server", 11), "Info")
         self._performance_table.addColumn(FormattedTable.Column("#Workers", 8), "Info")
         self._performance_table.addColumn(FormattedTable.Column("#PS", 3), "Info")
-        self._performance_table.addColumn(FormattedTable.Column("Images/sec", 10), "Performace")
-        self._performance_table.addColumn(FormattedTable.Column("CPU", 7), "Performace")
-        self._performance_table.addColumn(FormattedTable.Column("GPU", 5), "Performace")
-        self._performance_table.addColumn(FormattedTable.Column("MEM", 5), "Performace")
-        self._performance_table.addColumn(FormattedTable.Column("Average", 20), "RX/TX rate (Mbit/sec)")
-        self._performance_table.addColumn(FormattedTable.Column("Max", 20), "RX/TX rate (Mbit/sec)")
+        self._performance_table.addColumn(FormattedTable.Column("Images/sec", 10), "Performance")
+        self._performance_table.addColumn(FormattedTable.Column("CPU", 7), "Performance")
+        self._performance_table.addColumn(FormattedTable.Column("MEM", 5), "Performance")
+        self._performance_table.addColumn(FormattedTable.Column("GPU", 5), "Performance")
+        self._performance_table.addColumn(FormattedTable.Column("Average", 18), "RX/TX rate (Mbit/sec)")
+        self._performance_table.addColumn(FormattedTable.Column("Max", 18), "RX/TX rate (Mbit/sec)")
         self._performance_table.addColumn(FormattedTable.Column("Buffer overrun"), "Network Errors")
-        self._performance_table.addColumn(FormattedTable.Column("Port TX discards"), "Network Errors")
-        self._performance_table.addColumn(FormattedTable.Column("Port RX errors"), "Network Errors")
-        self._performance_table.addColumn(FormattedTable.Column("Port RX constraint errors"), "Network Errors")
+        self._performance_table.addColumn(FormattedTable.Column("TX discards"), "Network Errors")
+        self._performance_table.addColumn(FormattedTable.Column("RX errors"), "Network Errors")
+        self._performance_table.addColumn(FormattedTable.Column("RX constraint errors"), "Network Errors")
         self._performance_table.bind(self._performance_file, type = FormattedTable.TYPE_CSV, print_header = first_time)
                 
     # -------------------------------------------------------------------- #
@@ -148,8 +148,8 @@ class TFCnnBenchmarksStep(Step):
                len(self.ps()),
                "%.2lf" % self._perf.images_sec.avg,               
                "%.2lf" % self._perf.cpu.avg,
-               "%.2lf" % self._perf.gpu.avg,
                "%.2lf" % self._perf.mem.avg,
+               "%.2lf" % self._perf.gpu.avg,
                "%.2lf/%.2lf" % (self._perf.rx.rate.avg, self._perf.tx.rate.avg),
                "%.2lf/%.2lf" % (self._perf.rx.rate.max, self._perf.tx.rate.max),
                self._perf.net_erros.excessive_buffer_overrun_errors.val,
@@ -159,6 +159,9 @@ class TFCnnBenchmarksStep(Step):
         self._performance_table.addRow(row)
         self._performance_table.unbind()
         self._performance_file.close()
+        
+        summary_table = self._performance_table.cut(["Performance", "RX/TX rate (Mbit/sec)", "Network Errors"])                 
+        summary_table.printFormatted(LogWriter(None, LOG_LEVEL_NOTE))
 
     # -------------------------------------------------------------------- #
     
@@ -204,7 +207,8 @@ class TFCnnBenchmarksStep(Step):
         process.table.addColumn(FormattedTable.Column("+/-", 7))
         process.table.addColumn(FormattedTable.Column("jitter", 6))
         process.table.addColumn(FormattedTable.Column("loss", 6))
-        process.table.bind(LogWriter(process))
+        log_level = LOG_LEVEL_NOTE if process.is_worker and process.task_id == 0 else LOG_LEVEL_INFO
+        process.table.bind(LogWriter(process, log_level))
 
     # -------------------------------------------------------------------- #
     
@@ -253,6 +257,7 @@ class TFCnnBenchmarksStep(Step):
         factory = BasicProcess.getFactory(title, log_file_path)
         server = TestEnvironment.Get().getServer(ip)
         process = executeRemoteCommand([server], command, factory = factory)[0]
+        process.task_id = task_id
         process.is_worker = job_name == "worker"
         self._processes.append(process)
         return process
