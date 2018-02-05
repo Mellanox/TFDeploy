@@ -4,10 +4,21 @@ from Actions.Util import checkRetCode
 
 ###############################################################################
 
+def _onNewProcess(process):
+    process.openLog()
+    
+#--------------------------------------------------------------------#
+
+def _onProcessDone(process):    
+    process.closeLog()
+    return process.instance.returncode in [0, 143]    
+
+###############################################################################
+
 class TestEnvironment(object):
     # On Python 2 if we save without [] we'll get a unbound method
-    _on_new_process = [None]
-    _on_process_done = [checkRetCode]
+    _on_new_process = [_onNewProcess]
+    _on_process_done = [_onProcessDone]
     _logs_folder = [None]
     _instance = None
 

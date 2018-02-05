@@ -8,6 +8,7 @@ from Util import *
 from Step import Step
 from Actions.TestEnvironment import TestEnvironment
 from Actions.Util import executeRemoteCommand
+import re
 
 ###############################################################################
 
@@ -88,10 +89,12 @@ class TFCompileStep(Step):
             return False
     
         cmd = "pip install --user --upgrade %s/tensorflow-*" % temp_dir
-        res = self.runSeperate(cmd, 
-                               title = "Installing...", 
+        process_title = lambda process: "Installing on %s..." % process.server
+        log_file_path = lambda process: os.path.join(TestEnvironment.logsFolder(), "install_%s.log" % re.sub("[^0-9a-zA-Z]", "_", process.server))
+        res = self.runSeperate(cmd,
+                               title = process_title,
                                servers = servers,
-                               log_file_path = os.path.join(TestEnvironment.logsFolder(), "install.log"))
+                               log_file_path = log_file_path)
         if not res:
             return False
 
@@ -112,7 +115,10 @@ class TFCompileStep(Step):
 ###############################################################################################################################################################
 
 if __name__ == '__main__':
-    TestEnvironment.setLogsFolder("/tmp/test_logs")
+    logs_dir = os.path.join("/tmp", "test_logs")
+    TestEnvironment.setLogsFolder(logs_dir)
+    if not os.path.exists(logs_dir):
+        os.makedirs(TestEnvironment.logsFolder())
     step = TFCompileStep()
     step.perform()
 

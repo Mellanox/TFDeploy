@@ -7,7 +7,7 @@ from xml.dom import minidom
 from xml.etree import cElementTree as etree
 from Actions.Log import LOG_LEVEL_INFO, LOG_LEVEL_ERROR, setLogOps,\
     setMainProcess, getMainProcess, LOG_LEVEL_NOTE, log, setLogLevel,\
-    LOG_LEVEL_ALL
+    LOG_LEVEL_ALL, title, UniBorder
 from DocumentControl import DocumentControl
 from EZRandomWidget import *
 from MultiLogWidget import MultiLogWidget
@@ -782,7 +782,7 @@ class SequenceWidget(QMainWindow):
     def _runStep(self, index):
         step = self._sequence[index]
         self._setStepStatus(step, index, "Running...")
-        log("<h2>Step %u - %s</h2>" % (index, str(step)), log_level = LOG_LEVEL_NOTE)
+        title("Step %u - %s" % (index, str(step)), style = UniBorder.BORDER_STYLE_DOUBLE)
         self._setStepLogsDir(step, index)
         res = step.perform()
         if res:
@@ -914,17 +914,6 @@ class SequenceWidget(QMainWindow):
 #                                                                         DEMO
 #
 ###############################################################################################################################################################
-
-def _onNewProcess(process):
-    process.openLog()
-    
-#--------------------------------------------------------------------#
-
-def _onProcessDone(process):    
-    process.closeLog()
-    return process.instance.returncode in [0, 143]    
-
-#--------------------------------------------------------------------#
         
 if __name__ == '__main__':
     
@@ -941,8 +930,6 @@ if __name__ == '__main__':
     
     if args.autorun:
         setLogLevel(args.log_level, LOG_LEVEL_ALL)        
-        TestEnvironment.setOnNewProcess(_onNewProcess)
-        TestEnvironment.setOnProcessDone(_onProcessDone)
         prompt.run()
     else:
         setLogLevel(LOG_LEVEL_INFO, LOG_LEVEL_ALL)

@@ -18,21 +18,33 @@ class BasicProcess(object):
         def op(instance, server):
             return cls(instance, title, log_file_path, server)
         return op 
+    
+    # -------------------------------------------------------------------- #
+    
+    def _getStrValue(self, value):
+        if value is None:
+            return None
+        if isinstance(value, basestring):
+            return value
+        return value(self)
         
     # -------------------------------------------------------------------- #
     
     def __init__(self, instance, title, log_file_path, server):
         self.instance = instance
-        self.title = title
-        if log_file_path is not None:
-            i = 1
-            while os.path.exists(log_file_path):
-                base, ext = os.path.splitext(log_file_path)
-                log_file_path = "%s_%u%s" % (base, i, ext)
-            
-        self.log_file_path = log_file_path
         self.server = server
+        self.title = self._getStrValue(title)
+        self.log_file_path = self._getStrValue(log_file_path)        
         self._log_file = None
+                
+        # Note: Vulnerable to race conditions:
+        #if log_file_path is not None:
+        #    i = 1
+        #    while os.path.exists(log_file_path):
+        #        base, ext = os.path.splitext(log_file_path)
+        #        log_file_path = "%s_%u%s" % (base, i, ext)
+        # self.log_file_path = log_file_path
+
         
     # -------------------------------------------------------------------- #
             
