@@ -37,13 +37,15 @@ class LogWidget(QMdiSubWindow):
     #--------------------------------------------------------------------#
     
     def append(self, line, log_level = Actions.Log.LOG_LEVEL_INFO):
+        line = QString.fromUtf8(line)
+        
         color = LogColorsForLevel[log_level]
         if color is not None: 
-            line = "<font color='%s'>%s</font>" % (color, line)
+            line = "<font family='monospace' color='%s'>%s</font>" % (color, line)
 
         scrollbar = self._te_log.verticalScrollBar()
         follow = scrollbar.value() == scrollbar.maximum() 
-        self._te_log.appendHtml(QString.fromUtf8(line))
+        self._te_log.appendHtml(line)
         if follow:
             scrollbar.setValue(scrollbar.maximum())
 
