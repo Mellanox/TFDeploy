@@ -76,6 +76,39 @@ class Measurement(StatsValue):
         StatsValue.reduce(self, other)
         
 ###############################################################################
+
+class MeasurementFileCounter(object):
+    
+    def __init__(self, measurement, file_path, parser=int):
+        self.measurement = measurement
+        self.file_path = file_path
+        self.parser = parser
+    
+    # -------------------------------------------------------------------- #
+    
+    def update(self):
+        with open(self.file_path, "r") as f:
+            value = self.parser(f.read())
+            self.measurement.update(value)
+
+###############################################################################
+
+class NetErrorMeasurments(object):
+    def __init__(self):
+        self.excessive_buffer_overrun_errors   = Measurement("XBUF_OVERRUN_ERRORS")
+        self.port_xmit_discards                = Measurement("PORT_XMIT_DISCARDS")
+        self.port_rcv_errors                   = Measurement("PORT_RCV_ERRORS")
+        self.port_rcv_constraint_errors        = Measurement("PORT_RCV_CONSTRAINT_ERRORS")
+
+    # -------------------------------------------------------------------- #
+    
+    def reduce(self, other):
+        self.excessive_buffer_overrun_errors.reduce(other.excessive_buffer_overrun_errors)
+        self.port_xmit_discards.reduce(other.port_xmit_discards)
+        self.port_rcv_errors.reduce(other.port_rcv_errors)
+        self.port_rcv_constraint_errors.reduce(other.port_rcv_constraint_errors)
+        
+###############################################################################
         
 class CommonPerformanceMeasurements(object):
     def __init__(self):
@@ -84,6 +117,7 @@ class CommonPerformanceMeasurements(object):
         self.mem = Measurement("MEM")
         self.rx = Measurement("RDTA", True)
         self.tx = Measurement("TDTA", True)
+        self.net_erros = NetErrorMeasurments()
     
     # -------------------------------------------------------------------- #
     
@@ -93,6 +127,7 @@ class CommonPerformanceMeasurements(object):
         self.mem.reduce(other.mem)
         self.rx.reduce(other.rx)
         self.tx.reduce(other.tx)
+        self.net_erros.reduce(other.net_erros)
 
 ###############################################################################
 
@@ -123,16 +158,16 @@ class Monitor(object):
             self._table = FormattedTable()
             for measurement in self._measurements:            
                 group_name = measurement.name
-                self._table.add_column(FormattedTable.Column("val", min_width=6), group_name)
-                self._table.add_column(FormattedTable.Column("avg", min_width=6), group_name)
-                self._table.add_column(FormattedTable.Column("min", min_width=6), group_name)
-                self._table.add_column(FormattedTable.Column("max", min_width=6), group_name)
+                self._table.addColumn(FormattedTable.Column("val", min_width=6), group_name)
+                self._table.addColumn(FormattedTable.Column("avg", min_width=6), group_name)
+                self._table.addColumn(FormattedTable.Column("min", min_width=6), group_name)
+                self._table.addColumn(FormattedTable.Column("max", min_width=6), group_name)
                 if measurement.rate is not None:
                     group_name = measurement.name + "-Rate"
-                    self._table.add_column(FormattedTable.Column("val", min_width=6), group_name)
-                    self._table.add_column(FormattedTable.Column("avg", min_width=6), group_name)
-                    self._table.add_column(FormattedTable.Column("min", min_width=6), group_name)
-                    self._table.add_column(FormattedTable.Column("max", min_width=6), group_name)
+                    self._table.addColumn(FormattedTable.Column("val", min_width=6), group_name)
+                    self._table.addColumn(FormattedTable.Column("avg", min_width=6), group_name)
+                    self._table.addColumn(FormattedTable.Column("min", min_width=6), group_name)
+                    self._table.addColumn(FormattedTable.Column("max", min_width=6), group_name)
             self._table.bind(self._out)
 
         self._stop = False
@@ -172,7 +207,7 @@ class Monitor(object):
                 row.append("%.2lf" % measurement.rate.avg)
                 row.append("%.2lf" % measurement.rate.min)
                 row.append("%.2lf" % measurement.rate.max)
-        self._table.add_row(row)
+        self._table.addRow(row)
     
     # -------------------------------------------------------------------- #
     
@@ -291,9 +326,12 @@ class CPUAndMemSampler(Sampler):
         return self._runCommand(cmd, parser)
     
 ###############################################################################
+
+def ToGbitParser(val):
+    return int(val) * 4 * 8 / 1000000.0
  
 class RXTXSampler(Sampler):
- 
+  
     def __init__(self, device, port):
         super(RXTXSampler, self).__init__()
         self._device = device
@@ -302,43 +340,42 @@ class RXTXSampler(Sampler):
         self._rdta = Measurement("RDTA", True)
         self._tpkt = Measurement("TPKT", True)
         self._tdta = Measurement("TDTA", True)
-        self._measurements = [self._rpkt, self._rdta, self._tpkt, self._tdta]
+        self._excessive_buffer_overrun_errors   = Measurement("XBUF_OVERRUN_ERRORS")
+        self._port_xmit_discards                = Measurement("PORT_XMIT_DISCARDS")
+        self._port_rcv_errors                   = Measurement("PORT_RCV_ERRORS")
+        self._port_rcv_constraint_errors        = Measurement("PORT_RCV_CONSTRAINT_ERRORS")
+
+        counters_dir = os.path.join("/sys", "class", "infiniband", self._device, "ports", str(self._port), "counters")
+        rpkt_path                               = os.path.join(counters_dir, "port_rcv_packets")
+        rdta_path                               = os.path.join(counters_dir, "port_rcv_data")
+        tpkt_path                               = os.path.join(counters_dir, "port_xmit_packets")
+        tdta_path                               = os.path.join(counters_dir, "port_xmit_data")
+        excessive_buffer_overrun_errors_path    = os.path.join(counters_dir, "excessive_buffer_overrun_errors")
+        port_xmit_discards_path                 = os.path.join(counters_dir, "port_xmit_discards")
+        port_rcv_errors_path                    = os.path.join(counters_dir, "port_rcv_errors")
+        port_rcv_constraint_errors_path         = os.path.join(counters_dir, "port_rcv_constraint_errors")
+
+        self._counters = []
+        self._counters.append(MeasurementFileCounter(self._rpkt, rpkt_path))                           
+        self._counters.append(MeasurementFileCounter(self._rdta, rdta_path, ToGbitParser))
+        self._counters.append(MeasurementFileCounter(self._tpkt, tpkt_path))
+        self._counters.append(MeasurementFileCounter(self._tdta, tdta_path, ToGbitParser))
+        self._counters.append(MeasurementFileCounter(self._excessive_buffer_overrun_errors, excessive_buffer_overrun_errors_path))
+        self._counters.append(MeasurementFileCounter(self._port_xmit_discards, port_xmit_discards_path ))
+        self._counters.append(MeasurementFileCounter(self._port_rcv_errors, port_rcv_errors_path))
+        self._counters.append(MeasurementFileCounter(self._port_rcv_constraint_errors, port_rcv_constraint_errors_path))
+        
+        self._measurements = [self._rpkt, self._rdta, self._tpkt, self._tdta,
+                              self._excessive_buffer_overrun_errors,
+                              self._port_xmit_discards,
+                              self._port_rcv_errors,
+                              self._port_rcv_constraint_errors]
      
     # -------------------------------------------------------------------- #
              
     def update(self):
-        counters_dir = os.path.join("/sys", "class", "infiniband", self._device, "ports", str(self._port), "counters")
-        rpkt_path = os.path.join(counters_dir, "port_rcv_packets")
-        rdta_path = os.path.join(counters_dir, "port_rcv_data")
-        tpkt_path = os.path.join(counters_dir, "port_xmit_packets")
-        tdta_path = os.path.join(counters_dir, "port_xmit_data")
-        rpkt = int(open(rpkt_path, "r").read())
-        rdta = int(open(rdta_path, "r").read()) * 4 * 8 / 1000000.0
-        tpkt = int(open(tpkt_path, "r").read())
-        tdta = int(open(tdta_path, "r").read()) * 4 * 8 / 1000000.0
-        self._rpkt.update(rpkt)
-        self._rdta.update(rdta)
-        self._tpkt.update(tpkt)
-        self._tdta.update(tdta)
-#         print "RPKT: %u. RDTA: %u. TPKT: %u. TDTA: %u" % (rpkt, rdta, tpkt, tdta)
-        
-#         rpkt=`cat /sys/class/infiniband/$RDMA_DEVICE/ports/$RDMA_DEVICE_PORT/counters/port_rcv_packets`
-#         rdta=`cat /sys/class/infiniband/$RDMA_DEVICE/ports/$RDMA_DEVICE_PORT/counters/port_rcv_data`
-#         rpktd=$((rpkt - rpktold))
-#         rdtad=$((rdta - rdtaold))
-#         rmbps=$((rdtad * 4 * 8 / 1000 / 1000))
-#         total_rmbps=`python -c "print $total_rmbps + $rmbps"`
-#     
-#         tpkt=`cat /sys/class/infiniband/$RDMA_DEVICE/ports/$RDMA_DEVICE_PORT/counters/port_xmit_packets`
-#         tdta=`cat /sys/class/infiniband/$RDMA_DEVICE/ports/$RDMA_DEVICE_PORT/counters/port_xmit_data`
-#         tpktd=$((tpkt - tpktold))
-#         tdtad=$((tdta - tdtaold))
-#         tmbps=$((tdtad * 4 * 8 / 1000 / 1000))
-#         total_tmbps=`python -c "print $total_tmbps + $tmbps"`
-#     
-#         rpktold=$rpkt; rdtaold=$rdta;
-#         tpktold=$tpkt; tdtaold=$tdta;
-                     
+        for counter in self._counters:
+            counter.update()
         return True
        
 ###############################################################################################################################################################

@@ -128,7 +128,7 @@ class DocumentControl(object):
             if not os.path.isfile(file_path):
                 raise IOError("Bad file: %s" % file_path)
         
-        self._file_path = file_path
+        self._file_path = os.path.abspath(str(file_path))
         self._modified = False
         self._updateTitle()        
         with open(self._file_path, "r") as file:

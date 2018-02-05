@@ -9,6 +9,39 @@ class TestEnvironment(object):
     _on_new_process = [None]
     _on_process_done = [checkRetCode]
     _logs_folder = [None]
+    _instance = None
+
+    @staticmethod
+    def Get():
+        if TestEnvironment._instance is None:
+            TestEnvironment._instance = TestEnvironment()
+        return TestEnvironment._instance
+    
+    # -------------------------------------------------------------------- #
+    
+    def __init__(self):
+        self._servers_by_ip = { "192.168.1.41": "clx-mld-41",
+                                "192.168.1.42": "clx-mld-42",
+                                "192.168.1.43": "clx-mld-43",
+                                "192.168.1.44": "clx-mld-44",
+                                "192.168.1.45": "clx-mld-45",
+                                "192.168.1.46": "clx-mld-46",
+                                "192.168.1.47": "clx-mld-47",
+                                "192.168.1.48": "clx-mld-48" }
+    
+    # -------------------------------------------------------------------- #
+    
+    def getServer(self, ip):
+        if ip in self._servers_by_ip:
+            return self._servers_by_ip[ip]
+        return ip
+
+    # -------------------------------------------------------------------- #
+    
+    def getServers(self, ips):
+        return [self.getServer(ip) for ip in ips]
+    
+    # -------------------------------------------------------------------- # 
     
     @staticmethod
     def onNewProcess():
@@ -33,3 +66,7 @@ class TestEnvironment(object):
     @staticmethod
     def setLogsFolder(val):
         TestEnvironment._logs_folder[0] = val
+        
+    @staticmethod
+    def setServersByIP(val):
+        TestEnvironment._servers_by_ip = val

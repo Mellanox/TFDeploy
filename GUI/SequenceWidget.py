@@ -5,7 +5,8 @@ import argparse
 import os
 from xml.dom import minidom
 from xml.etree import cElementTree as etree
-from Actions.Log import *
+from Actions.Log import LOG_LEVEL_INFO, LOG_LEVEL_ERROR, setLogOps,\
+    setMainProcess, getMainProcess
 from DocumentControl import DocumentControl
 from EZRandomWidget import *
 from MultiLogWidget import MultiLogWidget
@@ -39,7 +40,9 @@ class RunTestSequenceThread(QThread):
     def __init__(self, owner):
         super(RunTestSequenceThread, self).__init__()
         self._owner = owner
-        
+    
+    #--------------------------------------------------------------------#
+    
     def run(self):
         self._owner._runSequence()
 
@@ -119,18 +122,23 @@ class TestDataAttribute(TestDataItem):
             enums = None
         else:
             enums = [enum]
+
+        self._value_widget = EZRandomWidget(allow_advanced_mode = allow_advanced_mode, base_widget_creator = base_widget_creator, parent = None, enums = enums)
+        self._widget = QWidget()
+        self._widget.setLayout(QHBoxLayout())
+        self._widget.layout().addWidget(QLabel(self._name + ":"))
+        self._widget.layout().addWidget(self._value_widget, 1)
         
-        self._widget = EZRandomWidget(allow_advanced_mode = allow_advanced_mode, base_widget_creator = base_widget_creator, parent = None, enums = enums)
         self._refreshWidget(default_value)
         
     #--------------------------------------------------------------------#
     
     def _refreshWidget(self, value):
-        if self._widget.getMode() == EZRandomWidget.BASIC:
-            self._widget.setBasicText(value)
+        if self._value_widget.getMode() == EZRandomWidget.BASIC:
+            self._value_widget.setBasicText(value)
         else:
-            self._widget.setAdvancedText(value)
-        self._widget.refreshDescriptor()
+            self._value_widget.setAdvancedText(value)
+        self._value_widget.refreshDescriptor()
         
     #--------------------------------------------------------------------#
     
@@ -156,7 +164,46 @@ class TestDataAttribute(TestDataItem):
 #             property_name = property_node.attrib["Name"]
 #             property_value = property_node.attrib["Value"]
 #             self._properties[property_name] = property_value
-            
+
+#############################################################################
+
+class MultiVariableWidget(QWidget):
+    
+    def __init__(self, parent = None):
+        super(MultiVariableWidget, self).__init__(parent)
+        self._values = {}
+        self._initGui()
+        
+    
+    # -------------------------------------------------------------------- #
+    
+    def _addVariable(self, key, value):
+        row = len(self._values)
+        b_remove = QPushButton("X")
+        b_remove.setMaximumSize(30, 26)
+        le_key = QLineEdit(key)
+        le_value = QLineEdit(value)
+        self.layout().addWidget(b_remove, row, 0)
+        self.layout().addWidget(le_key, row, 1)
+        self.layout().addWidget(le_value, row, 2)
+        
+    # -------------------------------------------------------------------- #
+    
+    def _initGui(self):
+        self.setLayout(QGridLayout())
+        self.layout().setSpacing(0)
+        self.layout().setContentsMargins(0, 0, 0, 0)
+        self._addVariable(None, None)
+                    
+#############################################################################
+
+class VariablesAttribute(TestDataItem):
+    
+    def __init__(self, name):
+        super(VariablesAttribute, self).__init__(name)
+        self._widget = MultiVariableWidget()
+    
+        
 #############################################################################
 
 class TestDataFolder(TestDataItem):
@@ -190,11 +237,8 @@ class TestDataFolder(TestDataItem):
             return self._widget
             
         for attribute in self._attributes:
-            row = QWidget()
-            row.setLayout(QHBoxLayout())
-            row.layout().addWidget(QLabel(attribute.name() + ":"))
-            row.layout().addWidget(attribute.createWidget(), 1)
-            self._widget.layout().addWidget(row)
+            attribute_widget = attribute.createWidget()
+            self._widget.layout().addWidget(attribute_widget)
 
         if len(self._sub_folders) > 0:
             self._sub_folders_widget = QTabWidget()
@@ -258,7 +302,26 @@ class TestDataFolder(TestDataItem):
 #             self._properties[property_name] = property_value
         
 #############################################################################        
+# 
+# class VariableWidget(QWidget):
+# 
+#     def __init__(self, parent = None):
+#         super(VariableWidget, self).__init__(parent)
+#         self._initGui()
+#         self._values = {}
+#     
+#     # -------------------------------------------------------------------- #
+#     
+#     def _initGui(self):
+#         self.setLayout(Q)
 
+#############################################################################
+
+class ServerInfo(object):
+    def __init__(self, name, ips):
+        self._name = name
+        self._ips = ips
+        
 #############################################################################
 
 class SequenceWidget(QMainWindow):
@@ -276,7 +339,9 @@ class SequenceWidget(QMainWindow):
         self._doc = DocumentControl(self, "ML tester", "Xml file (*.xml);;Any File (*.*);;", ".")
         self._sequence = []
         self._selected_step = None
-        self._main_process = None
+        self._base_logs_dir = "test_logs"
+        self._test_logs_dir = None
+        self._step_logs_dir = None
         self._initGui()
 
     #--------------------------------------------------------------------#
@@ -312,6 +377,7 @@ class SequenceWidget(QMainWindow):
         self.configurations_folder  = self._createFolder(None, "Configurations")
         self.steps_folder           = self._createFolder(self.configurations_folder, "Steps")
         self.settings_folder        = self._createFolder(self.configurations_folder, "Settings")
+        self.variables_folder       = self._createFolder(self.configurations_folder, "Variables")
         self.general_folder         = self._createFolder(self.settings_folder, "General")
         self.backup_folder          = self._createFolder(self.settings_folder, "Backup")
         self.sequence_folder        = self._createFolder(self.settings_folder, "Sequence")
@@ -325,6 +391,7 @@ class SequenceWidget(QMainWindow):
 #         self.general_steps          = self._createStepsList(self.global_steps_folder)
         self.benchmark_steps        = self._createStepsList(self.benchmark_steps_folder)
 
+#         self._createAttribute(self.variables_folder, 
         ##########
         # Steps: #
         ##########                                       
@@ -341,6 +408,9 @@ class SequenceWidget(QMainWindow):
         self._createAttribute(self.backup_folder,   "Do Backup", {"False": 0, "True": 1},   "True",   False,    create_combo_box) 
         self._createAttribute(self.monitors_folder, "Reg",       {"False": 0, "True": 1},   "True",   True,     create_combo_box)
         self._createAttribute(self.monitors_folder, "Monitor",   None,                      "True",   True,     create_combo_box)        
+        
+        attribute = VariablesAttribute("Variables")
+        self.variables_folder.addAttribute(attribute)
         
         ############
         # Buttons: #
@@ -442,8 +512,9 @@ class SequenceWidget(QMainWindow):
 
     def _log(self, line, process, log_level):
         if process is None:
-            process = process = self._main_process
-            
+            print line
+            return
+
         process.log(line, log_level)
         self._log_widget.log(line, process, log_level)
 
@@ -461,13 +532,8 @@ class SequenceWidget(QMainWindow):
                             
     #--------------------------------------------------------------------#
     
-    def emitLog(self, line, process):
-        self.log_signal.emit(line, process, LOG_LEVEL_INFO)
-
-    #--------------------------------------------------------------------#
-    
-    def emitError(self, line, process):
-        self.log_signal.emit(line, process, LOG_LEVEL_ERROR)
+    def emitLog(self, line, process, log_level):
+        self.log_signal.emit(line, process, log_level)
 
     #--------------------------------------------------------------------#
     
@@ -486,23 +552,18 @@ class SequenceWidget(QMainWindow):
                    
     # -------------------------------------------------------------------- #
     
-    def logOp(self, msg, process):
-        self.emitLog(msg, process)
+    def logOp(self, msg, process, log_level):
+        self.emitLog(msg, process, log_level)
 
     # -------------------------------------------------------------------- #
     
-    def errorOp(self, msg, process):
-        self.emitError(msg, process)
-
-    #--------------------------------------------------------------------#
-    
     def logToMain(self, msg):
-        self.emitLog(msg, self._main_process)
+        self.emitLog(msg, getMainProcess(), LOG_LEVEL_INFO)
 
     # -------------------------------------------------------------------- #
     
     def errorToMain(self, msg):
-        self.emitError(msg, self._main_process)
+        self.emitError(msg, getMainProcess(), LOG_LEVEL_INFO)
 
     #--------------------------------------------------------------------#
     
@@ -522,6 +583,7 @@ class SequenceWidget(QMainWindow):
     def setTestEnvironment(self):
         TestEnvironment.setOnNewProcess(self._onNewProcess)
         TestEnvironment.setOnProcessDone(self._onProcessDone)
+        setLogOps(self.logOp, self.logOp)
 
     #--------------------------------------------------------------------#
     
@@ -685,7 +747,12 @@ class SequenceWidget(QMainWindow):
         step = self._sequence[index]
         text = str(step)
         if step.status() is not None:
-            text += " - " + step.status() 
+            text += " - " + step.status()
+        self.hook_selection = False
+        self.sequence_widget.takeItem(index)
+        self.sequence_widget.insertItem(index, text)
+        self.sequence_widget.setCurrentRow(index)
+        self.hook_selection = True
     
     #--------------------------------------------------------------------#
     
@@ -704,13 +771,30 @@ class SequenceWidget(QMainWindow):
         for index in range(len(self._sequence)):
             step = self._sequence[index]
             self._setStepStatus(step, index, None)
-
+    
+    #--------------------------------------------------------------------#
+    
+    def _setTestLogsDir(self):
+        test_name = re.sub("[^0-9a-zA-Z]", "_", os.path.basename(self._doc.filePath()))
+        time_prefix = time.strftime("%Y_%m_%d_%H_%M_%S")
+        self._test_logs_dir = os.path.join(self._base_logs_dir, time_prefix + "_" + test_name)
+        os.makedirs(self._test_logs_dir)
+        
+    #--------------------------------------------------------------------#
+    
+    def _setStepLogsDir(self, step, index):
+        step_name = re.sub("[^0-9a-zA-Z]", "_", str(step))
+        self._step_logs_dir = os.path.join(self._test_logs_dir, "step_%u_%s" % (index, step_name))
+        os.makedirs(self._step_logs_dir)
+        TestEnvironment.setLogsFolder(self._step_logs_dir)
+        
     #--------------------------------------------------------------------#
     
     def _runStep(self, index):
         step = self._sequence[index]
         self._setStepStatus(step, index, "Running...")
-        self.logToMain("<h1>%s</h1>" % step.name())
+        self.logToMain("<h2>Step %u - %s</h2>" % (index, str(step)))
+        self._setStepLogsDir(step, index)
         res = step.perform()
         if res:
             self._setStepStatus(step, index, "Passed.")
@@ -742,26 +826,19 @@ class SequenceWidget(QMainWindow):
     def _runSequenceDone(self):
         self.sequence_widget.setEnabled(True)
         self.edit_pane.show()
-        self._main_process.closeLog()
-        self._main_process = None
-        setLogOps(logWriteOp, errorWriteOp)
-    
+        getMainProcess().closeLog()
+        setMainProcess(None)
+
     #--------------------------------------------------------------------#
     
     def _run(self):
-        xmlPath = self._doc.filePath()
-        if self._doc.filePath() is None:
-            test_name = "unnamed_test"
-        else:
-            test_name = re.sub("[^0-9a-zA-Z]", "_", xmlPath)
-        time_prefix = time.strftime("%Y_%m_%d_%H_%M_%S")
-        logs_dir = os.path.join("test_logs", time_prefix + "_" + test_name)
-        os.makedirs(logs_dir)
-        TestEnvironment.setLogsFolder(logs_dir)
-        self._main_process = BasicProcess(None, "Running: %s" % xmlPath, os.path.join(logs_dir, "main.log"), None)
-        self._openLog(self._main_process)
-        setLogOps(self.logOp, self.errorOp)
+        self._saveAction(True)
+        self.sequence_widget.setEnabled(False)
         self.edit_pane.hide()
+        self._setTestLogsDir()
+        main_process = BasicProcess(None, "Running: %s" % self._doc.filePath(), os.path.join(self._test_logs_dir, "main.log"), None)
+        self._openLog(main_process)
+        setMainProcess(main_process)
         self._runSequenceInNewThread()
 
     #--------------------------------------------------------------------#
@@ -830,7 +907,8 @@ class SequenceWidget(QMainWindow):
     #--------------------------------------------------------------------#
     
     def run(self):
-        self._runSequence()
+        self._run()
+        self.thread.wait()
         
     #--------------------------------------------------------------------#
     
@@ -846,6 +924,17 @@ class SequenceWidget(QMainWindow):
 #                                                                         DEMO
 #
 ###############################################################################################################################################################
+
+def _onNewProcess(process):
+    process.openLog()
+    
+#--------------------------------------------------------------------#
+
+def _onProcessDone(process):    
+    process.closeLog()
+    return process.instance.returncode in [0, 143]    
+
+#--------------------------------------------------------------------#
         
 if __name__ == '__main__':
     
@@ -856,14 +945,16 @@ if __name__ == '__main__':
     args = arg_parser.parse_args()
     app = QApplication([])    
     prompt = SequenceWidget()
-    prompt.setTestEnvironment()
     if args.xml is not None:
         prompt.loadFromXml(args.xml)
     
     if args.autorun:
+        TestEnvironment.setOnNewProcess(_onNewProcess)
+        TestEnvironment.setOnProcessDone(_onProcessDone)
         prompt.run()
     else:
-        prompt.loadFromXml("samples/new1.xml")
+        prompt.setTestEnvironment()
+        prompt.loadFromXml("samples/performance_regression_lab.xml")
         prompt.setGeometry(200, 30, 1600, 600)
         #prompt.showMaximized()
         prompt.show()

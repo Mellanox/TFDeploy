@@ -109,7 +109,8 @@ class UniBorder():
 LOG_LEVEL_FATAL = 0
 LOG_LEVEL_ERROR = 1
 LOG_LEVEL_WARNING = 2
-LOG_LEVEL_INFO = 3
+LOG_LEVEL_NOTE = 3
+LOG_LEVEL_INFO = 4
 LOG_LEVEL_DEBUG = 10
 LOG_LEVEL_ALL = sys.maxint
 
@@ -123,13 +124,17 @@ def _streamWrite(stream, data):
 
 # -------------------------------------------------------------------- #
 
-def logWriteOp(data, process):
+def logWriteOp(data, process, log_level):
     _streamWrite(sys.stdout, data)
+    if process is not None:
+        process.log(data, log_level)
 
 # -------------------------------------------------------------------- #
 
-def errorWriteOp(data, process):
+def errorWriteOp(data, process, log_level):
     _streamWrite(sys.stderr, data)
+    if process is not None:
+        process.log(data, log_level)
 
 # -------------------------------------------------------------------- #
     
@@ -137,6 +142,7 @@ g_log_level = LOG_LEVEL_INFO
 g_file_level = LOG_LEVEL_ALL 
 g_log_op = logWriteOp
 g_error_op = errorWriteOp
+g_main_process = None
 
 # -------------------------------------------------------------------- #
 
@@ -162,25 +168,40 @@ def setLogOps(log_op = None, error_op = None):
 
 # -------------------------------------------------------------------- #
 
-def _doLog(msg, process, op):
+def setMainProcess(process):
+    global g_main_process
+    g_main_process = process
+    
+# -------------------------------------------------------------------- #
+
+def getMainProcess():
+    global g_main_process
+    return g_main_process    
+    
+# -------------------------------------------------------------------- #
+
+def _doLog(msg, process, op, log_level):
     if process is None:
+        process = g_main_process
+        
+    if (process is None) or (process.instance is None):
         pid = ""
     else:
         pid = " %u" % process.instance.pid
         
     msg = "[%s%s] %s" % (time.strftime("%Y-%m-%d %H:%M:%S"), pid, msg)
     if op is not None:
-        op(msg, process)
+        op(msg, process, log_level)
     
 # -------------------------------------------------------------------- #
 
-def log(msg, process = None):
-    _doLog(msg, process, g_log_op)
+def log(msg, process = None, log_level = LOG_LEVEL_INFO):
+    _doLog(msg, process, g_log_op, log_level)
 
 # -------------------------------------------------------------------- #
 
 def error(msg, process = None):
-    _doLog(msg, process, g_error_op)
+    _doLog(msg, process, g_error_op, LOG_LEVEL_ERROR)
 
 # -------------------------------------------------------------------- #
 

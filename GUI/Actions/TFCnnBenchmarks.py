@@ -68,10 +68,10 @@ class TFCnnBenchmarksStep(Step):
     # -------------------------------------------------------------------- #
 
     def ps(self):
-        return self._values[TFCnnBenchmarksStep.ATTRIBUTE_ID_PS].split(",")
+        return os.path.expandvars(self._values[TFCnnBenchmarksStep.ATTRIBUTE_ID_PS]).split(",")
     
     def workers(self):
-        return self._values[TFCnnBenchmarksStep.ATTRIBUTE_ID_WORKERS].split(",")
+        return os.path.expandvars(self._values[TFCnnBenchmarksStep.ATTRIBUTE_ID_WORKERS]).split(",")
     
     def base_port(self):
         return int(self._values[TFCnnBenchmarksStep.ATTRIBUTE_ID_BASE_PORT])
@@ -112,21 +112,25 @@ class TFCnnBenchmarksStep(Step):
         first_time = not os.path.exists(performance_file_path)
         self._performance_file = open(performance_file_path, "a+")
         self._performance_table = FormattedTable()
-        self._performance_table.add_column(FormattedTable.Column("Date", 20))
-        self._performance_table.add_column(FormattedTable.Column("Benchmark", 20))
-        self._performance_table.add_column(FormattedTable.Column("Model", 12))
-        self._performance_table.add_column(FormattedTable.Column("Batch", 5))
-        self._performance_table.add_column(FormattedTable.Column("Protocol", 14))
-        self._performance_table.add_column(FormattedTable.Column("GPUs/Server", 11))
-        self._performance_table.add_column(FormattedTable.Column("#Workers", 8))
-        self._performance_table.add_column(FormattedTable.Column("#PS", 3))
-        self._performance_table.add_column(FormattedTable.Column("Images/sec", 10))
-        self._performance_table.add_column(FormattedTable.Column("CPU", 7))
-        self._performance_table.add_column(FormattedTable.Column("GPU", 5))
-        self._performance_table.add_column(FormattedTable.Column("MEM", 5))
-        self._performance_table.add_column(FormattedTable.Column("RX/TX (Mbit/sec)", 16))
-        self._performance_table.add_column(FormattedTable.Column("Max RX/TX (Mbit/sec)", 20))
-        self._performance_table.bind(self._performance_file, first_time)
+        self._performance_table.addColumn(FormattedTable.Column("Date", 20), "Info")
+        self._performance_table.addColumn(FormattedTable.Column("Benchmark", 20), "Info")
+        self._performance_table.addColumn(FormattedTable.Column("Model", 12), "Info")
+        self._performance_table.addColumn(FormattedTable.Column("Batch", 5), "Info")
+        self._performance_table.addColumn(FormattedTable.Column("Protocol", 14), "Info")
+        self._performance_table.addColumn(FormattedTable.Column("GPUs/Server", 11), "Info")
+        self._performance_table.addColumn(FormattedTable.Column("#Workers", 8), "Info")
+        self._performance_table.addColumn(FormattedTable.Column("#PS", 3), "Info")
+        self._performance_table.addColumn(FormattedTable.Column("Images/sec", 10), "Performace")
+        self._performance_table.addColumn(FormattedTable.Column("CPU", 7), "Performace")
+        self._performance_table.addColumn(FormattedTable.Column("GPU", 5), "Performace")
+        self._performance_table.addColumn(FormattedTable.Column("MEM", 5), "Performace")
+        self._performance_table.addColumn(FormattedTable.Column("Average", 20), "RX/TX rate (Mbit/sec)")
+        self._performance_table.addColumn(FormattedTable.Column("Max", 20), "RX/TX rate (Mbit/sec)")
+        self._performance_table.addColumn(FormattedTable.Column("Buffer overrun"), "Network Errors")
+        self._performance_table.addColumn(FormattedTable.Column("Port TX discards"), "Network Errors")
+        self._performance_table.addColumn(FormattedTable.Column("Port RX errors"), "Network Errors")
+        self._performance_table.addColumn(FormattedTable.Column("Port RX constraint errors"), "Network Errors")
+        self._performance_table.bind(self._performance_file, type = FormattedTable.TYPE_CSV, print_header = first_time)
                 
     # -------------------------------------------------------------------- #
     
@@ -147,8 +151,12 @@ class TFCnnBenchmarksStep(Step):
                "%.2lf" % self._perf.gpu.avg,
                "%.2lf" % self._perf.mem.avg,
                "%.2lf/%.2lf" % (self._perf.rx.rate.avg, self._perf.tx.rate.avg),
-               "%.2lf/%.2lf" % (self._perf.rx.rate.max, self._perf.tx.rate.max)]
-        self._performance_table.add_row(row)
+               "%.2lf/%.2lf" % (self._perf.rx.rate.max, self._perf.tx.rate.max),
+               self._perf.net_erros.excessive_buffer_overrun_errors.val,
+               self._perf.net_erros.port_xmit_discards.val,
+               self._perf.net_erros.port_rcv_errors.val,
+               self._perf.net_erros.port_rcv_constraint_errors.val]
+        self._performance_table.addRow(row)
         self._performance_table.unbind()
         self._performance_file.close()
 
@@ -165,7 +173,7 @@ class TFCnnBenchmarksStep(Step):
 
         process.gpu_monitor = Monitor(process.server, process.gpu_graph, time_interval = 0, log_ratio = 1)
         process.gpu_monitor.addSampler(GPUSampler())
-        process.common_monitor = Monitor(process.server, process.cpu_graph, time_interval = 0.1, log_ratio = 1)
+        process.common_monitor = Monitor(process.server, process.cpu_graph, time_interval = 0, log_ratio = 1)
         process.common_monitor.addSampler(CPUAndMemSampler(process.remote_pid))
         process.common_monitor.addSampler(RXTXSampler(process.rdma_device, process.rdma_port))
 
@@ -175,22 +183,27 @@ class TFCnnBenchmarksStep(Step):
         process.perf.mem = process.common_monitor["MEM"]
         process.perf.rx = process.common_monitor["RDTA"]
         process.perf.tx = process.common_monitor["TDTA"]
+        process.perf.net_erros.excessive_buffer_overrun_errors = process.common_monitor["XBUF_OVERRUN_ERRORS"]
+        process.perf.net_erros.port_xmit_discards = process.common_monitor["PORT_XMIT_DISCARDS"]
+        process.perf.net_erros.port_rcv_errors = process.common_monitor["PORT_RCV_ERRORS"]
+        process.perf.net_erros.port_rcv_constraint_errors = process.common_monitor["PORT_RCV_CONSTRAINT_ERRORS"]
+        
         process.perf.images_sec = Measurement("IMG/SEC")
 
         process.gpu_monitor.start()
         process.common_monitor.start()
         
         process.table = FormattedTable()
-        process.table.add_column(FormattedTable.Column("STEP", 4))
-        process.table.add_column(FormattedTable.Column("CPU", 7))
-        process.table.add_column(FormattedTable.Column("MEM", 5))
-        process.table.add_column(FormattedTable.Column("GPU", 5))
-        process.table.add_column(FormattedTable.Column("RX/TX (MBit/sec)", 12))
-        process.table.add_column(FormattedTable.Column("Max RX/TX (MBit/sec)", 12))
-        process.table.add_column(FormattedTable.Column("images/sec", 12))
-        process.table.add_column(FormattedTable.Column("+/-", 7))
-        process.table.add_column(FormattedTable.Column("jitter", 6))
-        process.table.add_column(FormattedTable.Column("loss", 6))
+        process.table.addColumn(FormattedTable.Column("STEP", 4))
+        process.table.addColumn(FormattedTable.Column("CPU", 7))
+        process.table.addColumn(FormattedTable.Column("MEM", 5))
+        process.table.addColumn(FormattedTable.Column("GPU", 5))
+        process.table.addColumn(FormattedTable.Column("RX/TX (MBit/sec)", 12))
+        process.table.addColumn(FormattedTable.Column("Max RX/TX (MBit/sec)", 12))
+        process.table.addColumn(FormattedTable.Column("images/sec", 12))
+        process.table.addColumn(FormattedTable.Column("+/-", 7))
+        process.table.addColumn(FormattedTable.Column("jitter", 6))
+        process.table.addColumn(FormattedTable.Column("loss", 6))
         process.table.bind(LogWriter(process))
 
     # -------------------------------------------------------------------- #
@@ -211,8 +224,8 @@ class TFCnnBenchmarksStep(Step):
                "---", 
                "---", 
                "---"]
-        process.table.add_bar()
-        process.table.add_row(row)
+        process.table.addBar()
+        process.table.addRow(row)
         process.table.unbind()
 
         log("Server %s: stopped monitors." % process.server, process)
@@ -238,7 +251,8 @@ class TFCnnBenchmarksStep(Step):
         log_file_name = "%s_%u.log" % (job_name, task_id)
         log_file_path = os.path.join(TestEnvironment.logsFolder(), log_file_name)
         factory = BasicProcess.getFactory(title, log_file_path)
-        process = executeRemoteCommand([ip], command, factory = factory)[0]
+        server = TestEnvironment.Get().getServer(ip)
+        process = executeRemoteCommand([server], command, factory = factory)[0]
         process.is_worker = job_name == "worker"
         self._processes.append(process)
         return process
@@ -281,7 +295,7 @@ class TFCnnBenchmarksStep(Step):
                        "%.2lf" % deviation, 
                        "%.2lf" % jitter, 
                        "%.2lf" % loss]
-                process.table.add_row(row)
+                process.table.addRow(row)
         elif "---------------" in line:
             pass
         else:
@@ -320,7 +334,7 @@ class TFCnnBenchmarksStep(Step):
         
         user = getuser()
         self._work_dir = work_dir
-        self._servers = list(set(self.ps() + self.workers()))
+        self._servers = TestEnvironment.Get().getServers(list(set(self.ps() + self.workers())))
             
         #########################
         # Kill other instances: #

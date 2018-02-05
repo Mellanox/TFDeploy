@@ -1,15 +1,9 @@
 <?xml version="1.0" ?>
 <root>
 	<Sequence>
-		<Step Name="TF Compile">
-			<Attribute Name="TensorFlow home" Value="~/tensorflow"/>
-			<Attribute Name="CUDA" Value="True"/>
-			<Attribute Name="Additional build flags" Value=""/>
-			<Attribute Name="Install on servers" Value="12.12.12.25,12.12.12.26"/>
-		</Step>
 		<Step Name="TF CNN Benchmarks">
-			<Attribute Name="PS" Value="12.12.12.25,12.12.12.26"/>
-			<Attribute Name="Workers" Value="12.12.12.25,12.12.12.26"/>
+			<Attribute Name="PS" Value="192.168.1.41,192.168.1.43,192.168.1.44,192.168.1.45,192.168.1.46,192.168.1.47,192.168.1.48"/>
+			<Attribute Name="Workers" Value="192.168.1.41,192.168.1.43,192.168.1.44,192.168.1.45,192.168.1.46,192.168.1.47,192.168.1.48"/>
 			<Attribute Name="Base Port" Value="5000"/>
 			<Attribute Name="Script" Value="~/benchmarks/scripts/tf_cnn_benchmarks/"/>
 			<Attribute Name="Model" Value="trivial"/>
@@ -20,8 +14,8 @@
 			<Attribute Name="Log Level" Value="0"/>
 		</Step>
 		<Step Name="TF CNN Benchmarks">
-			<Attribute Name="PS" Value="12.12.12.25,12.12.12.26"/>
-			<Attribute Name="Workers" Value="12.12.12.25,12.12.12.26"/>
+			<Attribute Name="PS" Value="192.168.1.41,192.168.1.43,192.168.1.44,192.168.1.45,192.168.1.46,192.168.1.47,192.168.1.48"/>
+			<Attribute Name="Workers" Value="192.168.1.41,192.168.1.43,192.168.1.44,192.168.1.45,192.168.1.46,192.168.1.47,192.168.1.48"/>
 			<Attribute Name="Base Port" Value="5000"/>
 			<Attribute Name="Script" Value="~/benchmarks/scripts/tf_cnn_benchmarks/"/>
 			<Attribute Name="Model" Value="inception3"/>
@@ -32,8 +26,8 @@
 			<Attribute Name="Log Level" Value="0"/>
 		</Step>
 		<Step Name="TF CNN Benchmarks">
-			<Attribute Name="PS" Value="12.12.12.25,12.12.12.26"/>
-			<Attribute Name="Workers" Value="12.12.12.25,12.12.12.26"/>
+			<Attribute Name="PS" Value="192.168.1.41,192.168.1.43,192.168.1.44,192.168.1.45,192.168.1.46,192.168.1.47,192.168.1.48"/>
+			<Attribute Name="Workers" Value="192.168.1.41,192.168.1.43,192.168.1.44,192.168.1.45,192.168.1.46,192.168.1.47,192.168.1.48"/>
 			<Attribute Name="Base Port" Value="5000"/>
 			<Attribute Name="Script" Value="~/benchmarks/scripts/tf_cnn_benchmarks/"/>
 			<Attribute Name="Model" Value="inception4"/>
@@ -44,8 +38,8 @@
 			<Attribute Name="Log Level" Value="0"/>
 		</Step>
 		<Step Name="TF CNN Benchmarks">
-			<Attribute Name="PS" Value="12.12.12.25,12.12.12.26"/>
-			<Attribute Name="Workers" Value="12.12.12.25,12.12.12.26"/>
+			<Attribute Name="PS" Value="192.168.1.41,192.168.1.43,192.168.1.44,192.168.1.45,192.168.1.46,192.168.1.47,192.168.1.48"/>
+			<Attribute Name="Workers" Value="192.168.1.41,192.168.1.43,192.168.1.44,192.168.1.45,192.168.1.46,192.168.1.47,192.168.1.48"/>
 			<Attribute Name="Base Port" Value="5000"/>
 			<Attribute Name="Script" Value="~/benchmarks/scripts/tf_cnn_benchmarks/"/>
 			<Attribute Name="Model" Value="resnet50"/>
@@ -56,8 +50,8 @@
 			<Attribute Name="Log Level" Value="0"/>
 		</Step>
 		<Step Name="TF CNN Benchmarks">
-			<Attribute Name="PS" Value="12.12.12.25,12.12.12.26"/>
-			<Attribute Name="Workers" Value="12.12.12.25,12.12.12.26"/>
+			<Attribute Name="PS" Value="192.168.1.41,192.168.1.43,192.168.1.44,192.168.1.45,192.168.1.46,192.168.1.47,192.168.1.48"/>
+			<Attribute Name="Workers" Value="192.168.1.41,192.168.1.43,192.168.1.44,192.168.1.45,192.168.1.46,192.168.1.47,192.168.1.48"/>
 			<Attribute Name="Base Port" Value="5000"/>
 			<Attribute Name="Script" Value="~/benchmarks/scripts/tf_cnn_benchmarks/"/>
 			<Attribute Name="Model" Value="resnet152"/>
@@ -68,8 +62,8 @@
 			<Attribute Name="Log Level" Value="0"/>
 		</Step>
 		<Step Name="TF CNN Benchmarks">
-			<Attribute Name="PS" Value="12.12.12.25,12.12.12.26"/>
-			<Attribute Name="Workers" Value="12.12.12.25,12.12.12.26"/>
+			<Attribute Name="PS" Value="192.168.1.41,192.168.1.43,192.168.1.44,192.168.1.45,192.168.1.46,192.168.1.47,192.168.1.48"/>
+			<Attribute Name="Workers" Value="192.168.1.41,192.168.1.43,192.168.1.44,192.168.1.45,192.168.1.46,192.168.1.47,192.168.1.48"/>
 			<Attribute Name="Base Port" Value="5000"/>
 			<Attribute Name="Script" Value="~/benchmarks/scripts/tf_cnn_benchmarks/"/>
 			<Attribute Name="Model" Value="vgg16"/>
@@ -80,8 +74,8 @@
 			<Attribute Name="Log Level" Value="0"/>
 		</Step>
 		<Step Name="TF CNN Benchmarks">
-			<Attribute Name="PS" Value="12.12.12.25,12.12.12.26"/>
-			<Attribute Name="Workers" Value="12.12.12.25,12.12.12.26"/>
+			<Attribute Name="PS" Value="192.168.1.41,192.168.1.43,192.168.1.44,192.168.1.45,192.168.1.46,192.168.1.47,192.168.1.48"/>
+			<Attribute Name="Workers" Value="192.168.1.41,192.168.1.43,192.168.1.44,192.168.1.45,192.168.1.46,192.168.1.47,192.168.1.48"/>
 			<Attribute Name="Base Port" Value="5000"/>
 			<Attribute Name="Script" Value="~/benchmarks/scripts/tf_cnn_benchmarks/"/>
 			<Attribute Name="Model" Value="vgg19"/>
@@ -92,8 +86,8 @@
 			<Attribute Name="Log Level" Value="0"/>
 		</Step>
 		<Step Name="TF CNN Benchmarks">
-			<Attribute Name="PS" Value="12.12.12.25,12.12.12.26"/>
-			<Attribute Name="Workers" Value="12.12.12.25,12.12.12.26"/>
+			<Attribute Name="PS" Value="192.168.1.41,192.168.1.43,192.168.1.44,192.168.1.45,192.168.1.46,192.168.1.47,192.168.1.48"/>
+			<Attribute Name="Workers" Value="192.168.1.41,192.168.1.43,192.168.1.44,192.168.1.45,192.168.1.46,192.168.1.47,192.168.1.48"/>
 			<Attribute Name="Base Port" Value="5000"/>
 			<Attribute Name="Script" Value="~/benchmarks/scripts/tf_cnn_benchmarks/"/>
 			<Attribute Name="Model" Value="trivial"/>
@@ -104,8 +98,8 @@
 			<Attribute Name="Log Level" Value="0"/>
 		</Step>
 		<Step Name="TF CNN Benchmarks">
-			<Attribute Name="PS" Value="12.12.12.25,12.12.12.26"/>
-			<Attribute Name="Workers" Value="12.12.12.25,12.12.12.26"/>
+			<Attribute Name="PS" Value="192.168.1.41,192.168.1.43,192.168.1.44,192.168.1.45,192.168.1.46,192.168.1.47,192.168.1.48"/>
+			<Attribute Name="Workers" Value="192.168.1.41,192.168.1.43,192.168.1.44,192.168.1.45,192.168.1.46,192.168.1.47,192.168.1.48"/>
 			<Attribute Name="Base Port" Value="5000"/>
 			<Attribute Name="Script" Value="~/benchmarks/scripts/tf_cnn_benchmarks/"/>
 			<Attribute Name="Model" Value="inception3"/>
@@ -116,8 +110,8 @@
 			<Attribute Name="Log Level" Value="0"/>
 		</Step>
 		<Step Name="TF CNN Benchmarks">
-			<Attribute Name="PS" Value="12.12.12.25,12.12.12.26"/>
-			<Attribute Name="Workers" Value="12.12.12.25,12.12.12.26"/>
+			<Attribute Name="PS" Value="192.168.1.41,192.168.1.43,192.168.1.44,192.168.1.45,192.168.1.46,192.168.1.47,192.168.1.48"/>
+			<Attribute Name="Workers" Value="192.168.1.41,192.168.1.43,192.168.1.44,192.168.1.45,192.168.1.46,192.168.1.47,192.168.1.48"/>
 			<Attribute Name="Base Port" Value="5000"/>
 			<Attribute Name="Script" Value="~/benchmarks/scripts/tf_cnn_benchmarks/"/>
 			<Attribute Name="Model" Value="inception4"/>
@@ -128,8 +122,8 @@
 			<Attribute Name="Log Level" Value="0"/>
 		</Step>
 		<Step Name="TF CNN Benchmarks">
-			<Attribute Name="PS" Value="12.12.12.25,12.12.12.26"/>
-			<Attribute Name="Workers" Value="12.12.12.25,12.12.12.26"/>
+			<Attribute Name="PS" Value="192.168.1.41,192.168.1.43,192.168.1.44,192.168.1.45,192.168.1.46,192.168.1.47,192.168.1.48"/>
+			<Attribute Name="Workers" Value="192.168.1.41,192.168.1.43,192.168.1.44,192.168.1.45,192.168.1.46,192.168.1.47,192.168.1.48"/>
 			<Attribute Name="Base Port" Value="5000"/>
 			<Attribute Name="Script" Value="~/benchmarks/scripts/tf_cnn_benchmarks/"/>
 			<Attribute Name="Model" Value="resnet50"/>
@@ -140,8 +134,8 @@
 			<Attribute Name="Log Level" Value="0"/>
 		</Step>
 		<Step Name="TF CNN Benchmarks">
-			<Attribute Name="PS" Value="12.12.12.25,12.12.12.26"/>
-			<Attribute Name="Workers" Value="12.12.12.25,12.12.12.26"/>
+			<Attribute Name="PS" Value="192.168.1.41,192.168.1.43,192.168.1.44,192.168.1.45,192.168.1.46,192.168.1.47,192.168.1.48"/>
+			<Attribute Name="Workers" Value="192.168.1.41,192.168.1.43,192.168.1.44,192.168.1.45,192.168.1.46,192.168.1.47,192.168.1.48"/>
 			<Attribute Name="Base Port" Value="5000"/>
 			<Attribute Name="Script" Value="~/benchmarks/scripts/tf_cnn_benchmarks/"/>
 			<Attribute Name="Model" Value="resnet152"/>
@@ -152,8 +146,8 @@
 			<Attribute Name="Log Level" Value="0"/>
 		</Step>
 		<Step Name="TF CNN Benchmarks">
-			<Attribute Name="PS" Value="12.12.12.25,12.12.12.26"/>
-			<Attribute Name="Workers" Value="12.12.12.25,12.12.12.26"/>
+			<Attribute Name="PS" Value="192.168.1.41,192.168.1.43,192.168.1.44,192.168.1.45,192.168.1.46,192.168.1.47,192.168.1.48"/>
+			<Attribute Name="Workers" Value="192.168.1.41,192.168.1.43,192.168.1.44,192.168.1.45,192.168.1.46,192.168.1.47,192.168.1.48"/>
 			<Attribute Name="Base Port" Value="5000"/>
 			<Attribute Name="Script" Value="~/benchmarks/scripts/tf_cnn_benchmarks/"/>
 			<Attribute Name="Model" Value="vgg16"/>
@@ -164,8 +158,8 @@
 			<Attribute Name="Log Level" Value="0"/>
 		</Step>
 		<Step Name="TF CNN Benchmarks">
-			<Attribute Name="PS" Value="12.12.12.25,12.12.12.26"/>
-			<Attribute Name="Workers" Value="12.12.12.25,12.12.12.26"/>
+			<Attribute Name="PS" Value="192.168.1.41,192.168.1.43,192.168.1.44,192.168.1.45,192.168.1.46,192.168.1.47,192.168.1.48"/>
+			<Attribute Name="Workers" Value="192.168.1.41,192.168.1.43,192.168.1.44,192.168.1.45,192.168.1.46,192.168.1.47,192.168.1.48"/>
 			<Attribute Name="Base Port" Value="5000"/>
 			<Attribute Name="Script" Value="~/benchmarks/scripts/tf_cnn_benchmarks/"/>
 			<Attribute Name="Model" Value="vgg19"/>

@@ -78,18 +78,19 @@ class TFCompileStep(Step):
         ############
         # Install: #
         ############
+        servers = TestEnvironment.Get().getServers(self.install_servers())
         title("Installing:", UniBorder.BORDER_STYLE_SINGLE)
         src_dir = os.path.join(self.tensorflow_home(), "tensorflow_pkg")
         temp_dir_name = "tmp." + next(tempfile._get_candidate_names()) + next(tempfile._get_candidate_names())
         temp_dir = os.path.join(tempfile._get_default_tempdir(), temp_dir_name)
-        res = self.runSCP(self.install_servers(), [src_dir], temp_dir, wait_timeout=10)
+        res = self.runSCP(servers, [src_dir], temp_dir, wait_timeout=10)
         if not res:
             return False
     
         cmd = "pip install --user --upgrade %s/tensorflow-*" % temp_dir
         res = self.runSeperate(cmd, 
                                title = "Installing...", 
-                               servers = self.install_servers(),
+                               servers = servers,
                                log_file_path = os.path.join(TestEnvironment.logsFolder(), "install.log"))
         if not res:
             return False
@@ -98,7 +99,7 @@ class TFCompileStep(Step):
         # Clean: #
         ##########
         title("Cleaning:", UniBorder.BORDER_STYLE_SINGLE)
-        processes = executeRemoteCommand(self.install_servers(), "rm -rf %s" % temp_dir)
+        processes = executeRemoteCommand(servers, "rm -rf %s" % temp_dir)
         res = waitForProcesses(processes, wait_timeout=10)
         if not res:
             return False

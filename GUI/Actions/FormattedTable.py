@@ -59,35 +59,48 @@ class FormattedTable(object):
         self.groups = []
         self.output = None
         self._bind = False
+        self._type = None
         
         ##########
         # Style: #
         ##########
         self.border_style = UniBorder.BORDER_STYLE_STRONG
+    
+    # -------------------------------------------------------------------- #
+    
+    def type(self):
+        return self._type
+    
+    # -------------------------------------------------------------------- #
+    
+    def setType(self, type):
+        self._type = type
         
     # -------------------------------------------------------------------- #
     
-    def bind(self, output = sys.stdout, print_header = True, type = TYPE_CSV):
+    def isCSV(self):
+        return self._type == FormattedTable.TYPE_CSV
+        
+    # -------------------------------------------------------------------- #
+    
+    def bind(self, output = sys.stdout, type = TYPE_UNIBORDER, print_header = True):
         self.output = output
         self._bind = True
+        self._type = type
+        self._calculate_column_widths()
+        self._calculate_group_widths()
         if print_header:
-            self._calculate_column_widths()
-            self._calculate_group_widths(False)
-            if output is sys.stdout:            
-                self._print_headers()
-            else:
-                self._print_csv_headers()
+            self._printHeaders()
             
     # -------------------------------------------------------------------- #
     
     def unbind(self):
-        if self.output is sys.stdout:
-            self._print_footers()
+        self._printFooters()
         self._bind = False
         
     # -------------------------------------------------------------------- #
     
-    def add_column(self, column, group_name = None):
+    def addColumn(self, column, group_name = None):
         num_groups = len(self.groups)
         
         if (num_groups == 0) or (group_name != self.groups[num_groups - 1].name):
@@ -101,21 +114,15 @@ class FormattedTable(object):
         
     # -------------------------------------------------------------------- #
     
-    def add_row(self, row):
+    def addRow(self, row):
         self.rows.append(row)
         if self._bind:
-            if self.output is sys.stdout:
-                self._print_row(row)
-            else:
-                self._print_csv_row(row)
+            self._printRow(row)
     
     # -------------------------------------------------------------------- #
 
-    def add_bar(self):
-        self.rows.append(FormattedTable.BAR)
-        if self._bind:
-            if self.output is sys.stdout:
-                self._print_bar(self.COLUMN_CONNECTIONS(), self.COLUMN_CONNECTIONS())
+    def addBar(self):
+        self.addRow(FormattedTable.BAR)
     
     # -------------------------------------------------------------------- #
     
@@ -130,12 +137,12 @@ class FormattedTable(object):
             
     # -------------------------------------------------------------------- #
     
-    def _calculate_group_widths(self, is_csv):
+    def _calculate_group_widths(self):
         if not self._has_groups():
             return
 
         for group in self.groups:
-            group.calculate_width(is_csv)
+            group.calculate_width(self.isCSV())
         
     # -------------------------------------------------------------------- #
     
@@ -211,7 +218,13 @@ class FormattedTable(object):
             
     # -------------------------------------------------------------------- #
     
-    def _print_bar(self, top_connnections, bottom_connections):
+    def _printCSVBar(self):
+        # TODO: can add a ---- bar if configured
+        pass            
+            
+    # -------------------------------------------------------------------- #            
+            
+    def _printFormattedBar(self, top_connnections, bottom_connections):
         
         bar_char = self._get_border_char_by_part(UniBorder.BORDER_PART_HORIZONAL_LINE)
         
@@ -223,66 +236,18 @@ class FormattedTable(object):
         result += self._get_border_char(top_connnections[0], bottom_connections[0], True, False)
         result += "\n"
         self._print(result)
-    
+
     # -------------------------------------------------------------------- #
     
-    def _print_headers(self):
-        
-        seperator = self._get_border_char_by_part(UniBorder.BORDER_PART_VERTICAL_LINE)
-
-        ###########
-        # Groups: #
-        ###########
-        if self._has_groups():
-            self._print_bar(self.NO_CONNECTIONS(), self.GROUP_CONNECTIONS())
-            result = seperator
-            for group in self.groups:
-                group_title = "" if group.name is None else group.name
-                result += " %-*s " % (group.width, group_title)
-                result += seperator
-            result += "\n"
-            self._print(result)
-            self._print_bar(self.GROUP_CONNECTIONS(), self.COLUMN_CONNECTIONS())
+    def _printBar(self, top_connnections, bottom_connections):
+        if self.isCSV():
+            self._printCSVBar()
         else:
-            self._print_bar(self.NO_CONNECTIONS(), self.COLUMN_CONNECTIONS())
-                    
-        ############
-        # Columns: #
-        ############
-        result = seperator
-        for column in self.columns:
-            result += " %-*s " % (column.width, column.name)
-            result += seperator
-        result += "\n"            
-        self._print(result)
-        self._print_bar(self.COLUMN_CONNECTIONS(), self.COLUMN_CONNECTIONS())
-        
-    # -------------------------------------------------------------------- #
-    
-    def _print_row(self, row):
-        if row is FormattedTable.BAR:
-            self._print_bar(self.COLUMN_CONNECTIONS(), self.COLUMN_CONNECTIONS())
-            return
-            
-        seperator = self._get_border_char_by_part(UniBorder.BORDER_PART_VERTICAL_LINE)
-        result = seperator
-        for col_num in xrange(len(self.columns)):
-            cell_width = self.columns[col_num].width
-            cell_value = self._get_cell_value(row, col_num)
-            result += " %-*s " % (cell_width, cell_value)
-            result += seperator
-        result += "\n"
-        self._print(result)
-
-    # -------------------------------------------------------------------- #
-
-    def _print_footers(self):
-        self._print_bar(self.COLUMN_CONNECTIONS(), self.NO_CONNECTIONS())        
+            self._printFormattedBar(top_connnections, bottom_connections)
     
     # -------------------------------------------------------------------- #
     
-    def _print_csv_headers(self):
-        
+    def _printCSVHeaders(self):
         ###########
         # Groups: #
         ###########
@@ -303,10 +268,93 @@ class FormattedTable(object):
             result += "%-*s, " % (column.width, column.name)
         result += "\n"
         self._print(result)
+            
+    # -------------------------------------------------------------------- #
+    
+    def _printFormattedHeaders(self):
+        seperator = self._get_border_char_by_part(UniBorder.BORDER_PART_VERTICAL_LINE)
+
+        ###########
+        # Groups: #
+        ###########
+        if self._has_groups():
+            self._printBar(self.NO_CONNECTIONS(), self.GROUP_CONNECTIONS())
+            result = seperator
+            for group in self.groups:
+                group_title = "" if group.name is None else group.name
+                result += " %-*s " % (group.width, group_title)
+                result += seperator
+            result += "\n"
+            self._print(result)
+            self._printBar(self.GROUP_CONNECTIONS(), self.COLUMN_CONNECTIONS())
+        else:
+            self._printBar(self.NO_CONNECTIONS(), self.COLUMN_CONNECTIONS())
+                    
+        ############
+        # Columns: #
+        ############
+        result = seperator
+        for column in self.columns:
+            result += " %-*s " % (column.width, column.name)
+            result += seperator
+        result += "\n"            
+        self._print(result)
+        self._printBar(self.COLUMN_CONNECTIONS(), self.COLUMN_CONNECTIONS())
+
+    # -------------------------------------------------------------------- #
+    
+    def _printHeaders(self):
+        if self.isCSV():
+            self._printCSVHeaders()
+        else:
+            self._printFormattedHeaders()        
+            
+    # -------------------------------------------------------------------- #
+    
+    def _printFormattedRow(self, row):
+        seperator = self._get_border_char_by_part(UniBorder.BORDER_PART_VERTICAL_LINE)
+        result = seperator
+        for col_num in xrange(len(self.columns)):
+            cell_width = self.columns[col_num].width
+            cell_value = self._get_cell_value(row, col_num)
+            result += " %-*s " % (cell_width, cell_value)
+            result += seperator
+        result += "\n"
+        self._print(result)
+
+    # -------------------------------------------------------------------- #
+    
+    def _printRow(self, row):
+        if row is FormattedTable.BAR:
+            self._printBar(self.COLUMN_CONNECTIONS(), self.COLUMN_CONNECTIONS())
+            return
+            
+        if self.isCSV():
+            self._printCSVRow(row)
+        else:
+            self._printFormattedRow(row)
+    
+    # -------------------------------------------------------------------- #
+    
+    def _printCSVFooters(self):
+        pass
+    
+    # -------------------------------------------------------------------- #
+    
+    def _printFormattedFooters(self):
+        self._printBar(self.COLUMN_CONNECTIONS(), self.NO_CONNECTIONS())        
+    
+    # -------------------------------------------------------------------- #
+
+    def _printFooters(self):
+        if self.isCSV():
+            self._printCSVFooters()
+        else:
+            self._printFormattedFooters()
         
     # -------------------------------------------------------------------- #
     
-    def _print_csv_row(self, row):
+    def _printCSVRow(self, row):
         result = "" 
         for col_num in xrange(len(self.columns)):
             cell_width = self.columns[col_num].width
@@ -314,32 +362,29 @@ class FormattedTable(object):
             result += "%-*s, " % (cell_width, cell_value)
         result += "\n"
         self._print(result)
+    
+    # -------------------------------------------------------------------- #
+    
+    def _printTable(self, output_file, type):
+        self.setType(type)
+        self.output = output_file
+        
+        self._calculate_column_widths()
+        self._calculate_group_widths()
+        self._printHeaders()
+        for row in self.rows:
+            self._printRow(row)
+        self._printFooters()        
         
     # -------------------------------------------------------------------- #
     
-    def print_formatted(self, output_file = sys.stdout):
-        
-        self._calculate_column_widths()
-        self._calculate_group_widths(False)
-        
-        self.output = output_file
-        self._print_headers()
-        for row in self.rows:
-            self._print_row(row)
-        self._print_footers()
+    def printFormatted(self, output_file = sys.stdout):
+        self._printTable(output_file, FormattedTable.TYPE_UNIBORDER)
             
     # -------------------------------------------------------------------- #
         
-    def print_as_csv(self, output_file = sys.stdout):
-        
-        self._calculate_column_widths()
-        self._calculate_group_widths(True)
-        
-        self.output = output_file
-        self._print_csv_headers()
-        for row in self.rows:
-            self._print_csv_row(row)
-        
+    def printCSV(self, output_file = sys.stdout):
+        self._printTable(output_file, FormattedTable.TYPE_CSV)
 
 ###############################################################################################################################################################
 #
@@ -349,14 +394,16 @@ class FormattedTable(object):
 
 if __name__ == '__main__':
     table = FormattedTable()
-    table.add_column(FormattedTable.Column("Column A"))
-    table.add_column(FormattedTable.Column("Column B"))
-    table.add_column(FormattedTable.Column("Column C"))
-    table.add_column(FormattedTable.Column("Column D"))
+    table.addColumn(FormattedTable.Column("Column A"))
+    table.addColumn(FormattedTable.Column("Column B"))
+    table.addColumn(FormattedTable.Column("Column C"))
+    table.addColumn(FormattedTable.Column("Column D"))
     table.bind()
-    table.add_row(["A1", "B1", "C1", "D1"])
-    table.add_row(["A2", "B2", "C2", "D2"])
-    table.add_bar()
-    table.add_row(["A3", "B3", "C3", "D3"])
+    table.addRow(["A1", "B1", "C1", "D1"])
+    table.addRow(["A2", "B2", "C2", "D2"])
+    table.addBar()
+    table.addRow(["A3", "B3", "C3", "D3"])
     table.unbind()
-    table.print_as_csv()
+    table.printCSV()
+    table.printFormatted()
+    

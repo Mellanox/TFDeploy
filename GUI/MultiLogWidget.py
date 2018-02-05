@@ -10,7 +10,7 @@ import Actions.Log
 
 ###############################################################################
 
-LogColorsForLevel = ["purple", "red", "orange", None, None, None]
+LogColorsForLevel = ["purple", "red", "orange", "green", None, None, None]
  
         
 ###############################################################################
