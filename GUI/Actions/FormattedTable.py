@@ -125,6 +125,27 @@ class FormattedTable(object):
         self.addRow(FormattedTable.BAR)
     
     # -------------------------------------------------------------------- #
+
+    # Warning: Experimental. Using shallow copy.
+    def cut(self, group_names):
+        sub = FormattedTable()
+
+        ###########
+        # Filter: #
+        ###########
+        if (group_names is None) or (len(self.groups) == 0):
+            sub.columns = self.columns
+        else:
+            for group in self.groups:
+                if group.name in group_names:
+                    sub.groups.append(group)
+                    sub.columns.extend(group.columns)
+
+        for row in self.rows:                    
+            sub.rows.append([row[i] for i in range(len(self.columns)) if self.columns[i] in sub.columns])
+        return sub
+
+    # -------------------------------------------------------------------- #
     
     def _has_groups(self):
         return (len(self.groups) > 1) or (self.groups[0].name != None) 
@@ -371,6 +392,7 @@ class FormattedTable(object):
         
         self._calculate_column_widths()
         self._calculate_group_widths()
+            
         self._printHeaders()
         for row in self.rows:
             self._printRow(row)
