@@ -1,0 +1,179 @@
+<?xml version="1.0" ?>
+<root>
+	<Sequence>
+		<Step Name="TF Compile">
+			<Attribute Name="TensorFlow home" Value="~/tensorflow"/>
+			<Attribute Name="CUDA" Value="True"/>
+			<Attribute Name="Additional build flags" Value=""/>
+			<Attribute Name="Install on servers" Value="12.12.12.25,12.12.12.26"/>
+		</Step>
+		<Step Name="TF CNN Benchmarks">
+			<Attribute Name="PS" Value="12.12.12.25,12.12.12.26"/>
+			<Attribute Name="Workers" Value="12.12.12.25,12.12.12.26"/>
+			<Attribute Name="Base Port" Value="5000"/>
+			<Attribute Name="Script" Value="~/benchmarks/scripts/tf_cnn_benchmarks/"/>
+			<Attribute Name="Model" Value="trivial"/>
+			<Attribute Name="Batch Size" Value="32"/>
+			<Attribute Name="Num GPUs" Value="2"/>
+			<Attribute Name="Server Protocol" Value="grpc+verbs"/>
+			<Attribute Name="Data Dir" Value="/data/imagenet_data/"/>
+			<Attribute Name="Log Level" Value="0"/>
+		</Step>
+		<Step Name="TF CNN Benchmarks">
+			<Attribute Name="PS" Value="12.12.12.25,12.12.12.26"/>
+			<Attribute Name="Workers" Value="12.12.12.25,12.12.12.26"/>
+			<Attribute Name="Base Port" Value="5000"/>
+			<Attribute Name="Script" Value="~/benchmarks/scripts/tf_cnn_benchmarks/"/>
+			<Attribute Name="Model" Value="inception3"/>
+			<Attribute Name="Batch Size" Value="32"/>
+			<Attribute Name="Num GPUs" Value="2"/>
+			<Attribute Name="Server Protocol" Value="grpc+verbs"/>
+			<Attribute Name="Data Dir" Value="/data/imagenet_data/"/>
+			<Attribute Name="Log Level" Value="0"/>
+		</Step>
+		<Step Name="TF CNN Benchmarks">
+			<Attribute Name="PS" Value="12.12.12.25,12.12.12.26"/>
+			<Attribute Name="Workers" Value="12.12.12.25,12.12.12.26"/>
+			<Attribute Name="Base Port" Value="5000"/>
+			<Attribute Name="Script" Value="~/benchmarks/scripts/tf_cnn_benchmarks/"/>
+			<Attribute Name="Model" Value="inception4"/>
+			<Attribute Name="Batch Size" Value="32"/>
+			<Attribute Name="Num GPUs" Value="2"/>
+			<Attribute Name="Server Protocol" Value="grpc+verbs"/>
+			<Attribute Name="Data Dir" Value="/data/imagenet_data/"/>
+			<Attribute Name="Log Level" Value="0"/>
+		</Step>
+		<Step Name="TF CNN Benchmarks">
+			<Attribute Name="PS" Value="12.12.12.25,12.12.12.26"/>
+			<Attribute Name="Workers" Value="12.12.12.25,12.12.12.26"/>
+			<Attribute Name="Base Port" Value="5000"/>
+			<Attribute Name="Script" Value="~/benchmarks/scripts/tf_cnn_benchmarks/"/>
+			<Attribute Name="Model" Value="resnet50"/>
+			<Attribute Name="Batch Size" Value="32"/>
+			<Attribute Name="Num GPUs" Value="2"/>
+			<Attribute Name="Server Protocol" Value="grpc+verbs"/>
+			<Attribute Name="Data Dir" Value="/data/imagenet_data/"/>
+			<Attribute Name="Log Level" Value="0"/>
+		</Step>
+		<Step Name="TF CNN Benchmarks">
+			<Attribute Name="PS" Value="12.12.12.25,12.12.12.26"/>
+			<Attribute Name="Workers" Value="12.12.12.25,12.12.12.26"/>
+			<Attribute Name="Base Port" Value="5000"/>
+			<Attribute Name="Script" Value="~/benchmarks/scripts/tf_cnn_benchmarks/"/>
+			<Attribute Name="Model" Value="resnet152"/>
+			<Attribute Name="Batch Size" Value="32"/>
+			<Attribute Name="Num GPUs" Value="2"/>
+			<Attribute Name="Server Protocol" Value="grpc+verbs"/>
+			<Attribute Name="Data Dir" Value="/data/imagenet_data/"/>
+			<Attribute Name="Log Level" Value="0"/>
+		</Step>
+		<Step Name="TF CNN Benchmarks">
+			<Attribute Name="PS" Value="12.12.12.25,12.12.12.26"/>
+			<Attribute Name="Workers" Value="12.12.12.25,12.12.12.26"/>
+			<Attribute Name="Base Port" Value="5000"/>
+			<Attribute Name="Script" Value="~/benchmarks/scripts/tf_cnn_benchmarks/"/>
+			<Attribute Name="Model" Value="vgg16"/>
+			<Attribute Name="Batch Size" Value="32"/>
+			<Attribute Name="Num GPUs" Value="2"/>
+			<Attribute Name="Server Protocol" Value="grpc+verbs"/>
+			<Attribute Name="Data Dir" Value="/data/imagenet_data/"/>
+			<Attribute Name="Log Level" Value="0"/>
+		</Step>
+		<Step Name="TF CNN Benchmarks">
+			<Attribute Name="PS" Value="12.12.12.25,12.12.12.26"/>
+			<Attribute Name="Workers" Value="12.12.12.25,12.12.12.26"/>
+			<Attribute Name="Base Port" Value="5000"/>
+			<Attribute Name="Script" Value="~/benchmarks/scripts/tf_cnn_benchmarks/"/>
+			<Attribute Name="Model" Value="vgg19"/>
+			<Attribute Name="Batch Size" Value="32"/>
+			<Attribute Name="Num GPUs" Value="2"/>
+			<Attribute Name="Server Protocol" Value="grpc+verbs"/>
+			<Attribute Name="Data Dir" Value="/data/imagenet_data/"/>
+			<Attribute Name="Log Level" Value="0"/>
+		</Step>
+		<Step Name="TF CNN Benchmarks">
+			<Attribute Name="PS" Value="12.12.12.25,12.12.12.26"/>
+			<Attribute Name="Workers" Value="12.12.12.25,12.12.12.26"/>
+			<Attribute Name="Base Port" Value="5000"/>
+			<Attribute Name="Script" Value="~/benchmarks/scripts/tf_cnn_benchmarks/"/>
+			<Attribute Name="Model" Value="trivial"/>
+			<Attribute Name="Batch Size" Value="32"/>
+			<Attribute Name="Num GPUs" Value="2"/>
+			<Attribute Name="Server Protocol" Value="grpc"/>
+			<Attribute Name="Data Dir" Value="/data/imagenet_data/"/>
+			<Attribute Name="Log Level" Value="0"/>
+		</Step>
+		<Step Name="TF CNN Benchmarks">
+			<Attribute Name="PS" Value="12.12.12.25,12.12.12.26"/>
+			<Attribute Name="Workers" Value="12.12.12.25,12.12.12.26"/>
+			<Attribute Name="Base Port" Value="5000"/>
+			<Attribute Name="Script" Value="~/benchmarks/scripts/tf_cnn_benchmarks/"/>
+			<Attribute Name="Model" Value="inception3"/>
+			<Attribute Name="Batch Size" Value="32"/>
+			<Attribute Name="Num GPUs" Value="2"/>
+			<Attribute Name="Server Protocol" Value="grpc"/>
+			<Attribute Name="Data Dir" Value="/data/imagenet_data/"/>
+			<Attribute Name="Log Level" Value="0"/>
+		</Step>
+		<Step Name="TF CNN Benchmarks">
+			<Attribute Name="PS" Value="12.12.12.25,12.12.12.26"/>
+			<Attribute Name="Workers" Value="12.12.12.25,12.12.12.26"/>
+			<Attribute Name="Base Port" Value="5000"/>
+			<Attribute Name="Script" Value="~/benchmarks/scripts/tf_cnn_benchmarks/"/>
+			<Attribute Name="Model" Value="inception4"/>
+			<Attribute Name="Batch Size" Value="32"/>
+			<Attribute Name="Num GPUs" Value="2"/>
+			<Attribute Name="Server Protocol" Value="grpc"/>
+			<Attribute Name="Data Dir" Value="/data/imagenet_data/"/>
+			<Attribute Name="Log Level" Value="0"/>
+		</Step>
+		<Step Name="TF CNN Benchmarks">
+			<Attribute Name="PS" Value="12.12.12.25,12.12.12.26"/>
+			<Attribute Name="Workers" Value="12.12.12.25,12.12.12.26"/>
+			<Attribute Name="Base Port" Value="5000"/>
+			<Attribute Name="Script" Value="~/benchmarks/scripts/tf_cnn_benchmarks/"/>
+			<Attribute Name="Model" Value="resnet50"/>
+			<Attribute Name="Batch Size" Value="32"/>
+			<Attribute Name="Num GPUs" Value="2"/>
+			<Attribute Name="Server Protocol" Value="grpc"/>
+			<Attribute Name="Data Dir" Value="/data/imagenet_data/"/>
+			<Attribute Name="Log Level" Value="0"/>
+		</Step>
+		<Step Name="TF CNN Benchmarks">
+			<Attribute Name="PS" Value="12.12.12.25,12.12.12.26"/>
+			<Attribute Name="Workers" Value="12.12.12.25,12.12.12.26"/>
+			<Attribute Name="Base Port" Value="5000"/>
+			<Attribute Name="Script" Value="~/benchmarks/scripts/tf_cnn_benchmarks/"/>
+			<Attribute Name="Model" Value="resnet152"/>
+			<Attribute Name="Batch Size" Value="32"/>
+			<Attribute Name="Num GPUs" Value="2"/>
+			<Attribute Name="Server Protocol" Value="grpc"/>
+			<Attribute Name="Data Dir" Value="/data/imagenet_data/"/>
+			<Attribute Name="Log Level" Value="0"/>
+		</Step>
+		<Step Name="TF CNN Benchmarks">
+			<Attribute Name="PS" Value="12.12.12.25,12.12.12.26"/>
+			<Attribute Name="Workers" Value="12.12.12.25,12.12.12.26"/>
+			<Attribute Name="Base Port" Value="5000"/>
+			<Attribute Name="Script" Value="~/benchmarks/scripts/tf_cnn_benchmarks/"/>
+			<Attribute Name="Model" Value="vgg16"/>
+			<Attribute Name="Batch Size" Value="32"/>
+			<Attribute Name="Num GPUs" Value="2"/>
+			<Attribute Name="Server Protocol" Value="grpc"/>
+			<Attribute Name="Data Dir" Value="/data/imagenet_data/"/>
+			<Attribute Name="Log Level" Value="0"/>
+		</Step>
+		<Step Name="TF CNN Benchmarks">
+			<Attribute Name="PS" Value="12.12.12.25,12.12.12.26"/>
+			<Attribute Name="Workers" Value="12.12.12.25,12.12.12.26"/>
+			<Attribute Name="Base Port" Value="5000"/>
+			<Attribute Name="Script" Value="~/benchmarks/scripts/tf_cnn_benchmarks/"/>
+			<Attribute Name="Model" Value="vgg19"/>
+			<Attribute Name="Batch Size" Value="32"/>
+			<Attribute Name="Num GPUs" Value="2"/>
+			<Attribute Name="Server Protocol" Value="grpc"/>
+			<Attribute Name="Data Dir" Value="/data/imagenet_data/"/>
+			<Attribute Name="Log Level" Value="0"/>
+		</Step>
+	</Sequence>
+</root>

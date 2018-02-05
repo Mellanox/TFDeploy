@@ -1,0 +1,34 @@
+<?xml version="1.0" ?>
+<root>
+	<Sequence>
+		<Step Name="Delay">
+			<Attribute Name="Duration" Value="1"/>
+		</Step>
+		<Step Name="Delay">
+			<Attribute Name="Duration" Value="1"/>
+		</Step>
+		<Step Name="Delay">
+			<Attribute Name="Duration" Value="1"/>
+		</Step>
+		<Step Name="Send Frames">
+			<Attribute Name="MinSize" Value="64"/>
+			<Attribute Name="MaxSize" Value="4096"/>
+			<Attribute Name="NumFrames" Value="1"/>
+		</Step>
+		<Step Name="Send Frames">
+			<Attribute Name="MinSize" Value="64"/>
+			<Attribute Name="MaxSize" Value="4096"/>
+			<Attribute Name="NumFrames" Value="1"/>
+		</Step>
+		<Step Name="Send Frames">
+			<Attribute Name="MinSize" Value="64"/>
+			<Attribute Name="MaxSize" Value="4096"/>
+			<Attribute Name="NumFrames" Value="1"/>
+		</Step>
+		<Step Name="Send Frames">
+			<Attribute Name="MinSize" Value="64"/>
+			<Attribute Name="MaxSize" Value="4096"/>
+			<Attribute Name="NumFrames" Value="1"/>
+		</Step>
+	</Sequence>
+</root>

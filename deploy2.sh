@@ -2,7 +2,7 @@
 
 function print_usage()
 {
-	echo "Usage: `basename $0` [OPTIONS] <base-port> <num_ps> <num_workers> [ip1 ip2 ...]"
+	echo "Usage: `basename $0` [OPTIONS] <benchmark> <base-port> <num_ps> <num_workers> [ip1 ip2 ...]"
 	echo "   The script will round-robin the jobs between availble servers."
 	echo "   If no servers spefied, localhost will be used."
 	echo "   To run locally, pass num_ps=0."
@@ -65,28 +65,31 @@ shift "$((OPTIND-1))"
 
 script_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 work_dir=`mktemp -du`
-base_port=$1
-num_ps=$2
-num_workers=$3
-ips=(${@:4})
+benchmark=$1
+base_port=$2
+num_ps=$3
+num_workers=$4
+ips=(${@:5})
 servers=""
 
 # Get device mappings:
 source mapping.sh
 source mark_errors_and_warnings.sh
 
-[[ ! -f tf_cnn_benchmarks.py ]] && error "tf_cnn_benchmarks.py is missing. deploy.sh should be run from tf_cnn_benchmarks folder." 
 [[ -z $num_workers ]] && print_usage_and_exit
+[[ ! -f $benchmark ]] && error "Benchmark \"$benchmark\" not found."
 [[ $num_workers -eq 0 ]] && error "number of workers should be at least 1."
 [[ -z $ips ]] && ips=(`hostname`)
 [[ $no_terminals_mode -ne 1 ]] && [[ -z $DISPLAY ]] && error "DISPLAY is not set. You may need to reconnect with ssh -X."
 
+benchmark_name=`basename $benchmark`
+benchmark_dir=`dirname $benchmark`
 num_ips=${#ips[@]}
 device_id=0
 port=$base_port
 ps_hosts=()
 worker_hosts=()
-logs_base_dir=$script_dir/logs
+logs_base_dir=$HOME/TFDeploy_logs
 logs_dir=$logs_base_dir/`date +%Y_%m_%d_%H_%M_%S`
 if [[ ! -z $comment ]]
 then
@@ -144,7 +147,8 @@ function run_job()
 	                               TF_DATA_DIR=$data_dir \
 	                               TF_ADDITIONAL_FLAGS=$TF_ADDITIONAL_FLAGS \
 	                               DEVICE_IP=$ip \
-	                               $work_dir/run_job.sh $job_name $task_id 2>&1 | tee $work_dir/${job_name}_${task_id}.log" &
+	                               BENCHMARK_NAME=$benchmark_name \
+	                               $work_dir/run_job2.sh $job_name $task_id 2>&1 | tee $work_dir/${job_name}_${task_id}.log" &
 
 	sleep 0.4 # Have windows open by order
 }
@@ -163,8 +167,8 @@ do
 	get_server_of_ip $ip
 	echo " + $ip (Server: $server)"
 	servers="$servers $server"
-#	ssh $server "ps -ef | grep tf_cnn_benchmarks.py | grep $USER | grep -v $work_dir | sed -e \"s@$USER *\([0-9]\+\) .*@\1@g\""
-	ssh $server "ps -ef | grep tf_cnn_benchmarks.py | grep $USER | grep -v $work_dir | sed -e \"s@$USER *\([0-9]\+\) .*@\1@g\" | xargs kill -9"
+	ssh $server "ps -ef | grep $benchmark_name | grep -v `basename $0` | grep -v $work_dir | sed -e \"s@$USER *\([0-9]\+\) .*@\1@g\" | xargs kill -9"
+#	[[ $? -ne 0 ]] && error "Failed to stop running TF process."
 done
 
 ############
@@ -201,8 +205,8 @@ then
 	wait $build_pid
 	if [[ $? -ne 0 ]]; then output_log $logs_dir/build.log; error "Build failed."; fi
 	
-	rm -f $script_dir/tensorflow_pkg/*
-	bazel-bin/tensorflow/tools/pip_package/build_pip_package $script_dir/tensorflow_pkg >> $logs_dir/build.log 2>&1
+	rm -f $logs_base_dir/tensorflow_pkg/*
+	bazel-bin/tensorflow/tools/pip_package/build_pip_package $logs_base_dir/tensorflow_pkg >> $logs_dir/build.log 2>&1
 	if [[ $? -ne 0 ]]; then output_log $logs_dir/build.log; error "Build failed."; fi
 	cd - > /dev/null
 fi
@@ -211,14 +215,15 @@ fi
 # COPY SCRIPTS: #
 #################
 echo "Copying scripts:"
-echo "  + Source: $script_dir" 
+echo "  + Source: $benchmark_dir" 
 echo "  + Destination: $work_dir" 
 
 for ip in "${ips[@]}"
 do
 	get_server_of_ip $ip
 	ssh $server mkdir $work_dir
-	scp -r `find -maxdepth 1 ! -name . ! -name logs` $server:$work_dir > /dev/null &
+	scp -r $benchmark_dir/* $server:$work_dir > /dev/null &
+#	scp -r `find -maxdepth 1 ! -name . ! -name logs` $server:$work_dir > /dev/null &
 done
 wait
 
@@ -308,7 +313,6 @@ sleep 2
 ##################
 # CLOSE WINDOWS: #
 ##################
-this_script=`basename $0`
 echo "Closing windows..."
 pids="`ps -ef | grep $work_dir/run_job.sh | grep -v " grep " | sed -e 's!^[a-zA-Z0-9]* *\([0-9]*\) .*!\1!g'`"
 
@@ -325,7 +329,6 @@ result=`grep "total images/sec" $logs_dir/worker_0.log | sed -e 's!.*total image
 [[ -z $result ]] && error "Run failed. See $logs_dir/ for details."
 
 echo -e "\033[1;32mSuccess.\033[0;0m"
-notify-send -i face-smile "Test passed." >& /dev/null
 
 local_results_file="$logs_dir/results.csv"
 global_results_file="$logs_base_dir/results.csv"
@@ -334,12 +337,13 @@ for file in $local_results_file $global_results_file
 do
 	if [[ ! -f $file ]]
 	then
-		printf "%-30s, %-12s, %-5s, %-14s, %-11s, %-8s, %-3s, %-10s, %s\n" \
-			"Date" "Model" "Batch" "Protocol" "GPUs/Server" "#Workers" "#PS" "Images/sec" "Comment" >> $file
+		printf "%-30s, %-20s, %-12s, %-5s, %-14s, %-11s, %-8s, %-3s, %-10s, %s\n" \
+			"Date" "Benchmark" "Model" "Batch" "Protocol" "GPUs/Server" "#Workers" "#PS" "Images/sec" "Comment" >> $file
 	fi
 
-	printf "%-30s, %-12s, %-5u, %-14s, %-11u, %-8u, %-3u, %-10s, %s\n" \
+	printf "%-30s, %-20s, %-12s, %-5u, %-14s, %-11u, %-8u, %-3u, %-10s, %s\n" \
 		"`date`" \
+		"$benchmark_name" \
 		"$model" \
 		$batch_size \
 		"$server_protocol" \
@@ -350,5 +354,4 @@ do
 		"$comment" >> $file
 done
 
-#cat $local_results_file
-echo "See logs/`basename $logs_dir` for more info."
+echo "See $logs_dir for more info."
