@@ -51,7 +51,8 @@ class BasicProcess(object):
     def openLog(self):
         if self.log_file_path is None:
             return
-        log("See log %s" % self.log_file_path, log_level = LOG_LEVEL_NOTE)
+        prefix = "" if self.instance is None else "Process %u: " % self.instance.pid
+        log("%sSee log %s" % (prefix, self.log_file_path), log_level = LOG_LEVEL_NOTE)
         self._log_file = open(self.log_file_path, "w") 
 
     # -------------------------------------------------------------------- #
