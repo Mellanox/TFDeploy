@@ -87,10 +87,7 @@ class FormattedTable(object):
         self.output = output
         self._bind = True
         self._type = type
-        self._calculate_column_widths()
-        self._calculate_group_widths()
-        if print_header:
-            self._printHeaders()
+        self._bind_print_header = print_header
             
     # -------------------------------------------------------------------- #
     
@@ -117,6 +114,11 @@ class FormattedTable(object):
     def addRow(self, row):
         self.rows.append(row)
         if self._bind:
+            if len(self.rows) == 1:
+                self._calculate_column_widths()
+                self._calculate_group_widths()
+                if self._bind_print_header:
+                    self._printHeaders()
             self._printRow(row)
     
     # -------------------------------------------------------------------- #
