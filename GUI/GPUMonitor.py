@@ -50,9 +50,21 @@ class StatsValue(object):
 
 class Measurement(StatsValue):
     
-    def __init__(self, name, measure_rate = False):
+    FLOAT_PRINTER = lambda x: "%.2lf" % x
+    INT_PRINTER = lambda x: "%u" % x
+    
+    def __init__(self, 
+                 name,
+                 units = "", 
+                 measure_rate = False, 
+                 width = 6,
+                 rate_width = 6):
+                 
         super(Measurement, self).__init__()
         self.name = name
+        self.units = units
+        self.width = width
+        self.rate_width = rate_width
         if measure_rate:
             self.rate = StatsValue()
         else:
@@ -77,19 +89,26 @@ class Measurement(StatsValue):
         
 ###############################################################################
 
-class MeasurementFileCounter(object):
+class StickyCounter(object):
     
     def __init__(self, measurement, file_path, parser=int):
         self.measurement = measurement
         self.file_path = file_path
         self.parser = parser
+        self.resetBase()
+        
+    # -------------------------------------------------------------------- #
     
+    def resetBase(self):
+        with open(self.file_path, "r") as f:
+            self._base_value = self.parser(f.read())
+        
     # -------------------------------------------------------------------- #
     
     def update(self):
         with open(self.file_path, "r") as f:
             value = self.parser(f.read())
-            self.measurement.update(value)
+            self.measurement.update(value - self._base_value)
 
 ###############################################################################
 
@@ -112,11 +131,11 @@ class NetErrorMeasurments(object):
         
 class CommonPerformanceMeasurements(object):
     def __init__(self):
-        self.gpu = Measurement("GPU")
-        self.cpu = Measurement("CPU")
-        self.mem = Measurement("MEM")
-        self.rx = Measurement("RDTA", True)
-        self.tx = Measurement("TDTA", True)
+        self.gpu = Measurement("GPU", "%")
+        self.cpu = Measurement("CPU", "%")
+        self.mem = Measurement("MEM", "%")
+        self.rx = Measurement("RDTA", "Mbit", True)
+        self.tx = Measurement("TDTA", "Mbit", True)
         self.net_erros = NetErrorMeasurments()
     
     # -------------------------------------------------------------------- #
@@ -131,6 +150,14 @@ class CommonPerformanceMeasurements(object):
 
 ###############################################################################
 
+def _printVal(val):
+    if isinstance(val, float):
+        return "%.2lf" % val
+    else:
+        return "%u" % val
+
+# -------------------------------------------------------------------- #
+    
 class Monitor(object):
     
     def __init__(self, server = None, out = None, time_interval = 0.1, log_ratio = 30):
@@ -158,17 +185,21 @@ class Monitor(object):
             self._table = FormattedTable()
             for measurement in self._measurements:            
                 group_name = measurement.name
-                self._table.addColumn(FormattedTable.Column("val", min_width=6), group_name)
-                self._table.addColumn(FormattedTable.Column("avg", min_width=6), group_name)
-                self._table.addColumn(FormattedTable.Column("min", min_width=6), group_name)
-                self._table.addColumn(FormattedTable.Column("max", min_width=6), group_name)
+                if measurement.units != "":
+                    group_name += " (" + measurement.units + ")"
+                self._table.addColumn(FormattedTable.Column("val", min_width=measurement.width), group_name)
+                self._table.addColumn(FormattedTable.Column("avg", min_width=measurement.width), group_name)
+                self._table.addColumn(FormattedTable.Column("min", min_width=measurement.width), group_name)
+                self._table.addColumn(FormattedTable.Column("max", min_width=measurement.width), group_name)
                 if measurement.rate is not None:
                     group_name = measurement.name + "-Rate"
-                    self._table.addColumn(FormattedTable.Column("val", min_width=6), group_name)
-                    self._table.addColumn(FormattedTable.Column("avg", min_width=6), group_name)
-                    self._table.addColumn(FormattedTable.Column("min", min_width=6), group_name)
-                    self._table.addColumn(FormattedTable.Column("max", min_width=6), group_name)
-            self._table.bind(self._out)
+                    if measurement.units != "":
+                        group_name += " (" + measurement.units + "/sec)"
+                    self._table.addColumn(FormattedTable.Column("val", min_width=measurement.rate_width), group_name)
+                    self._table.addColumn(FormattedTable.Column("avg", min_width=measurement.rate_width), group_name)
+                    self._table.addColumn(FormattedTable.Column("min", min_width=measurement.rate_width), group_name)
+                    self._table.addColumn(FormattedTable.Column("max", min_width=measurement.rate_width), group_name)
+            self._table.bind(self._out, type = FormattedTable.TYPE_CSV)
 
         self._stop = False
         self._thread = threading.Thread(target=self.doMonitor)
@@ -181,9 +212,10 @@ class Monitor(object):
             return
 
         self._stop = True
-        self._thread = None
+        self._thread.join(30)
         if self._out is not None:
-            self._table.unbind()
+            self._table.unbind()        
+        self._thread = None
         
     # -------------------------------------------------------------------- #
     
@@ -198,15 +230,15 @@ class Monitor(object):
         
         row = []
         for measurement in self._measurements:
-            row.append("%.2lf" % measurement.val)
-            row.append("%.2lf" % measurement.avg)
-            row.append("%.2lf" % measurement.min)
-            row.append("%.2lf" % measurement.max)
+            row.append(_printVal(measurement.val))
+            row.append(_printVal(measurement.avg))
+            row.append(_printVal(measurement.min))
+            row.append(_printVal(measurement.max))
             if measurement.rate is not None:
-                row.append("%.2lf" % measurement.rate.val)
-                row.append("%.2lf" % measurement.rate.avg)
-                row.append("%.2lf" % measurement.rate.min)
-                row.append("%.2lf" % measurement.rate.max)
+                row.append(_printVal(measurement.rate.val))
+                row.append(_printVal(measurement.rate.avg))
+                row.append(_printVal(measurement.rate.min))
+                row.append(_printVal(measurement.rate.max))
         self._table.addRow(row)
     
     # -------------------------------------------------------------------- #
@@ -216,8 +248,7 @@ class Monitor(object):
         while not self._stop:
             for sampler in self._samplers:
                 if not sampler.update():
-                    self.stop()
-                    return
+                    break
             if count % self._log_ratio == 0:
                 self.log(count)
             time.sleep(self._time_interval)
@@ -293,7 +324,7 @@ class GPUSampler(Sampler):
         
         if len(self._measurements) == 0:
             for i in range(len(results)):
-                self._measurements.append(Measurement("GPU-%u" % i))
+                self._measurements.append(Measurement("GPU-%u" % i, "%"))
         else:
             for i in range(len(results)):
                 val = results[i]
@@ -307,8 +338,8 @@ class CPUAndMemSampler(Sampler):
     def __init__(self, pid):
         super(CPUAndMemSampler, self).__init__()
         self._pid = pid
-        self._cpu = Measurement("CPU")
-        self._mem = Measurement("MEM")
+        self._cpu = Measurement("CPU", "%", width=7)
+        self._mem = Measurement("MEM", "%")
         self._measurements = [self._cpu, self._mem]
     
     # -------------------------------------------------------------------- #
@@ -327,8 +358,11 @@ class CPUAndMemSampler(Sampler):
     
 ###############################################################################
 
-def ToGbitParser(val):
+def ToMbitParser(val):
     return int(val) * 4 * 8 / 1000000.0
+
+def ToMegaParser(val):
+    return int(val) / 1000000.0
  
 class RXTXSampler(Sampler):
   
@@ -336,14 +370,15 @@ class RXTXSampler(Sampler):
         super(RXTXSampler, self).__init__()
         self._device = device
         self._port = port
-        self._rpkt = Measurement("RPKT", True)
-        self._rdta = Measurement("RDTA", True)
-        self._tpkt = Measurement("TPKT", True)
-        self._tdta = Measurement("TDTA", True)
-        self._excessive_buffer_overrun_errors   = Measurement("XBUF_OVERRUN_ERRORS")
-        self._port_xmit_discards                = Measurement("PORT_XMIT_DISCARDS")
-        self._port_rcv_errors                   = Measurement("PORT_RCV_ERRORS")
-        self._port_rcv_constraint_errors        = Measurement("PORT_RCV_CONSTRAINT_ERRORS")
+        
+        self._rpkt                              = Measurement("RPKT", "Mpkts", True)
+        self._rdta                              = Measurement("RDTA", "Mbit",  True, width=10, rate_width=8)
+        self._tpkt                              = Measurement("TPKT", "Mpkts", True)
+        self._tdta                              = Measurement("TDTA", "Mbit",  True, width=10, rate_width=8)
+        self._excessive_buffer_overrun_errors   = Measurement("XBUF_OVERRUN_ERRORS"       , width=8)
+        self._port_xmit_discards                = Measurement("PORT_XMIT_DISCARDS"        , width=8)
+        self._port_rcv_errors                   = Measurement("PORT_RCV_ERRORS"           , width=8) 
+        self._port_rcv_constraint_errors        = Measurement("PORT_RCV_CONSTRAINT_ERRORS", width=8)
 
         counters_dir = os.path.join("/sys", "class", "infiniband", self._device, "ports", str(self._port), "counters")
         rpkt_path                               = os.path.join(counters_dir, "port_rcv_packets")
@@ -356,14 +391,14 @@ class RXTXSampler(Sampler):
         port_rcv_constraint_errors_path         = os.path.join(counters_dir, "port_rcv_constraint_errors")
 
         self._counters = []
-        self._counters.append(MeasurementFileCounter(self._rpkt, rpkt_path))                           
-        self._counters.append(MeasurementFileCounter(self._rdta, rdta_path, ToGbitParser))
-        self._counters.append(MeasurementFileCounter(self._tpkt, tpkt_path))
-        self._counters.append(MeasurementFileCounter(self._tdta, tdta_path, ToGbitParser))
-        self._counters.append(MeasurementFileCounter(self._excessive_buffer_overrun_errors, excessive_buffer_overrun_errors_path))
-        self._counters.append(MeasurementFileCounter(self._port_xmit_discards, port_xmit_discards_path ))
-        self._counters.append(MeasurementFileCounter(self._port_rcv_errors, port_rcv_errors_path))
-        self._counters.append(MeasurementFileCounter(self._port_rcv_constraint_errors, port_rcv_constraint_errors_path))
+        self._counters.append(StickyCounter(self._rpkt, rpkt_path, ToMegaParser))                           
+        self._counters.append(StickyCounter(self._rdta, rdta_path, ToMbitParser))
+        self._counters.append(StickyCounter(self._tpkt, tpkt_path, ToMegaParser))
+        self._counters.append(StickyCounter(self._tdta, tdta_path, ToMbitParser))
+        self._counters.append(StickyCounter(self._excessive_buffer_overrun_errors, excessive_buffer_overrun_errors_path))
+        self._counters.append(StickyCounter(self._port_xmit_discards, port_xmit_discards_path ))
+        self._counters.append(StickyCounter(self._port_rcv_errors, port_rcv_errors_path))
+        self._counters.append(StickyCounter(self._port_rcv_constraint_errors, port_rcv_constraint_errors_path))
         
         self._measurements = [self._rpkt, self._rdta, self._tpkt, self._tdta,
                               self._excessive_buffer_overrun_errors,
