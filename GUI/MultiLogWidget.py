@@ -1,8 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-import os
-import re
 from random import randint
 from PyQt4.QtCore import QPoint,QString,QSize
 from PyQt4.QtGui import QMdiArea,QMdiSubWindow,QPlainTextEdit,QVBoxLayout,QPushButton,QApplication,QWidget
@@ -29,16 +27,18 @@ class LogWidget(QMdiSubWindow):
         self.setWindowTitle(str(title))
         self._te_log = QPlainTextEdit()
         self._te_log.setLineWrapMode(QPlainTextEdit.NoWrap)
-        self._te_log.setStyleSheet("font-family: monospace;");
-        
-        #self._te_log.setReadOnly(True)
+        self._te_log.setStyleSheet("""
+            font-family: monospace;
+            white-space: pre;            
+        """)        
+
         self.layout().addWidget(self._te_log)
             
     #--------------------------------------------------------------------#
     
     def append(self, line, log_level = Actions.Log.LOG_LEVEL_INFO):
+        line = line.replace(" ", "&nbsp;")
         line = QString.fromUtf8(line)
-        
         color = LogColorsForLevel[log_level]
         if color is not None: 
             line = "<font family='monospace' color='%s'>%s</font>" % (color, line)
@@ -177,7 +177,7 @@ def test():
     log_level = randint(0, 5)
     if not mlog.isOpen(log_id):
         mlog.open(log_id, "Title for log #%u" % log_id)
-    mlog.log("☀ %s Line #%u ☀" % (Actions.Log.LogLevelNames[log_level], x), log_id, log_level)
+    mlog.log("☀ %s Line #%u ☀ SPACES: #      #" % (Actions.Log.LogLevelNames[log_level], x), log_id, log_level)
     x += 1
     log_id = (log_id + 1) % 8
 
