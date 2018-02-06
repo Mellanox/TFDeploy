@@ -767,15 +767,7 @@ class SequenceWidget(QMainWindow):
         test_name = re.sub("[^0-9a-zA-Z]", "_", os.path.basename(self._doc.filePath()))
         time_prefix = time.strftime("%Y_%m_%d_%H_%M_%S")
         self._test_logs_dir = os.path.join(self._base_logs_dir, time_prefix + "_" + test_name)
-        os.makedirs(self._test_logs_dir)
-        
-    #--------------------------------------------------------------------#
-    
-    def _setStepLogsDir(self, step, index):
-        step_name = re.sub("[^0-9a-zA-Z]", "_", str(step))
-        self._step_logs_dir = os.path.join(self._test_logs_dir, "step_%u_%s" % (index, step_name))
-        os.makedirs(self._step_logs_dir)
-        TestEnvironment.setLogsFolder(self._step_logs_dir)
+        TestEnvironment.Get().setTestLogsDir(self._test_logs_dir)
         
     #--------------------------------------------------------------------#
     
@@ -783,8 +775,7 @@ class SequenceWidget(QMainWindow):
         step = self._sequence[index]
         self._setStepStatus(step, index, "Running...")
         title("Step %u - %s" % (index, str(step)), style = UniBorder.BORDER_STYLE_DOUBLE)
-        self._setStepLogsDir(step, index)
-        res = step.perform()
+        res = step.perform(index)
         if res:
             self._setStepStatus(step, index, "Passed.")
         else:

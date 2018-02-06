@@ -51,7 +51,8 @@ class TFCompileStep(Step):
          
     # -------------------------------------------------------------------- #
 
-    def perform(self):
+    def perform(self, index):
+        self.setLogsDir(index)
         ##########
         # Build: #
         ##########
@@ -66,7 +67,7 @@ class TFCompileStep(Step):
                                                                                                                            additional_flags)
         res = self.runSeperate(cmd, 
                                title = "Build %s" % self.tensorflow_home(), 
-                               log_file_path = os.path.join(TestEnvironment.logsFolder(), "build.log"),
+                               log_file_path = os.path.join(self._logs_dir, "build.log"),
                                wait_timeout = 3600)
         if not res:
             return False
@@ -90,7 +91,7 @@ class TFCompileStep(Step):
     
         cmd = "pip install --user --upgrade %s/tensorflow-*" % temp_dir
         process_title = lambda process: "Installing on %s..." % process.server
-        log_file_path = lambda process: os.path.join(TestEnvironment.logsFolder(), "install_%s.log" % re.sub("[^0-9a-zA-Z]", "_", process.server))
+        log_file_path = lambda process: os.path.join(self._logs_dir, "install_%s.log" % re.sub("[^0-9a-zA-Z]", "_", process.server))
         res = self.runSeperate(cmd,
                                title = process_title,
                                servers = servers,
@@ -115,10 +116,7 @@ class TFCompileStep(Step):
 ###############################################################################################################################################################
 
 if __name__ == '__main__':
-    logs_dir = os.path.join("/tmp", "test_logs")
-    TestEnvironment.setLogsFolder(logs_dir)
-    if not os.path.exists(logs_dir):
-        os.makedirs(TestEnvironment.logsFolder())
+    TestEnvironment.Get().setTestLogsDir("/tmp/test_logs")
     step = TFCompileStep()
-    step.perform()
+    step.perform(0)
 

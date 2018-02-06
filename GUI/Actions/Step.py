@@ -9,6 +9,7 @@ from PyQt4.QtGui import QWidget, QGridLayout, QLineEdit, QLabel
 from xml.dom import minidom
 from xml.etree import cElementTree as etree
 from Actions.TestEnvironment import TestEnvironment
+import re
 
 ###############################################################################
 
@@ -88,6 +89,16 @@ class Step(object):
         self._values = values   # The attribute values of individual step
         self._status = None  # Status
         self._widget = None
+        self._logs_dir = None
+    
+    # -------------------------------------------------------------------- #
+    
+    def setLogsDir(self, index):
+        if self._logs_dir is None:
+            self._logs_dir = os.path.join(TestEnvironment.Get().testLogsDir(),
+                                          "step_%u_%s" % (index, re.sub("[^0-9a-zA-Z]", "_", self.__repr__())))
+            if not os.path.isdir(self._logs_dir):
+                os.makedirs(self._logs_dir)
         
     # -------------------------------------------------------------------- #
     
@@ -125,8 +136,8 @@ class Step(object):
 
     # -------------------------------------------------------------------- #
     
-    def perform(self):
-        print "Empty."
+    def perform(self, index):
+        raise Exception("Unimplemented perform() - step %u." % index) 
 
     # -------------------------------------------------------------------- #
     

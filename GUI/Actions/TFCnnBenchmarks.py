@@ -108,7 +108,7 @@ class TFCnnBenchmarksStep(Step):
     # -------------------------------------------------------------------- #
     
     def _openPerformanceFile(self):
-        performance_file_path = os.path.join(TestEnvironment.logsFolder(), "performance.csv")
+        performance_file_path = os.path.join(TestEnvironment.Get().testLogsDir(), "results.csv")
         first_time = not os.path.exists(performance_file_path)
         self._performance_file = open(performance_file_path, "a+")
         self._performance_table = FormattedTable()
@@ -121,9 +121,9 @@ class TFCnnBenchmarksStep(Step):
         self._performance_table.addColumn(FormattedTable.Column("#Workers", 8), "Info")
         self._performance_table.addColumn(FormattedTable.Column("#PS", 3), "Info")
         self._performance_table.addColumn(FormattedTable.Column("Images/sec", 10), "Performance")
-        self._performance_table.addColumn(FormattedTable.Column("CPU", 7), "Performance")
-        self._performance_table.addColumn(FormattedTable.Column("MEM", 5), "Performance")
-        self._performance_table.addColumn(FormattedTable.Column("GPU", 5), "Performance")
+        self._performance_table.addColumn(FormattedTable.Column("CPU%", 7), "Performance")
+        self._performance_table.addColumn(FormattedTable.Column("MEM%", 5), "Performance")
+        self._performance_table.addColumn(FormattedTable.Column("GPU%", 5), "Performance")
         self._performance_table.addColumn(FormattedTable.Column("Average", 18), "RX/TX rate (Mbit/sec)")
         self._performance_table.addColumn(FormattedTable.Column("Max", 18), "RX/TX rate (Mbit/sec)")
         self._performance_table.addColumn(FormattedTable.Column("Buffer overrun"), "Network Errors")
@@ -166,13 +166,13 @@ class TFCnnBenchmarksStep(Step):
     # -------------------------------------------------------------------- #
     
     def _startProcessMonitors(self, process):
-        file_base = os.path.splitext(process.log_file_path)[0]
-        process.cpu_graph = open(file_base + ".cpu.csv", "w")
-        process.gpu_graph = open(file_base + ".gpu.csv", "w")
-        log("Server %s: starting monitors:\n"
-            "   + CPU: %s\n"
-            "   + GPU: %s"
-             % (process.server, process.cpu_graph.name, process.gpu_graph.name), process)
+        base_file_name = os.path.basename(process.log_file_path)
+        file_dir = os.path.dirname(process.log_file_path)
+        process.cpu_graph = open(os.path.join(file_dir, "cpu_" + base_file_name), "w")
+        process.gpu_graph = open(os.path.join(file_dir, "gpu_" + base_file_name), "w")
+        log("Server %s: Starting monitors:" % process.server)
+        log("   + CPU: %s" % process.cpu_graph.name)
+        log("   + GPU: %s"   % process.gpu_graph.name)
 
         process.gpu_monitor = Monitor(process.server, process.gpu_graph, time_interval = 0, log_ratio = 1)
         process.gpu_monitor.addSampler(GPUSampler())
@@ -198,9 +198,9 @@ class TFCnnBenchmarksStep(Step):
         
         process.table = FormattedTable()
         process.table.addColumn(FormattedTable.Column("STEP", 4))
-        process.table.addColumn(FormattedTable.Column("CPU", 7))
-        process.table.addColumn(FormattedTable.Column("MEM", 5))
-        process.table.addColumn(FormattedTable.Column("GPU", 5))
+        process.table.addColumn(FormattedTable.Column("CPU%", 7))
+        process.table.addColumn(FormattedTable.Column("MEM%", 5))
+        process.table.addColumn(FormattedTable.Column("GPU%", 5))
         process.table.addColumn(FormattedTable.Column("RX/TX (MBit/sec)", 12))
         process.table.addColumn(FormattedTable.Column("Max RX/TX (MBit/sec)", 12))
         process.table.addColumn(FormattedTable.Column("images/sec", 12))
@@ -252,8 +252,7 @@ class TFCnnBenchmarksStep(Step):
         command += " DEVICE_IP=%s" % ip
         command += " %s/run_job2.sh %s %u" % (work_dir, job_name, task_id)
         title = "[%s] %s - %u" % (ip, job_name, task_id)
-        log_file_name = "%s_%u.log" % (job_name, task_id)
-        log_file_path = os.path.join(TestEnvironment.logsFolder(), log_file_name)
+        log_file_path = os.path.join(self._logs_dir, "%s_%u.log" % (job_name, task_id))
         factory = BasicProcess.getFactory(title, log_file_path)
         server = TestEnvironment.Get().getServer(ip)
         process = executeRemoteCommand([server], command, factory = factory)[0]
@@ -332,7 +331,8 @@ class TFCnnBenchmarksStep(Step):
          
 # -------------------------------------------------------------------- #
 
-    def perform(self):
+    def perform(self, index):
+        self.setLogsDir(index)
         work_dir_name = "tmp." + next(tempfile._get_candidate_names()) + next(tempfile._get_candidate_names())
         work_dir = os.path.join(tempfile._get_default_tempdir(), work_dir_name)
         script_dir = os.path.dirname(self._values[TFCnnBenchmarksStep.ATTRIBUTE_ID_SCRIPT]) 
@@ -410,10 +410,7 @@ class TFCnnBenchmarksStep(Step):
 ###############################################################################################################################################################
 
 if __name__ == '__main__':
-    logs_dir = os.path.join("/tmp", "test_logs")
-    TestEnvironment.setLogsFolder(logs_dir)
-    if not os.path.exists(logs_dir):
-        os.makedirs(TestEnvironment.logsFolder())
+    TestEnvironment.Get().setTestLogsDir("/tmp/test_logs")
     step = TFCnnBenchmarksStep()
-    step.perform()
+    step.perform(0)
 
