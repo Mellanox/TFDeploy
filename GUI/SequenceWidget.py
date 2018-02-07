@@ -663,8 +663,12 @@ class SequenceWidget(QMainWindow):
         self.sequence_widget.cellWidget(index, 0).setChecked(Qt.Checked if step.isEnabled() else Qt.Unchecked)
         self.sequence_widget.cellWidget(index, 1).setValue(step.repeat())
         #self.sequence_widget.item(index, 2).font().setPointSize(50)
-        if step.status() == Step.STATUS_RUNNING:
+        if step.status() == Step.STATUS_IDLE:
+            self.sequence_widget.item(index, 2).setText(QString.fromUtf8(""))
+            self.sequence_widget.item(index, 2).setForeground(Qt.black)
+        elif step.status() == Step.STATUS_RUNNING:
             self.sequence_widget.item(index, 2).setText(QString.fromUtf8("☞"))
+            self.sequence_widget.item(index, 2).setForeground(Qt.black)
         elif step.status() == Step.STATUS_PASSED:
             self.sequence_widget.item(index, 2).setText(QString.fromUtf8("✔"))
             self.sequence_widget.item(index, 2).setForeground(Qt.green)
@@ -687,6 +691,7 @@ class SequenceWidget(QMainWindow):
             self.sequence_widget.cellWidget(index, 0).setEnabled(False)
             self.sequence_widget.cellWidget(index, 1).setEnabled(False)
         else:
+            self.sequence_widget.cellWidget(index, 0).setEnabled(True)
             self.sequence_widget.cellWidget(index, 1).setEnabled(val)
             
         for col in range(2, self.sequence_widget.columnCount()):
@@ -843,12 +848,12 @@ class SequenceWidget(QMainWindow):
 
         self._setStepStatus(step, index, Step.STATUS_RUNNING)
         for count in range(step.repeat()):        
-            title("Step %u - %s (%u/%u)" % (index, str(step), count, step.repeat()), style = UniBorder.BORDER_STYLE_DOUBLE)
+            title("Step %u - %s (%u/%u)" % (index, str(step), count + 1, step.repeat()), style = UniBorder.BORDER_STYLE_DOUBLE)
             res = step.perform(index)
             if not res:
+                self._setStepStatus(step, index, Step.STATUS_FAILED)                
                 if step.stopOnFailure():
                     return False
-                self._setStepStatus(step, index, Step.STATUS_FAILED)                
                 break
             
         self._setStepStatus(step, index, Step.STATUS_PASSED)
@@ -875,8 +880,10 @@ class SequenceWidget(QMainWindow):
         log("Done.", log_level = LOG_LEVEL_NOTE)
         getMainProcess().closeLog()
         setMainProcess(None)
-        self._setEditWidgetsEnabled(True)        
-        self._is_running = False
+        self._is_running = False        
+        self._setEditWidgetsEnabled(True)
+        for index in range(len(self._sequence)):
+            self._refreshItem(index)
 
     #--------------------------------------------------------------------#
     
