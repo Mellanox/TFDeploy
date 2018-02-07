@@ -19,6 +19,7 @@ from Actions.Step import Step
 from Actions.TestEnvironment import TestEnvironment
 from Actions.TFCompile import TFCompileStep
 from Actions.Util import BasicProcess
+from TableWidget import TableDataItem
 
 def create_combo_widget(parent, list, default_value_index):
     new_combo = QComboBox(parent)
@@ -343,6 +344,7 @@ class SequenceWidget(QMainWindow):
         self._base_logs_dir = "test_logs"
         self._test_logs_dir = None
         self._step_logs_dir = None
+        self._is_running = False
         self._initGui()
 
     #--------------------------------------------------------------------#
@@ -355,17 +357,17 @@ class SequenceWidget(QMainWindow):
         self.refresh_item_signal.connect(self._refreshItem)
         self.run_sequence_done_signal.connect(self._runSequenceDone)
         
-        self.hook_selection = True
-        self.sequence_widget = QListWidget()
+#         self.sequence_widget = QListWidget()
+        self.sequence_widget = QTableWidget()
+        self.sequence_widget.setColumnCount(5)
+        self.sequence_widget.setHorizontalHeaderLabels(["", "#", "", "Name", "Attributes"])
+        self.sequence_widget.horizontalHeader().setResizeMode(0, QHeaderView.ResizeToContents)
+        self.sequence_widget.horizontalHeader().setResizeMode(1, QHeaderView.ResizeToContents)
+        self.sequence_widget.horizontalHeader().setResizeMode(2, QHeaderView.ResizeToContents)        
+        self.sequence_widget.horizontalHeader().setResizeMode(3, QHeaderView.ResizeToContents)
+        self.sequence_widget.horizontalHeader().setResizeMode(4, QHeaderView.Stretch)
+        self.sequence_widget.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.sequence_widget.selectionModel().selectionChanged.connect(self._sequenceStepSelected)
-#        self.sequence_widget.setRowCount(0)
-#        self.sequence_widget.setColumnCount(3)
-#        self.sequence_widget.setHorizontalHeaderLabels(["Step", "Name", "Attributes"])
-#        self.sequence_widget.horizontalHeader().setResizeMode(0, QHeaderView.ResizeToContents)
-#        self.sequence_widget.horizontalHeader().setResizeMode(1, QHeaderView.ResizeToContents)
-#        self.sequence_widget.horizontalHeader().setResizeMode(2, QHeaderView.Stretch)
-#        self.sequence_widget.setSelectionBehavior(QAbstractItemView.SelectRows)
-        self.progress_status = QListWidget()
         
         self.configuration_pane = QWidget()
         self.configuration_pane.setLayout(QVBoxLayout())
@@ -502,7 +504,7 @@ class SequenceWidget(QMainWindow):
 
         central_widget = QWidget()
         central_widget.setLayout(QHBoxLayout())
-        central_widget.layout().addWidget(sequence_pane, 2)
+        central_widget.layout().addWidget(sequence_pane, 3)
         central_widget.layout().addWidget(logs_pane, 5)
         central_widget.layout().addWidget(self.edit_pane, 2)
 
@@ -609,25 +611,113 @@ class SequenceWidget(QMainWindow):
         attribute = TestDataAttribute(name, enum, default_value, allow_advanced_mode = allow_advanced_mode, base_widget_creator = base_widget_creator)
         parent_folder.addAttribute(attribute)
         return attribute
-                
-    #--------------------------------------------------------------------#
-#    
-#    def _addSequenceCell(self, r, c, data):                
-#        item = TableDataItem(data)
-#        item.setFlags(item.flags() ^ Qt.ItemIsEditable)
-#        self.sequence_widget.setItem(r, c, item)
-#        
     #--------------------------------------------------------------------#
     
-    def _addStepToSequence(self, step):
-        self._sequence.append(step)
-        self.sequence_widget.addItem(QListWidgetItem(str(step)))
-#        n = self.sequence_widget.rowCount()
-#        self.sequence_widget.insertRow(n)
-#        self._addSequenceCell(n, 0, step.status())
-#        self._addSequenceCell(n, 1, step.name())
-#        self._addSequenceCell(n, 2, step.attributesRepr())
+    def _addSequenceCell(self, r, c, checkbox_handler = None, spinbox_handler = None):
+        item = QTableWidgetItem()
+        flags = item.flags()
+        flags ^= Qt.ItemIsEditable
+        item.setFlags(flags)
+        #item.setTextAlignment(Qt.AlignCenter)
+            
+        if checkbox_handler:
+            widget = QCheckBox()
+            widget.setMaximumWidth(30)
+            widget.stateChanged.connect(checkbox_handler)
+            self.sequence_widget.setCellWidget(r, c, widget)
+        elif spinbox_handler:
+            widget = QSpinBox()
+            widget.setMaximumWidth(50)
+            widget.valueChanged.connect(spinbox_handler)            
+            self.sequence_widget.setCellWidget(r, c, widget)
+        self.sequence_widget.setItem(r, c, item)
+    
+    #--------------------------------------------------------------------#
         
+    def _getStepEnabledHandler(self, index):
+        def op(val):
+            self._setStepEnabled(index, val == Qt.Checked)
+            self._setModified()
+        return op
+    
+    #--------------------------------------------------------------------#
+        
+    def _getStepRepeatHandler(self, index):
+        def op(val):
+            self._sequence[index].setRepeat(val)
+            self._setModified()
+        return op
+        
+    #--------------------------------------------------------------------#
+    
+    def _addOrUpdateSequence(self, index, step):
+        if index == len(self._sequence):
+            self._sequence.append(step)
+            self.sequence_widget.insertRow(index)
+            self._addSequenceCell(index, 0, checkbox_handler=self._getStepEnabledHandler(index))
+            self._addSequenceCell(index, 1, spinbox_handler=self._getStepRepeatHandler(index))
+            self._addSequenceCell(index, 2)
+            self._addSequenceCell(index, 3)
+            self._addSequenceCell(index, 4)
+
+        self.sequence_widget.cellWidget(index, 0).setChecked(Qt.Checked if step.isEnabled() else Qt.Unchecked)
+        self.sequence_widget.cellWidget(index, 1).setValue(step.repeat())
+        #self.sequence_widget.item(index, 2).font().setPointSize(50)
+        if step.status() == Step.STATUS_RUNNING:
+            self.sequence_widget.item(index, 2).setText(QString.fromUtf8("☞"))
+        elif step.status() == Step.STATUS_PASSED:
+            self.sequence_widget.item(index, 2).setText(QString.fromUtf8("✔"))
+            self.sequence_widget.item(index, 2).setForeground(Qt.green)
+        elif step.status() == Step.STATUS_FAILED:
+            self.sequence_widget.item(index, 2).setText(QString.fromUtf8("✘"))
+            self.sequence_widget.item(index, 2).setForeground(Qt.red)
+
+            
+        self.sequence_widget.item(index, 3).setText(step.name())
+        self.sequence_widget.item(index, 4).setText(step.attributesRepr())
+
+        self._setStepEnabled(index, step.isEnabled())
+    
+    #--------------------------------------------------------------------#
+    
+    def _setStepEnabled(self, index, val):
+        step = self._sequence[index]
+        step.setEnabled(val)
+        if self._is_running:
+            self.sequence_widget.cellWidget(index, 0).setEnabled(False)
+            self.sequence_widget.cellWidget(index, 1).setEnabled(False)
+        else:
+            self.sequence_widget.cellWidget(index, 1).setEnabled(val)
+            
+        for col in range(2, self.sequence_widget.columnCount()):
+            item = self.sequence_widget.item(index, col)
+            if val:
+                item.setFlags(item.flags() | Qt.ItemIsEnabled);
+            else:
+                item.setFlags(item.flags() & ~Qt.ItemIsEnabled);
+
+    #--------------------------------------------------------------------#
+    
+    def _moveInSequence(self, delta):
+        index = self.sequence_widget.currentRow()
+        new_index = index + delta
+        if new_index < 0:
+            new_index = 0
+        if new_index >= self.sequence_widget.rowCount():
+            new_index = self.sequence_widget.rowCount() - 1
+        if new_index == index:
+            return
+        
+        #print "NEW: %u. OLD: %u." % (new_index, index)
+        step1 = self._sequence[index]
+        step2 = self._sequence[new_index]
+        self._sequence[index] = step2
+        self._sequence[new_index] = step1
+        self._addOrUpdateSequence(index, step2)
+        self._addOrUpdateSequence(new_index, step1)
+        self.sequence_widget.setCurrentCell(new_index, 0)
+        self._setModified()
+    
     #--------------------------------------------------------------------#
     
     def _moveUpInSequence(self):
@@ -637,31 +727,17 @@ class SequenceWidget(QMainWindow):
     
     def _moveDownInSequence(self):
         self._moveInSequence(1)
-    
-    #--------------------------------------------------------------------#
-    
-    def _moveInSequence(self, delta):
-        index = self.sequence_widget.currentRow()
-        new_index = index + delta
-        if new_index < 0:
-            new_index = 0
-        if new_index >= self.sequence_widget.count():
-            new_index = self.sequence_widget.count() - 1
-        if new_index == index:
-            return
-        
-        step = self._sequence.pop(index)
-        self._sequence.insert(new_index, step)
-        item = self.sequence_widget.takeItem(index)
-        self.sequence_widget.insertItem(new_index, item)
-        self.sequence_widget.setCurrentRow(new_index)
-                
+                    
     #--------------------------------------------------------------------#
     
     def _removeStepFromSequence(self):
         index = self.sequence_widget.currentRow()
-        self.sequence_widget.takeItem(index)
         self._sequence.pop(index)
+        while index < len(self._sequence):
+            self._addOrUpdateSequence(index, self._sequence[index])
+            index += 1
+        self.sequence_widget.removeRow(index)
+        self._setModified()
 
     #--------------------------------------------------------------------#
     
@@ -694,9 +770,6 @@ class SequenceWidget(QMainWindow):
     #--------------------------------------------------------------------#
         
     def _sequenceStepSelected(self, selected, deselected):
-        if not self.hook_selection:
-            return
-        
         index = self.sequence_widget.currentRow()
         item = self._sequence[index]
         self._setConfigurationPane(item.attributesWidget())
@@ -733,15 +806,7 @@ class SequenceWidget(QMainWindow):
     #--------------------------------------------------------------------#
     
     def _refreshItem(self, index):
-        step = self._sequence[index]
-        text = str(step)
-        if step.status() is not None:
-            text += " - " + step.status()
-        self.hook_selection = False
-        self.sequence_widget.takeItem(index)
-        self.sequence_widget.insertItem(index, text)
-        self.sequence_widget.setCurrentRow(index)
-        self.hook_selection = True
+        self._addOrUpdateSequence(index, self._sequence[index])
     
     #--------------------------------------------------------------------#
     
@@ -759,7 +824,7 @@ class SequenceWidget(QMainWindow):
     def _reset(self):
         for index in range(len(self._sequence)):
             step = self._sequence[index]
-            self._setStepStatus(step, index, None)
+            self._setStepStatus(step, index, Step.STATUS_IDLE)
     
     #--------------------------------------------------------------------#
     
@@ -773,15 +838,20 @@ class SequenceWidget(QMainWindow):
     
     def _runStep(self, index):
         step = self._sequence[index]
-        self._setStepStatus(step, index, "Running...")
-        title("Step %u - %s" % (index, str(step)), style = UniBorder.BORDER_STYLE_DOUBLE)
-        res = step.perform(index)
-        if res:
-            self._setStepStatus(step, index, "Passed.")
-        else:
-            self._setStepStatus(step, index, "Failed.")
-            if step.stopOnFailure():
-                return False
+        if not step.isEnabled():
+            return True
+
+        self._setStepStatus(step, index, Step.STATUS_RUNNING)
+        for count in range(step.repeat()):        
+            title("Step %u - %s (%u/%u)" % (index, str(step), count, step.repeat()), style = UniBorder.BORDER_STYLE_DOUBLE)
+            res = step.perform(index)
+            if not res:
+                if step.stopOnFailure():
+                    return False
+                self._setStepStatus(step, index, Step.STATUS_FAILED)                
+                break
+            
+        self._setStepStatus(step, index, Step.STATUS_PASSED)
         return True
                                     
     #--------------------------------------------------------------------#
@@ -803,17 +873,33 @@ class SequenceWidget(QMainWindow):
     
     def _runSequenceDone(self):
         log("Done.", log_level = LOG_LEVEL_NOTE)
-        self.sequence_widget.setEnabled(True)
-        self.edit_pane.show()
         getMainProcess().closeLog()
         setMainProcess(None)
+        self._setEditWidgetsEnabled(True)        
+        self._is_running = False
 
     #--------------------------------------------------------------------#
     
+    def _setEditWidgetsEnabled(self, val):
+        if val:
+            self.edit_pane.show()
+            self.sequence_widget.setSelectionMode(QAbstractItemView.SingleSelection)
+        else:
+            self.edit_pane.hide()
+            self.sequence_widget.setSelectionMode(QAbstractItemView.NoSelection)
+        
+        self.b_add.setEnabled(val)
+        self.b_remove.setEnabled(val)
+        self.b_move_down.setEnabled(val)
+        self.b_move_up.setEnabled(val)
+                        
+    #--------------------------------------------------------------------#
+    
     def _run(self):
-        self._saveAction(True)
-        self.sequence_widget.setEnabled(False)
-        self.edit_pane.hide()
+        self._saveAction(None)
+        self._is_running = True
+        self._setEditWidgetsEnabled(False)
+
         self._setTestLogsDir()
         title = "Running: %s" % self._doc.filePath()
         log(title, log_level = LOG_LEVEL_NOTE)
@@ -883,7 +969,8 @@ class SequenceWidget(QMainWindow):
             
         for step_node in sequence_node.getchildren():
             step = Step.loadFromXml(step_node)
-            self._addStepToSequence(step)
+            self._addOrUpdateSequence(len(self._sequence), step)
+        self._doc.setModified(False)
             
     #--------------------------------------------------------------------#
     
@@ -926,7 +1013,7 @@ if __name__ == '__main__':
         setLogLevel(LOG_LEVEL_INFO, LOG_LEVEL_ALL)
         prompt.setTestEnvironment()
         prompt.loadFromXml("samples/performance_regression.xml")
-        prompt.setGeometry(200, 30, 1600, 600)
+        prompt.setGeometry(200, 30, 1900, 800)
         #prompt.showMaximized()
         prompt.show()
         app.exec_()

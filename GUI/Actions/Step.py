@@ -62,6 +62,11 @@ class DefaultAttributesWidget(QWidget):
     
 class Step(object):
     
+    STATUS_IDLE = 0
+    STATUS_RUNNING = 1
+    STATUS_PASSED = 2
+    STATUS_FAILED = 3
+    
     ATTRIBUTES = []
     WIDGET = None
     WIDGET_CLASS = DefaultAttributesWidget
@@ -87,9 +92,11 @@ class Step(object):
         if values is None:
             values = [att[1] for att in attributes]
         self._values = values   # The attribute values of individual step
-        self._status = None  # Status
+        self._status = Step.STATUS_IDLE
         self._widget = None
         self._logs_dir = None
+        self._repeat = 1
+        self._is_enabled = True
     
     # -------------------------------------------------------------------- #
     
@@ -145,6 +152,26 @@ class Step(object):
         return True
 
     # -------------------------------------------------------------------- #
+    
+    def repeat(self):
+        return self._repeat
+    
+    # -------------------------------------------------------------------- #
+    
+    def setRepeat(self, val):
+        self._repeat = val
+    
+    # -------------------------------------------------------------------- #
+    
+    def isEnabled(self):
+        return self._is_enabled
+    
+    # -------------------------------------------------------------------- #
+    
+    def setEnabled(self, val):
+        self._is_enabled = bool(val)
+    
+    # -------------------------------------------------------------------- #    
     
     @staticmethod
     def logToMainProcess(msg, process):
@@ -218,6 +245,8 @@ class Step(object):
             attr_name = attributes[i][0]
             attr_value = self._values[i]
             attr_node = etree.SubElement(step_node, "Attribute", Name = attr_name, Value = str(attr_value))
+        etree.SubElement(step_node, "Enabled", Value = str(self.isEnabled()))
+        etree.SubElement(step_node, "Repeat", Value = str(self.repeat()))
         return step_node
 
     # -------------------------------------------------------------------- #
@@ -235,10 +264,21 @@ class Step(object):
         attribute_names = [attr[0] for attr in step_class.ATTRIBUTES]
         step = step_class() 
         for attr_node in step_node.getchildren():
-            attribute_name = attr_node.attrib["Name"]
-            attribute_value = attr_node.attrib["Value"]
-            pos = attribute_names.index(attribute_name)
-            step.values()[pos] = attribute_value
+            if attr_node.tag == "Attribute":
+                attribute_name = attr_node.attrib["Name"]
+                attribute_value = attr_node.attrib["Value"]
+                pos = attribute_names.index(attribute_name)
+                step.values()[pos] = attribute_value
+            elif attr_node.tag == "Enabled":
+                attribute_value = attr_node.attrib["Value"] 
+                if attribute_value == "True":
+                    step.setEnabled(True)
+                elif attribute_value == "False":
+                    step.setEnabled(False)
+                # else do nothing
+            elif attr_node.tag == "Repeat":
+                step.setRepeat(int(attr_node.attrib["Value"]))
+                
         return step
             
 ###############################################################################################################################################################
@@ -277,6 +317,9 @@ if __name__ == '__main__':
     step3 = DemoStep2([1, 2, 3])
     step4 = DemoStep2([4, 5, 6])
     
+    step1.setEnabled(False)
+    step1.setRepeat(20)
+    
     step1.writeToXml(xml)
     step2.writeToXml(xml)
     step3.writeToXml(xml)
@@ -292,7 +335,5 @@ if __name__ == '__main__':
     for step_node in root_node.getchildren():
         step = Step.loadFromXml(step_node)
         print step
-
- 
-
-            
+        print step.isEnabled()
+        print step.repeat()
