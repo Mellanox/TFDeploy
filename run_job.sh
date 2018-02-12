@@ -98,7 +98,7 @@ then
 	cmd="$cmd --worker_hosts=$TF_WORKER_HOSTS"
 fi
 
-[[ ! -z $TF_SERVER_PROTOCOL ]]   && cmd="$cmd --server_protocol=$TF_SERVER_PROTOCOL"
+[[ ! -z $TF_SERVER_PROTOCOL ]]   && cmd="$cmd --server_protocol=$TF_SERVER_PROTOCOL --use_datasets=True"
 
 if [[ $job_name == "worker" ]]
 then
