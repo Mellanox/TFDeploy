@@ -1,19 +1,22 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-from getpass import getuser, getpass
-import os
+from getpass import getuser
 import tempfile
-from Util import *
 from Step import Step
-from Actions.TestEnvironment import TestEnvironment
-from Actions.Util import executeRemoteCommand
-from Actions.FormattedTable import FormattedTable
 import sys
 import re
-from GPUMonitor import Measurement, Monitor, GPUSampler,\
-    CPUAndMemSampler, RXTXSampler, CommonPerformanceMeasurements
-from Actions.Log import LogWriter, LOG_LEVEL_INFO
+from Monitor import Measurement, CommonPerformanceMeasurements
+from RemoteMonitor import RemoteMonitor
+import os
+import time
+import signal
+
+from TestEnvironment import TestEnvironment
+from Common.FormattedTable import FormattedTable
+from Common.Log import LogWriter, LOG_LEVEL_NOTE, LOG_LEVEL_INFO, log, title,\
+    error, UniBorder
+from Common.Util import BasicProcess, executeRemoteCommand, waitForProcesses
 
 ###############################################################################
 
@@ -46,8 +49,8 @@ class TFCnnBenchmarksStep(Step):
     ATTRIBUTE_ID_DATA_DIR = 8
     ATTRIBUTE_ID_LOG_LEVEL = 9
     
-    ATTRIBUTES = [["PS", "12.12.12.25"],
-                  ["Workers", "12.12.12.26"],
+    ATTRIBUTES = [["PS", "12.12.12.25,12.12.12.26"],
+                  ["Workers", "12.12.12.25,12.12.12.26"],
                   ["Base Port", "5000"],
                   ["Script", "~/benchmarks/scripts/tf_cnn_benchmarks/"],
                   ["Model", "trivial"],
@@ -166,35 +169,22 @@ class TFCnnBenchmarksStep(Step):
     # -------------------------------------------------------------------- #
     
     def _startProcessMonitors(self, process):
-        base_file_name = os.path.basename(process.log_file_path)
-        file_dir = os.path.dirname(process.log_file_path)
-        process.cpu_graph = open(os.path.join(file_dir, "cpu_" + base_file_name), "w")
-        process.gpu_graph = open(os.path.join(file_dir, "gpu_" + base_file_name), "w")
-        log("Server %s: Starting monitors:" % process.server)
-        log("   + CPU: %s" % process.cpu_graph.name)
-        log("   + GPU: %s"   % process.gpu_graph.name)
-
-        process.gpu_monitor = Monitor(process.server, process.gpu_graph, time_interval = 0, log_ratio = 1)
-        process.gpu_monitor.addSampler(GPUSampler())
-        process.common_monitor = Monitor(process.server, process.cpu_graph, time_interval = 0, log_ratio = 1)
-        process.common_monitor.addSampler(CPUAndMemSampler(process.remote_pid))
-        process.common_monitor.addSampler(RXTXSampler(process.rdma_device, process.rdma_port))
-
-        process.perf = TFPerformanceMeasurements()                        
-        process.perf.gpu = process.gpu_monitor["GPU-0"]
-        process.perf.cpu = process.common_monitor["CPU"]
-        process.perf.mem = process.common_monitor["MEM"]
-        process.perf.rx = process.common_monitor["RDTA"]
-        process.perf.tx = process.common_monitor["TDTA"]
-        process.perf.net_erros.excessive_buffer_overrun_errors = process.common_monitor["XBUF_OVERRUN_ERRORS"]
-        process.perf.net_erros.port_xmit_discards = process.common_monitor["PORT_XMIT_DISCARDS"]
-        process.perf.net_erros.port_rcv_errors = process.common_monitor["PORT_RCV_ERRORS"]
-        process.perf.net_erros.port_rcv_constraint_errors = process.common_monitor["PORT_RCV_CONSTRAINT_ERRORS"]
+        log("Server %s: Starting monitors." % process.server)
+        process.graph_dir = os.path.join(self._logs_dir, "graphs", "worker_%u" % process.task_id)
+        process.remote_graph_dir = os.path.join(self._work_dir, "graphs")
+        if not os.path.exists(process.graph_dir):
+            os.makedirs(process.graph_dir)
+        remote_monitor_title = lambda process: "Monitor [%s]" % process.server 
+        remote_monitor_bin = os.path.join(self._work_dir, "Monitor.py")
+        remote_monitor_flags = "--cpu %u 0 --gpu 0 --net %s %u 0.1 -d %s" % (process.remote_pid, 
+                                                                             process.rdma_device, process.rdma_port,
+                                                                             process.remote_graph_dir)
+        process.monitor_log_path = os.path.join(process.graph_dir, "monitor.log") 
+        process.monitor = RemoteMonitor(process.server, remote_monitor_bin, remote_monitor_flags, remote_monitor_title, process.monitor_log_path)
         
+        process.monitor.start()
+        process.perf = TFPerformanceMeasurements()                        
         process.perf.images_sec = Measurement("IMG/SEC")
-
-        process.gpu_monitor.start()
-        process.common_monitor.start()
         
         process.table = FormattedTable()
         process.table.addColumn(FormattedTable.Column("STEP", 4))
@@ -213,10 +203,23 @@ class TFCnnBenchmarksStep(Step):
     # -------------------------------------------------------------------- #
     
     def _stopProcessMonitors(self, process):
-        process.common_monitor.stop()
-        process.gpu_monitor.stop()
-        process.cpu_graph.close()
-        process.gpu_graph.close()
+        log("Server %s: stopping monitors..." % process.server)        
+        process.monitor.stop()
+        process.monitor.fillMeasurement(process.perf.cpu)
+        process.monitor.fillMeasurement(process.perf.mem)
+        process.monitor.fillMeasurement(process.perf.rx)
+        process.monitor.fillMeasurement(process.perf.tx)
+        process.monitor.fillMeasurement(process.perf.net_erros.excessive_buffer_overrun_errors)
+        process.monitor.fillMeasurement(process.perf.net_erros.port_xmit_discards)
+        process.monitor.fillMeasurement(process.perf.net_erros.port_rcv_errors)
+        process.monitor.fillMeasurement(process.perf.net_erros.port_rcv_constraint_errors)
+        for gpu_id in process.monitor.search("GPU"):
+            gpu = Measurement(gpu_id)
+            process.monitor.fillMeasurement(gpu)
+            process.perf.gpu.reduce(gpu)
+        process.monitor.close()
+
+        self.runInline("scp %s:%s/* %s" % (process.server, process.remote_graph_dir, process.graph_dir))            
                 
         row = ["---",
                "%.2lf" % process.perf.cpu.avg, 
@@ -232,7 +235,7 @@ class TFCnnBenchmarksStep(Step):
         process.table.addRow(row)
         process.table.unbind()
 
-        log("Server %s: stopped monitors." % process.server, process)
+        log("Server %s: monitors stopped." % process.server)
 
         # Append to global performance results:
         self._perf.reduce(process.perf)
@@ -287,14 +290,28 @@ class TFCnnBenchmarksStep(Step):
                 deviation = float(m.group(3))
                 jitter = float(m.group(4))
                 loss = float(m.group(5))
-                
+                perf = process.monitor.get(["CPU.avg", "MEM.val", "RDTA.rate.avg", "RDTA.rate.max", "TDTA.rate.avg", "TDTA.rate.max"])
+                gpu_perf = process.monitor.get(["%s.avg" % gpu for gpu in process.monitor.search("GPU")])
                 process.perf.images_sec.update(images_sec)
+
+                try:
+                    cpu = float(perf[0])
+                    mem = float(perf[1])
+                    rx_rate_avg = float(perf[2])
+                    tx_rate_avg = float(perf[3])
+                    rx_rate_max = float(perf[4])
+                    tx_rate_max = float(perf[5])
+                    gpu = sum([float(x) for x in gpu_perf]) / len(gpu_perf)
+                except:
+                    error("Server %s: Remote monitor process failed. See %s for more info." % (process.server, process.monitor_log_path))
+                    raise
+                
                 row = ["%u" % step,
-                       "%.2lf" % process.perf.cpu.avg, 
-                       "%.2lf" % process.perf.mem.val, 
-                       "%.2lf" % process.perf.gpu.avg, 
-                       "%.2lf/%.2lf" % (process.perf.rx.rate.avg, process.perf.tx.rate.avg), 
-                       "%.2lf/%.2lf" % (process.perf.rx.rate.max, process.perf.tx.rate.max),
+                       "%.2lf" % cpu, 
+                       "%.2lf" % mem, 
+                       "%.2lf" % gpu,
+                       "%.2lf/%.2lf" % (rx_rate_avg, tx_rate_avg), 
+                       "%.2lf/%.2lf" % (rx_rate_max, tx_rate_max),
                        "%.2lf" % images_sec, 
                        "%.2lf" % deviation, 
                        "%.2lf" % jitter, 
@@ -317,7 +334,7 @@ class TFCnnBenchmarksStep(Step):
             self._stopping = True  #TODO: lock
             self._stopAll(process)
         
-        return process.instance.returncode in [0, 143]
+        return process.instance.returncode in [0, 143, -15]
         
     # -------------------------------------------------------------------- #
 
@@ -327,7 +344,11 @@ class TFCnnBenchmarksStep(Step):
         time.sleep(wait_time_for_workers_to_exit_gracefully)
         
         for process in self._processes:
-            self.runInline("kill -15 %u >& /dev/null" % process.remote_pid, servers=[process.server])
+            self.runInline("kill -15 %u >& /dev/null" % process.remote_pid, servers=[process.server])            
+#             if not process.is_worker:
+#                 log("   + [%s] ps_%u: %u" % (process.server, process.task_id, process.instance.pid))
+#                 os.killpg(os.getpgid(process.instance.pid), signal.SIGTERM)
+        log("Done.")
          
 # -------------------------------------------------------------------- #
 
@@ -369,7 +390,7 @@ class TFCnnBenchmarksStep(Step):
         res = self.runSCP(self._servers, [script_dir], work_dir, wait_timeout = 10)
         if not res:
             return False
-    
+            
         ########
         # Run: #
         ########

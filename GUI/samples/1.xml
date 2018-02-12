@@ -1,34 +1,17 @@
 <?xml version="1.0" ?>
 <root>
 	<Sequence>
-		<Step Name="Delay">
-			<Attribute Name="Duration" Value="1"/>
-		</Step>
-		<Step Name="Delay">
-			<Attribute Name="Duration" Value="1"/>
-		</Step>
-		<Step Name="Delay">
-			<Attribute Name="Duration" Value="1"/>
-		</Step>
-		<Step Name="Send Frames">
-			<Attribute Name="MinSize" Value="64"/>
-			<Attribute Name="MaxSize" Value="4096"/>
-			<Attribute Name="NumFrames" Value="1"/>
-		</Step>
-		<Step Name="Send Frames">
-			<Attribute Name="MinSize" Value="64"/>
-			<Attribute Name="MaxSize" Value="4096"/>
-			<Attribute Name="NumFrames" Value="1"/>
-		</Step>
-		<Step Name="Send Frames">
-			<Attribute Name="MinSize" Value="64"/>
-			<Attribute Name="MaxSize" Value="4096"/>
-			<Attribute Name="NumFrames" Value="1"/>
-		</Step>
-		<Step Name="Send Frames">
-			<Attribute Name="MinSize" Value="64"/>
-			<Attribute Name="MaxSize" Value="4096"/>
-			<Attribute Name="NumFrames" Value="1"/>
+		<Step Name="TF CNN Benchmarks">
+			<Attribute Name="PS" Value="12.12.12.25"/>
+			<Attribute Name="Workers" Value="12.12.12.26"/>
+			<Attribute Name="Base Port" Value="5000"/>
+			<Attribute Name="Script" Value="~/benchmarks/scripts/tf_cnn_benchmarks/"/>
+			<Attribute Name="Model" Value="trivial"/>
+			<Attribute Name="Batch Size" Value="32"/>
+			<Attribute Name="Num GPUs" Value="0"/>
+			<Attribute Name="Server Protocol" Value="grpc+verbs"/>
+			<Attribute Name="Data Dir" Value="/data/imagenet_data/"/>
+			<Attribute Name="Log Level" Value="0"/>
 		</Step>
 	</Sequence>
 </root>

@@ -4,7 +4,7 @@
 from random import randint
 from PyQt4.QtCore import QPoint,QString,QSize
 from PyQt4.QtGui import QMdiArea,QMdiSubWindow,QPlainTextEdit,QVBoxLayout,QPushButton,QApplication,QWidget
-import Actions.Log
+from Common.Log import LOG_LEVEL_INFO, LogLevelNames
 
 ###############################################################################
 
@@ -36,7 +36,7 @@ class LogWidget(QMdiSubWindow):
             
     #--------------------------------------------------------------------#
     
-    def append(self, line, log_level = Actions.Log.LOG_LEVEL_INFO):
+    def append(self, line, log_level = LOG_LEVEL_INFO):
         line = line.replace(" ", "&nbsp;")
         line = QString.fromUtf8(line)
         color = LogColorsForLevel[log_level]
@@ -155,7 +155,7 @@ class MultiLogWidget(QMdiArea):
         
     #--------------------------------------------------------------------#
     
-    def log(self, line, log_id = GLOBAL_LOG, log_level = Actions.Log.LOG_LEVEL_INFO):
+    def log(self, line, log_id = GLOBAL_LOG, log_level = LOG_LEVEL_INFO):
         log = self.open(log_id)
         log.append(line, log_level)
         
@@ -177,7 +177,7 @@ def test():
     log_level = randint(0, 5)
     if not mlog.isOpen(log_id):
         mlog.open(log_id, "Title for log #%u" % log_id)
-    mlog.log("☀ %s Line #%u ☀ SPACES: #      #" % (Actions.Log.LogLevelNames[log_level], x), log_id, log_level)
+    mlog.log("☀ %s Line #%u ☀ SPACES: #      #" % (LogLevelNames[log_level], x), log_id, log_level)
     x += 1
     log_id = (log_id + 1) % 8
 

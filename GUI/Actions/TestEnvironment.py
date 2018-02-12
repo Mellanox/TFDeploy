@@ -1,6 +1,5 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-from Actions.Util import checkRetCode
 import os
 
 ###############################################################################
@@ -12,7 +11,7 @@ def _onNewProcess(process):
 
 def _onProcessDone(process):    
     process.closeLog()
-    return process.instance.returncode in [0, 143]    
+    return process.instance.returncode in [0, 143, -15]    
 
 ###############################################################################
 
@@ -39,7 +38,15 @@ class TestEnvironment(object):
                                 "192.168.1.45": "clx-mld-45",
                                 "192.168.1.46": "clx-mld-46",
                                 "192.168.1.47": "clx-mld-47",
-                                "192.168.1.48": "clx-mld-48" }
+                                "192.168.1.48": "clx-mld-48",
+                                "31.31.31.41": "clx-mld-41",
+                                "31.31.31.42": "clx-mld-42",
+                                "31.31.31.43": "clx-mld-43",
+                                "31.31.31.44": "clx-mld-44",
+                                "31.31.31.45": "clx-mld-45",
+                                "31.31.31.46": "clx-mld-46",
+                                "31.31.31.47": "clx-mld-47",
+                                "31.31.31.48": "clx-mld-48" }
     
     # -------------------------------------------------------------------- #
         
@@ -47,6 +54,10 @@ class TestEnvironment(object):
         self._test_logs_dir = val
         if not os.path.exists(val):
             os.makedirs(val)
+            link = os.path.join(os.path.dirname(val), "last")
+            if os.path.islink(link):
+                os.remove(link)
+                os.symlink(os.path.basename(val), link)
 
     # -------------------------------------------------------------------- #
     

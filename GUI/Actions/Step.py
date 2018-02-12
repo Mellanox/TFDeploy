@@ -3,13 +3,17 @@
 
 import copy
 
-from Actions.Util import *
-from Actions.Log import *
+import sys
 from PyQt4.QtGui import QWidget, QGridLayout, QLineEdit, QLabel
 from xml.dom import minidom
 from xml.etree import cElementTree as etree
-from Actions.TestEnvironment import TestEnvironment
 import re
+import os
+
+from TestEnvironment import TestEnvironment
+from Common.Util import executeCommand, executeRemoteCommand, checkRetCode,\
+    copyToRemote, waitForProcesses, BasicProcess
+from Common.Log import log, error, UniBorder, title
 
 ###############################################################################
 
@@ -97,6 +101,7 @@ class Step(object):
         self._logs_dir = None
         self._repeat = 1
         self._is_enabled = True
+        self._stop = False
     
     # -------------------------------------------------------------------- #
     
@@ -146,6 +151,11 @@ class Step(object):
     def perform(self, index):
         raise Exception("Unimplemented perform() - step %u." % index) 
 
+    # -------------------------------------------------------------------- #
+
+    def stop(self):
+        self._stop = True
+        
     # -------------------------------------------------------------------- #
     
     def stopOnFailure(self):

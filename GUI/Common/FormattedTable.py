@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import sys
-from Actions.Log import UniBorder
+from Log import UniBorder
 
 #############################################################################
 
@@ -150,7 +150,7 @@ class FormattedTable(object):
     # -------------------------------------------------------------------- #
     
     def _has_groups(self):
-        return (len(self.groups) > 1) or (self.groups[0].name != None) 
+        return len(self.groups) > 1 
     
     # -------------------------------------------------------------------- #
     

@@ -3,23 +3,24 @@
 
 import argparse
 import os
+import sys
 from xml.dom import minidom
 from xml.etree import cElementTree as etree
-from Actions.Log import LOG_LEVEL_INFO, LOG_LEVEL_ERROR, setLogOps,\
+from Common.Log import LOG_LEVEL_INFO, LOG_LEVEL_ERROR, setLogOps,\
     setMainProcess, getMainProcess, LOG_LEVEL_NOTE, log, setLogLevel,\
     LOG_LEVEL_ALL, title, UniBorder
+    
 from DocumentControl import DocumentControl
 from EZRandomWidget import *
 from MultiLogWidget import MultiLogWidget
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
-from Actions.Common import *
-from Actions.TFCnnBenchmarks import TFCnnBenchmarksStep
-from Actions.Step import Step
-from Actions.TestEnvironment import TestEnvironment
 from Actions.TFCompile import TFCompileStep
-from Actions.Util import BasicProcess
-from TableWidget import TableDataItem
+from Actions.TFCnnBenchmarks import TFCnnBenchmarksStep
+from Actions.TestEnvironment import TestEnvironment
+from Actions.Step import Step
+import time
+from Common.Util import BasicProcess
 
 def create_combo_widget(parent, list, default_value_index):
     new_combo = QComboBox(parent)
@@ -344,7 +345,9 @@ class SequenceWidget(QMainWindow):
         self._base_logs_dir = "test_logs"
         self._test_logs_dir = None
         self._step_logs_dir = None
+        self._current_step = None
         self._is_running = False
+        self._stop = False
         self._initGui()
 
     #--------------------------------------------------------------------#
@@ -423,6 +426,7 @@ class SequenceWidget(QMainWindow):
         self.b_move_up = QPushButton("^")
         self.b_move_down = QPushButton("v")
         self.b_run = QPushButton("Run")
+        self.b_stop = QPushButton("Stop")
         
         self.b_add.clicked.connect      (self._bAddClicked)
         self.b_remove.clicked.connect   (self._removeStepFromSequence)
@@ -564,7 +568,7 @@ class SequenceWidget(QMainWindow):
     #--------------------------------------------------------------------#
     
     def _onProcessDone(self, process):
-        if process.instance.returncode in [0, 143]:
+        if process.instance.returncode in [0, 143, -15]:
             self.emitCloseLog(process)
             return True
         return False
@@ -749,13 +753,14 @@ class SequenceWidget(QMainWindow):
     def _bAddClicked(self):
         if self._selected_step is None:
             return
-        self._addStepToSequence(self._selected_step)
+        self._addOrUpdateSequence(self.sequence_widget.rowCount(), self._selected_step)
         self._setModified()
 
     #--------------------------------------------------------------------#
 
     def _clear(self):
-        self.sequence_widget.clear()
+        while self.sequence_widget.rowCount() > 0:
+            self.sequence_widget.removeRow(0)
         self._sequence = []
 
     #--------------------------------------------------------------------#
@@ -846,6 +851,7 @@ class SequenceWidget(QMainWindow):
         if not step.isEnabled():
             return True
 
+        self._current_step = step
         self._setStepStatus(step, index, Step.STATUS_RUNNING)
         for count in range(step.repeat()):        
             title("Step %u - %s (%u/%u)" % (index, str(step), count + 1, step.repeat()), style = UniBorder.BORDER_STYLE_DOUBLE)
@@ -862,9 +868,12 @@ class SequenceWidget(QMainWindow):
     #--------------------------------------------------------------------#
             
     def _runSequence(self):
+        self._stop = False
         self._reset()
         for index in range(len(self._sequence)):
             if not self._runStep(index):
+                break
+            if self._stop:
                 break
         self._emitRunSequenceDone()
         
@@ -1002,7 +1011,7 @@ class SequenceWidget(QMainWindow):
         
 if __name__ == '__main__':
     
-    arg_parser = argparse.ArgumentParser(description = "Yaml Utils")
+    arg_parser = argparse.ArgumentParser(description = "ML tester")
     arg_parser.add_argument("xml", nargs="?", help="A test file to load.")
     arg_parser.add_argument("-a", "--autorun", action="store_true", help="Automatic regression run (no GUI).")
     arg_parser.add_argument("-L", "--log_level", type=int, default="3", help="Log level.")    

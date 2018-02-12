@@ -4,10 +4,9 @@
 import subprocess
 import time
 import threading
-from Log import log,error,title,UniBorder
 import sys
+from Log import log,error,title,UniBorder,LOG_LEVEL_NOTE
 import os
-from Actions.Log import LOG_LEVEL_NOTE
 
 ###############################################################################
 
@@ -82,7 +81,7 @@ def processCommunicateLive(process, on_output = None, on_error = None):
             on_output(out[:-1], process)
         if (err != "") and (on_error is not None):
             on_error(err[:-1], process)
-
+        
 # -------------------------------------------------------------------- #
 
 def checkRetCode(process):
@@ -152,7 +151,7 @@ def executeCommand(command, factory = None, server = None, verbose = True):
         factory = BasicProcess.getFactory(None, None)
     if verbose:
         log("Running command: %s" % command)
-    instance = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    instance = subprocess.Popen(command, shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, preexec_fn=os.setsid)
     return factory(instance, server)
 
 # -------------------------------------------------------------------- #
@@ -196,7 +195,8 @@ if __name__ == '__main__':
     processes.append(executeCommand("echo E"))    
     processes.append(executeCommand("sleep 999"))
     processes.append(executeCommand("echo F"))
-    processes.append(executeCommand("bash -c 'for i in {1..5}; do echo $i; sleep 1; done'"))        
+    processes.append(executeCommand("bash -c 'for i in {1..5}; do echo $i; sleep 1; done'"))
+    processes.extend(executeRemoteCommand(["12.12.12.26"], "python -u /tmp/tmp.A453n4kxCRS2/Monitor.py --cpu 35460 0 --gpu 0 --net mlx5_1 1 0.1 -d /tmp/test_logs/step_0_TF_CNN_Benchmarks__trivial__grpc_verbs__2_GPUs__batch_32/graphs/worker_0"))
 
     title("Waiting for processes:", style=UniBorder.BORDER_STYLE_DOUBLE)
     waitForProcesses(processes, wait_timeout=5, on_output=log, on_error=error)

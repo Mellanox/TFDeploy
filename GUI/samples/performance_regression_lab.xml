@@ -1,9 +1,17 @@
 <?xml version="1.0" ?>
 <root>
 	<Sequence>
+		<Step Name="TF Compile">
+			<Attribute Name="TensorFlow home" Value="~/tensorflow"/>
+			<Attribute Name="CUDA" Value="True"/>
+			<Attribute Name="Additional build flags" Value=""/>
+			<Attribute Name="Install on servers" Value="31.31.31.41,31.31.31.43,31.31.31.44,31.31.31.45,31.31.31.46,31.31.31.47,31.31.31.48"/>
+			<Enabled Value="True"/>
+			<Repeat Value="1"/>
+		</Step>
 		<Step Name="TF CNN Benchmarks">
-			<Attribute Name="PS" Value="192.168.1.41,192.168.1.43,192.168.1.44,192.168.1.45,192.168.1.46,192.168.1.47,192.168.1.48"/>
-			<Attribute Name="Workers" Value="192.168.1.41,192.168.1.43,192.168.1.44,192.168.1.45,192.168.1.46,192.168.1.47,192.168.1.48"/>
+			<Attribute Name="PS" Value="31.31.31.41,31.31.31.43,31.31.31.44,31.31.31.45,31.31.31.46,31.31.31.47,31.31.31.48"/>
+			<Attribute Name="Workers" Value="31.31.31.41,31.31.31.43,31.31.31.44,31.31.31.45,31.31.31.46,31.31.31.47,31.31.31.48"/>
 			<Attribute Name="Base Port" Value="5000"/>
 			<Attribute Name="Script" Value="~/benchmarks/scripts/tf_cnn_benchmarks/"/>
 			<Attribute Name="Model" Value="trivial"/>
@@ -12,10 +20,12 @@
 			<Attribute Name="Server Protocol" Value="grpc+verbs"/>
 			<Attribute Name="Data Dir" Value="/data/imagenet_data/"/>
 			<Attribute Name="Log Level" Value="0"/>
+			<Enabled Value="True"/>
+			<Repeat Value="1"/>
 		</Step>
 		<Step Name="TF CNN Benchmarks">
-			<Attribute Name="PS" Value="192.168.1.41,192.168.1.43,192.168.1.44,192.168.1.45,192.168.1.46,192.168.1.47,192.168.1.48"/>
-			<Attribute Name="Workers" Value="192.168.1.41,192.168.1.43,192.168.1.44,192.168.1.45,192.168.1.46,192.168.1.47,192.168.1.48"/>
+			<Attribute Name="PS" Value="31.31.31.41,31.31.31.43,31.31.31.44,31.31.31.45,31.31.31.46,31.31.31.47,31.31.31.48"/>
+			<Attribute Name="Workers" Value="31.31.31.41,31.31.31.43,31.31.31.44,31.31.31.45,31.31.31.46,31.31.31.47,31.31.31.48"/>
 			<Attribute Name="Base Port" Value="5000"/>
 			<Attribute Name="Script" Value="~/benchmarks/scripts/tf_cnn_benchmarks/"/>
 			<Attribute Name="Model" Value="inception3"/>
@@ -24,10 +34,12 @@
 			<Attribute Name="Server Protocol" Value="grpc+verbs"/>
 			<Attribute Name="Data Dir" Value="/data/imagenet_data/"/>
 			<Attribute Name="Log Level" Value="0"/>
+			<Enabled Value="True"/>
+			<Repeat Value="1"/>
 		</Step>
 		<Step Name="TF CNN Benchmarks">
-			<Attribute Name="PS" Value="192.168.1.41,192.168.1.43,192.168.1.44,192.168.1.45,192.168.1.46,192.168.1.47,192.168.1.48"/>
-			<Attribute Name="Workers" Value="192.168.1.41,192.168.1.43,192.168.1.44,192.168.1.45,192.168.1.46,192.168.1.47,192.168.1.48"/>
+			<Attribute Name="PS" Value="31.31.31.41,31.31.31.43,31.31.31.44,31.31.31.45,31.31.31.46,31.31.31.47,31.31.31.48"/>
+			<Attribute Name="Workers" Value="31.31.31.41,31.31.31.43,31.31.31.44,31.31.31.45,31.31.31.46,31.31.31.47,31.31.31.48"/>
 			<Attribute Name="Base Port" Value="5000"/>
 			<Attribute Name="Script" Value="~/benchmarks/scripts/tf_cnn_benchmarks/"/>
 			<Attribute Name="Model" Value="inception4"/>
@@ -36,10 +48,12 @@
 			<Attribute Name="Server Protocol" Value="grpc+verbs"/>
 			<Attribute Name="Data Dir" Value="/data/imagenet_data/"/>
 			<Attribute Name="Log Level" Value="0"/>
+			<Enabled Value="True"/>
+			<Repeat Value="1"/>
 		</Step>
 		<Step Name="TF CNN Benchmarks">
-			<Attribute Name="PS" Value="192.168.1.41,192.168.1.43,192.168.1.44,192.168.1.45,192.168.1.46,192.168.1.47,192.168.1.48"/>
-			<Attribute Name="Workers" Value="192.168.1.41,192.168.1.43,192.168.1.44,192.168.1.45,192.168.1.46,192.168.1.47,192.168.1.48"/>
+			<Attribute Name="PS" Value="31.31.31.41,31.31.31.43,31.31.31.44,31.31.31.45,31.31.31.46,31.31.31.47,31.31.31.48"/>
+			<Attribute Name="Workers" Value="31.31.31.41,31.31.31.43,31.31.31.44,31.31.31.45,31.31.31.46,31.31.31.47,31.31.31.48"/>
 			<Attribute Name="Base Port" Value="5000"/>
 			<Attribute Name="Script" Value="~/benchmarks/scripts/tf_cnn_benchmarks/"/>
 			<Attribute Name="Model" Value="resnet50"/>
@@ -48,10 +62,12 @@
 			<Attribute Name="Server Protocol" Value="grpc+verbs"/>
 			<Attribute Name="Data Dir" Value="/data/imagenet_data/"/>
 			<Attribute Name="Log Level" Value="0"/>
+			<Enabled Value="True"/>
+			<Repeat Value="1"/>
 		</Step>
 		<Step Name="TF CNN Benchmarks">
-			<Attribute Name="PS" Value="192.168.1.41,192.168.1.43,192.168.1.44,192.168.1.45,192.168.1.46,192.168.1.47,192.168.1.48"/>
-			<Attribute Name="Workers" Value="192.168.1.41,192.168.1.43,192.168.1.44,192.168.1.45,192.168.1.46,192.168.1.47,192.168.1.48"/>
+			<Attribute Name="PS" Value="31.31.31.41,31.31.31.43,31.31.31.44,31.31.31.45,31.31.31.46,31.31.31.47,31.31.31.48"/>
+			<Attribute Name="Workers" Value="31.31.31.41,31.31.31.43,31.31.31.44,31.31.31.45,31.31.31.46,31.31.31.47,31.31.31.48"/>
 			<Attribute Name="Base Port" Value="5000"/>
 			<Attribute Name="Script" Value="~/benchmarks/scripts/tf_cnn_benchmarks/"/>
 			<Attribute Name="Model" Value="resnet152"/>
@@ -60,10 +76,12 @@
 			<Attribute Name="Server Protocol" Value="grpc+verbs"/>
 			<Attribute Name="Data Dir" Value="/data/imagenet_data/"/>
 			<Attribute Name="Log Level" Value="0"/>
+			<Enabled Value="True"/>
+			<Repeat Value="1"/>
 		</Step>
 		<Step Name="TF CNN Benchmarks">
-			<Attribute Name="PS" Value="192.168.1.41,192.168.1.43,192.168.1.44,192.168.1.45,192.168.1.46,192.168.1.47,192.168.1.48"/>
-			<Attribute Name="Workers" Value="192.168.1.41,192.168.1.43,192.168.1.44,192.168.1.45,192.168.1.46,192.168.1.47,192.168.1.48"/>
+			<Attribute Name="PS" Value="31.31.31.41,31.31.31.43,31.31.31.44,31.31.31.45,31.31.31.46,31.31.31.47,31.31.31.48"/>
+			<Attribute Name="Workers" Value="31.31.31.41,31.31.31.43,31.31.31.44,31.31.31.45,31.31.31.46,31.31.31.47,31.31.31.48"/>
 			<Attribute Name="Base Port" Value="5000"/>
 			<Attribute Name="Script" Value="~/benchmarks/scripts/tf_cnn_benchmarks/"/>
 			<Attribute Name="Model" Value="vgg16"/>
@@ -72,10 +90,12 @@
 			<Attribute Name="Server Protocol" Value="grpc+verbs"/>
 			<Attribute Name="Data Dir" Value="/data/imagenet_data/"/>
 			<Attribute Name="Log Level" Value="0"/>
+			<Enabled Value="True"/>
+			<Repeat Value="1"/>
 		</Step>
 		<Step Name="TF CNN Benchmarks">
-			<Attribute Name="PS" Value="192.168.1.41,192.168.1.43,192.168.1.44,192.168.1.45,192.168.1.46,192.168.1.47,192.168.1.48"/>
-			<Attribute Name="Workers" Value="192.168.1.41,192.168.1.43,192.168.1.44,192.168.1.45,192.168.1.46,192.168.1.47,192.168.1.48"/>
+			<Attribute Name="PS" Value="31.31.31.41,31.31.31.43,31.31.31.44,31.31.31.45,31.31.31.46,31.31.31.47,31.31.31.48"/>
+			<Attribute Name="Workers" Value="31.31.31.41,31.31.31.43,31.31.31.44,31.31.31.45,31.31.31.46,31.31.31.47,31.31.31.48"/>
 			<Attribute Name="Base Port" Value="5000"/>
 			<Attribute Name="Script" Value="~/benchmarks/scripts/tf_cnn_benchmarks/"/>
 			<Attribute Name="Model" Value="vgg19"/>
@@ -84,10 +104,12 @@
 			<Attribute Name="Server Protocol" Value="grpc+verbs"/>
 			<Attribute Name="Data Dir" Value="/data/imagenet_data/"/>
 			<Attribute Name="Log Level" Value="0"/>
+			<Enabled Value="True"/>
+			<Repeat Value="1"/>
 		</Step>
 		<Step Name="TF CNN Benchmarks">
-			<Attribute Name="PS" Value="192.168.1.41,192.168.1.43,192.168.1.44,192.168.1.45,192.168.1.46,192.168.1.47,192.168.1.48"/>
-			<Attribute Name="Workers" Value="192.168.1.41,192.168.1.43,192.168.1.44,192.168.1.45,192.168.1.46,192.168.1.47,192.168.1.48"/>
+			<Attribute Name="PS" Value="31.31.31.41,31.31.31.43,31.31.31.44,31.31.31.45,31.31.31.46,31.31.31.47,31.31.31.48"/>
+			<Attribute Name="Workers" Value="31.31.31.41,31.31.31.43,31.31.31.44,31.31.31.45,31.31.31.46,31.31.31.47,31.31.31.48"/>
 			<Attribute Name="Base Port" Value="5000"/>
 			<Attribute Name="Script" Value="~/benchmarks/scripts/tf_cnn_benchmarks/"/>
 			<Attribute Name="Model" Value="trivial"/>
@@ -96,10 +118,12 @@
 			<Attribute Name="Server Protocol" Value="grpc"/>
 			<Attribute Name="Data Dir" Value="/data/imagenet_data/"/>
 			<Attribute Name="Log Level" Value="0"/>
+			<Enabled Value="True"/>
+			<Repeat Value="1"/>
 		</Step>
 		<Step Name="TF CNN Benchmarks">
-			<Attribute Name="PS" Value="192.168.1.41,192.168.1.43,192.168.1.44,192.168.1.45,192.168.1.46,192.168.1.47,192.168.1.48"/>
-			<Attribute Name="Workers" Value="192.168.1.41,192.168.1.43,192.168.1.44,192.168.1.45,192.168.1.46,192.168.1.47,192.168.1.48"/>
+			<Attribute Name="PS" Value="31.31.31.41,31.31.31.43,31.31.31.44,31.31.31.45,31.31.31.46,31.31.31.47,31.31.31.48"/>
+			<Attribute Name="Workers" Value="31.31.31.41,31.31.31.43,31.31.31.44,31.31.31.45,31.31.31.46,31.31.31.47,31.31.31.48"/>
 			<Attribute Name="Base Port" Value="5000"/>
 			<Attribute Name="Script" Value="~/benchmarks/scripts/tf_cnn_benchmarks/"/>
 			<Attribute Name="Model" Value="inception3"/>
@@ -108,10 +132,12 @@
 			<Attribute Name="Server Protocol" Value="grpc"/>
 			<Attribute Name="Data Dir" Value="/data/imagenet_data/"/>
 			<Attribute Name="Log Level" Value="0"/>
+			<Enabled Value="True"/>
+			<Repeat Value="1"/>
 		</Step>
 		<Step Name="TF CNN Benchmarks">
-			<Attribute Name="PS" Value="192.168.1.41,192.168.1.43,192.168.1.44,192.168.1.45,192.168.1.46,192.168.1.47,192.168.1.48"/>
-			<Attribute Name="Workers" Value="192.168.1.41,192.168.1.43,192.168.1.44,192.168.1.45,192.168.1.46,192.168.1.47,192.168.1.48"/>
+			<Attribute Name="PS" Value="31.31.31.41,31.31.31.43,31.31.31.44,31.31.31.45,31.31.31.46,31.31.31.47,31.31.31.48"/>
+			<Attribute Name="Workers" Value="31.31.31.41,31.31.31.43,31.31.31.44,31.31.31.45,31.31.31.46,31.31.31.47,31.31.31.48"/>
 			<Attribute Name="Base Port" Value="5000"/>
 			<Attribute Name="Script" Value="~/benchmarks/scripts/tf_cnn_benchmarks/"/>
 			<Attribute Name="Model" Value="inception4"/>
@@ -120,10 +146,12 @@
 			<Attribute Name="Server Protocol" Value="grpc"/>
 			<Attribute Name="Data Dir" Value="/data/imagenet_data/"/>
 			<Attribute Name="Log Level" Value="0"/>
+			<Enabled Value="True"/>
+			<Repeat Value="1"/>
 		</Step>
 		<Step Name="TF CNN Benchmarks">
-			<Attribute Name="PS" Value="192.168.1.41,192.168.1.43,192.168.1.44,192.168.1.45,192.168.1.46,192.168.1.47,192.168.1.48"/>
-			<Attribute Name="Workers" Value="192.168.1.41,192.168.1.43,192.168.1.44,192.168.1.45,192.168.1.46,192.168.1.47,192.168.1.48"/>
+			<Attribute Name="PS" Value="31.31.31.41,31.31.31.43,31.31.31.44,31.31.31.45,31.31.31.46,31.31.31.47,31.31.31.48"/>
+			<Attribute Name="Workers" Value="31.31.31.41,31.31.31.43,31.31.31.44,31.31.31.45,31.31.31.46,31.31.31.47,31.31.31.48"/>
 			<Attribute Name="Base Port" Value="5000"/>
 			<Attribute Name="Script" Value="~/benchmarks/scripts/tf_cnn_benchmarks/"/>
 			<Attribute Name="Model" Value="resnet50"/>
@@ -132,10 +160,12 @@
 			<Attribute Name="Server Protocol" Value="grpc"/>
 			<Attribute Name="Data Dir" Value="/data/imagenet_data/"/>
 			<Attribute Name="Log Level" Value="0"/>
+			<Enabled Value="True"/>
+			<Repeat Value="1"/>
 		</Step>
 		<Step Name="TF CNN Benchmarks">
-			<Attribute Name="PS" Value="192.168.1.41,192.168.1.43,192.168.1.44,192.168.1.45,192.168.1.46,192.168.1.47,192.168.1.48"/>
-			<Attribute Name="Workers" Value="192.168.1.41,192.168.1.43,192.168.1.44,192.168.1.45,192.168.1.46,192.168.1.47,192.168.1.48"/>
+			<Attribute Name="PS" Value="31.31.31.41,31.31.31.43,31.31.31.44,31.31.31.45,31.31.31.46,31.31.31.47,31.31.31.48"/>
+			<Attribute Name="Workers" Value="31.31.31.41,31.31.31.43,31.31.31.44,31.31.31.45,31.31.31.46,31.31.31.47,31.31.31.48"/>
 			<Attribute Name="Base Port" Value="5000"/>
 			<Attribute Name="Script" Value="~/benchmarks/scripts/tf_cnn_benchmarks/"/>
 			<Attribute Name="Model" Value="resnet152"/>
@@ -144,10 +174,12 @@
 			<Attribute Name="Server Protocol" Value="grpc"/>
 			<Attribute Name="Data Dir" Value="/data/imagenet_data/"/>
 			<Attribute Name="Log Level" Value="0"/>
+			<Enabled Value="True"/>
+			<Repeat Value="1"/>
 		</Step>
 		<Step Name="TF CNN Benchmarks">
-			<Attribute Name="PS" Value="192.168.1.41,192.168.1.43,192.168.1.44,192.168.1.45,192.168.1.46,192.168.1.47,192.168.1.48"/>
-			<Attribute Name="Workers" Value="192.168.1.41,192.168.1.43,192.168.1.44,192.168.1.45,192.168.1.46,192.168.1.47,192.168.1.48"/>
+			<Attribute Name="PS" Value="31.31.31.41,31.31.31.43,31.31.31.44,31.31.31.45,31.31.31.46,31.31.31.47,31.31.31.48"/>
+			<Attribute Name="Workers" Value="31.31.31.41,31.31.31.43,31.31.31.44,31.31.31.45,31.31.31.46,31.31.31.47,31.31.31.48"/>
 			<Attribute Name="Base Port" Value="5000"/>
 			<Attribute Name="Script" Value="~/benchmarks/scripts/tf_cnn_benchmarks/"/>
 			<Attribute Name="Model" Value="vgg16"/>
@@ -156,10 +188,12 @@
 			<Attribute Name="Server Protocol" Value="grpc"/>
 			<Attribute Name="Data Dir" Value="/data/imagenet_data/"/>
 			<Attribute Name="Log Level" Value="0"/>
+			<Enabled Value="True"/>
+			<Repeat Value="1"/>
 		</Step>
 		<Step Name="TF CNN Benchmarks">
-			<Attribute Name="PS" Value="192.168.1.41,192.168.1.43,192.168.1.44,192.168.1.45,192.168.1.46,192.168.1.47,192.168.1.48"/>
-			<Attribute Name="Workers" Value="192.168.1.41,192.168.1.43,192.168.1.44,192.168.1.45,192.168.1.46,192.168.1.47,192.168.1.48"/>
+			<Attribute Name="PS" Value="31.31.31.41,31.31.31.43,31.31.31.44,31.31.31.45,31.31.31.46,31.31.31.47,31.31.31.48"/>
+			<Attribute Name="Workers" Value="31.31.31.41,31.31.31.43,31.31.31.44,31.31.31.45,31.31.31.46,31.31.31.47,31.31.31.48"/>
 			<Attribute Name="Base Port" Value="5000"/>
 			<Attribute Name="Script" Value="~/benchmarks/scripts/tf_cnn_benchmarks/"/>
 			<Attribute Name="Model" Value="vgg19"/>
@@ -168,6 +202,8 @@
 			<Attribute Name="Server Protocol" Value="grpc"/>
 			<Attribute Name="Data Dir" Value="/data/imagenet_data/"/>
 			<Attribute Name="Log Level" Value="0"/>
+			<Enabled Value="True"/>
+			<Repeat Value="1"/>
 		</Step>
 	</Sequence>
 </root>
