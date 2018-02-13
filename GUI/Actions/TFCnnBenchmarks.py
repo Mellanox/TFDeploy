@@ -53,7 +53,7 @@ class TFCnnBenchmarksStep(Step):
                   ["Workers", "12.12.12.25,12.12.12.26"],
                   ["Base Port", "5000"],
                   ["Script", "~/benchmarks/scripts/tf_cnn_benchmarks/"],
-                  ["Model", "trivial"],
+                  ["Model", "vgg16"],
                   ["Batch Size", "32"],
                   ["Num GPUs", "2"],
                   ["Server Protocol", "grpc+verbs"],
@@ -299,8 +299,8 @@ class TFCnnBenchmarksStep(Step):
                     cpu = float(perf[0])
                     mem = float(perf[1])
                     rx_rate_avg = float(perf[2])
-                    tx_rate_avg = float(perf[3])
-                    rx_rate_max = float(perf[4])
+                    rx_rate_max = float(perf[3])
+                    tx_rate_avg = float(perf[4])
                     tx_rate_max = float(perf[5])
                     gpu = sum([float(x) for x in gpu_perf]) / len(gpu_perf)
                 except:
@@ -351,7 +351,8 @@ class TFCnnBenchmarksStep(Step):
     # -------------------------------------------------------------------- #
 
     def perform(self, index):
-        self.setLogsDir(index)
+        Step.perform(self, index)
+        self._stopping = False
         work_dir_name = "tmp." + next(tempfile._get_candidate_names()) + next(tempfile._get_candidate_names())
         work_dir = os.path.join(tempfile._get_default_tempdir(), work_dir_name)
         script_dir = os.path.dirname(self._values[TFCnnBenchmarksStep.ATTRIBUTE_ID_SCRIPT]) 

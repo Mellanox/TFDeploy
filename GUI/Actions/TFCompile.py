@@ -52,7 +52,8 @@ class TFCompileStep(Step):
     # -------------------------------------------------------------------- #
 
     def perform(self, index):
-        self.setLogsDir(index)
+        Step.perform(self, index)
+        
         ##########
         # Build: #
         ##########

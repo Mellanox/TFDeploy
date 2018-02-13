@@ -106,11 +106,10 @@ class Step(object):
     # -------------------------------------------------------------------- #
     
     def setLogsDir(self, index):
-        if self._logs_dir is None:
-            self._logs_dir = os.path.join(TestEnvironment.Get().testLogsDir(),
-                                          "step_%u_%s" % (index, re.sub("[^0-9a-zA-Z]", "_", self.__repr__())))
-            if not os.path.isdir(self._logs_dir):
-                os.makedirs(self._logs_dir)
+        self._logs_dir = os.path.join(TestEnvironment.Get().testLogsDir(),
+                                      "step_%u_%s" % (index, re.sub("[^0-9a-zA-Z]", "_", self.__repr__())))
+        if not os.path.isdir(self._logs_dir):
+            os.makedirs(self._logs_dir)
         
     # -------------------------------------------------------------------- #
     
@@ -149,7 +148,8 @@ class Step(object):
     # -------------------------------------------------------------------- #
     
     def perform(self, index):
-        raise Exception("Unimplemented perform() - step %u." % index) 
+        self.setLogsDir(index)
+        self._stop = False
 
     # -------------------------------------------------------------------- #
 

@@ -65,7 +65,7 @@ class MultiLogWidget(QMdiArea):
     GLOBAL_LOG = GlobalLog()
     SUB_WINDOW_DEFAULT_RATIO_X = 0.8
     SUB_WINDOW_DEFAULT_RATIO_Y = 0.8
-    CASCADE_SKIP_PIXELS_X = 25 
+    CASCADE_SKIP_PIXELS_X = 50 
     CASCADE_SKIP_PIXELS_Y = 25
     
     #--------------------------------------------------------------------#
@@ -145,8 +145,10 @@ class MultiLogWidget(QMdiArea):
         if log is not None:
             log.close()
             self.removeSubWindow(log)
-        self.cascade_x_id -= 1
-        self.cascade_y_id -= 1            
+        if self.cascade_x_id > 0:
+            self.cascade_x_id -= 1
+        if self.cascade_y_id > 0:
+            self.cascade_y_id -= 1            
     
     #--------------------------------------------------------------------#
     

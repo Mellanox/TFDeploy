@@ -124,12 +124,11 @@ def waitForProcesses(processes,
             if not thread.is_alive():
                 retcode = process.instance.returncode
                 pid = process.instance.pid
-                if retcode != 0:
-                    error("Process %u exited with error code %d (elapsed: %.2lf)" % (pid, (0xdeadbeef if retcode is None else retcode), elapsed))
-                else:
-                    if verbose:
-                        log("Process %u finished successfully (elapsed: %.2lf)" % (pid, elapsed))
                 is_ok = on_process_done(process)
+                if not is_ok:
+                    error("Process %u exited with error code %d (elapsed: %.2lf)" % (pid, (0xdeadbeef if retcode is None else retcode), elapsed))
+                elif verbose:
+                    log("Process %u finished successfully (elapsed: %.2lf)" % (pid, elapsed))
                 all_ok = all_ok and is_ok
                 processes.pop(i)
                 threads.pop(i)

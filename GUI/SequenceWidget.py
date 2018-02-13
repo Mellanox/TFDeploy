@@ -509,10 +509,12 @@ class SequenceWidget(QMainWindow):
         sequence_buttons_pane.setLayout(QHBoxLayout())
         sequence_buttons_pane.layout().addWidget(self.b_run)
         sequence_buttons_pane.layout().addWidget(self.b_stop)
+        sequence_buttons_pane.layout().addStretch()
+        sequence_buttons_pane.layout().addWidget(self.b_add)
+        sequence_buttons_pane.layout().addWidget(self.b_edit)
         sequence_buttons_pane.layout().addWidget(self.b_remove)
         sequence_buttons_pane.layout().addWidget(self.b_move_up)
         sequence_buttons_pane.layout().addWidget(self.b_move_down)
-        sequence_buttons_pane.layout().addStretch()
         sequence_pane.layout().addWidget(sequence_buttons_pane)
 
         configurations_folder_widget = self.configurations_folder.createWidget()
@@ -522,7 +524,6 @@ class SequenceWidget(QMainWindow):
         steps_select_pane.setLayout(QVBoxLayout())
         steps_select_pane.layout().setMargin(0)
         steps_select_pane.layout().addWidget(configurations_folder_widget)
-        steps_select_pane.layout().addWidget(self.b_add)
         self._log_widget = MultiLogWidget()
         
         logs_pane = QWidget()
@@ -937,6 +938,7 @@ class SequenceWidget(QMainWindow):
             self.sequence_widget.setSelectionMode(QAbstractItemView.NoSelection)
         
         self.b_add.setEnabled(val)
+        self.b_edit.setEnabled(val)
         self.b_remove.setEnabled(val)
         self.b_move_down.setEnabled(val)
         self.b_move_up.setEnabled(val)
