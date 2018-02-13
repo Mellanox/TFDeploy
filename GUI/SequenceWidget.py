@@ -347,12 +347,13 @@ class SequenceWidget(QMainWindow):
         self._step_logs_dir = None
         self._current_step = None
         self._is_running = False
-        self._stop = False
+        self._do_stop = False
         self._initGui()
 
     #--------------------------------------------------------------------#
                         
     def _initGui(self):
+        
         self.setWindowIcon(QIcon("/usr/share/icons/Humanity/categories/16/preferences-desktop.svg"))
         self.log_signal.connect(self._log)
         self.open_log_signal.connect(self._openLog)
@@ -421,18 +422,47 @@ class SequenceWidget(QMainWindow):
         ############
         # Buttons: #
         ############
-        self.b_add = QPushButton("Add")
-        self.b_remove = QPushButton("-")
-        self.b_move_up = QPushButton("^")
-        self.b_move_down = QPushButton("v")
-        self.b_run = QPushButton("Run")
-        self.b_stop = QPushButton("Stop")
+        self.b_add = QPushButton()
+        self.b_edit = QPushButton()
+        self.b_remove = QPushButton()
+        self.b_move_up = QPushButton()
+        self.b_move_down = QPushButton()
+        self.b_run = QPushButton()
+        self.b_stop = QPushButton()
+
+        
+        self.b_add.setIcon(QIcon("images/add.jpg"));
+        self.b_edit.setIcon(QIcon("images/edit.jpg"));
+        self.b_remove.setIcon(QIcon("images/remove.jpg"));
+        self.b_move_up.setIcon(QIcon("images/move_up.jpg"));
+        self.b_move_down.setIcon(QIcon("images/move_down.jpg"));
+        self.b_run.setIcon(QIcon("images/start.jpg"));
+        self.b_stop.setIcon(QIcon("images/stop.jpg"));
+
+        self.b_add.setIconSize(QSize(32,32))
+        self.b_edit.setIconSize(QSize(32,32))
+        self.b_remove.setIconSize(QSize(32,32))
+        self.b_move_up.setIconSize(QSize(32,32))
+        self.b_move_down.setIconSize(QSize(32,32))
+        self.b_run.setIconSize(QSize(32,32))
+        self.b_stop.setIconSize(QSize(32,32))
+                
+        self.b_add.setStyleSheet("QPushButton { background-color: white }");
+        self.b_edit.setStyleSheet("QPushButton { background-color: white }");        
+        self.b_remove.setStyleSheet("QPushButton { background-color: white }");        
+        self.b_move_up.setStyleSheet("QPushButton { background-color: white }");        
+        self.b_move_down.setStyleSheet("QPushButton { background-color: white }");        
+        self.b_run.setStyleSheet("QPushButton { background-color: white }");
+        self.b_stop.setStyleSheet("QPushButton { background-color: white }");
         
         self.b_add.clicked.connect      (self._bAddClicked)
         self.b_remove.clicked.connect   (self._removeStepFromSequence)
         self.b_move_up.clicked.connect  (self._moveUpInSequence)
         self.b_move_down.clicked.connect(self._moveDownInSequence)
-        self.b_run.clicked.connect      (self._run)
+        self.b_run.clicked.connect      (self._runClicked)
+        self.b_stop.clicked.connect     (self._stopClicked)
+        
+        self.b_stop.setEnabled(False)
         
         #########
         # Menus:
@@ -478,9 +508,11 @@ class SequenceWidget(QMainWindow):
         sequence_buttons_pane = QWidget()
         sequence_buttons_pane.setLayout(QHBoxLayout())
         sequence_buttons_pane.layout().addWidget(self.b_run)
+        sequence_buttons_pane.layout().addWidget(self.b_stop)
         sequence_buttons_pane.layout().addWidget(self.b_remove)
         sequence_buttons_pane.layout().addWidget(self.b_move_up)
         sequence_buttons_pane.layout().addWidget(self.b_move_down)
+        sequence_buttons_pane.layout().addStretch()
         sequence_pane.layout().addWidget(sequence_buttons_pane)
 
         configurations_folder_widget = self.configurations_folder.createWidget()
@@ -680,7 +712,6 @@ class SequenceWidget(QMainWindow):
             self.sequence_widget.item(index, 2).setText(QString.fromUtf8("✘"))
             self.sequence_widget.item(index, 2).setForeground(Qt.red)
 
-            
         self.sequence_widget.item(index, 3).setText(step.name())
         self.sequence_widget.item(index, 4).setText(step.attributesRepr())
 
@@ -868,12 +899,13 @@ class SequenceWidget(QMainWindow):
     #--------------------------------------------------------------------#
             
     def _runSequence(self):
-        self._stop = False
+        self._do_stop = False
         self._reset()
         for index in range(len(self._sequence)):
             if not self._runStep(index):
                 break
-            if self._stop:
+            if self._do_stop:
+                log("Stopped by user.", log_level=LOG_LEVEL_ERROR)
                 break
         self._emitRunSequenceDone()
         
@@ -908,14 +940,16 @@ class SequenceWidget(QMainWindow):
         self.b_remove.setEnabled(val)
         self.b_move_down.setEnabled(val)
         self.b_move_up.setEnabled(val)
-                        
+        self.b_run.setEnabled(val)
+        self.b_stop.setEnabled(not val)
+    
     #--------------------------------------------------------------------#
     
     def _run(self):
         self._saveAction(None)
         self._is_running = True
         self._setEditWidgetsEnabled(False)
-
+        
         self._setTestLogsDir()
         title = "Running: %s" % self._doc.filePath()
         log(title, log_level = LOG_LEVEL_NOTE)
@@ -923,7 +957,26 @@ class SequenceWidget(QMainWindow):
         self._openLog(main_process)
         setMainProcess(main_process)
         self._runSequenceInNewThread()
+        
+    #--------------------------------------------------------------------#
+        
+    def _stop(self):
+        if self._do_stop:
+            return
+        log("Stopping...", log_level=LOG_LEVEL_ERROR)
+        self._do_stop = True
+        self._current_step.stop()
+    
+    #--------------------------------------------------------------------#
+        
+    def _runClicked(self):
+        self._run()
+    
+    #--------------------------------------------------------------------#
 
+    def _stopClicked(self):
+        self._stop()
+        
     #--------------------------------------------------------------------#
     
     def _newAction(self):
@@ -1017,7 +1070,7 @@ if __name__ == '__main__':
     arg_parser.add_argument("-L", "--log_level", type=int, default="3", help="Log level.")    
     
     args = arg_parser.parse_args()
-    app = QApplication([])    
+    app = QApplication([])
     prompt = SequenceWidget()
     if args.xml is not None:
         prompt.loadFromXml(args.xml)

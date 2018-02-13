@@ -67,7 +67,11 @@ class BasicProcess(object):
             self._log_file.write(line + "\n")
             self._log_file.flush()
 
-
+    # -------------------------------------------------------------------- #
+    
+    def isAlive(self):
+        return self.instance.poll() is None        
+        
 ###############################################################################        
 
 def processCommunicateLive(process, on_output = None, on_error = None):
@@ -75,7 +79,7 @@ def processCommunicateLive(process, on_output = None, on_error = None):
         out = process.instance.stdout.readline()
         #err = process.stderr.readline()
         err = ""
-        if (out == "") and (err == "") and (process.instance.poll() is not None):
+        if (out == "") and (err == "") and not process.isAlive():
             break
         if (out != "") and (on_output is not None):
             on_output(out[:-1], process)

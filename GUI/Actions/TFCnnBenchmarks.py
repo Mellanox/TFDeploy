@@ -259,6 +259,7 @@ class TFCnnBenchmarksStep(Step):
         factory = BasicProcess.getFactory(title, log_file_path)
         server = TestEnvironment.Get().getServer(ip)
         process = executeRemoteCommand([server], command, factory = factory)[0]
+        process.name = "%s_%u" % (job_name, task_id)
         process.task_id = task_id
         process.is_worker = job_name == "worker"
         self._processes.append(process)
@@ -329,28 +330,25 @@ class TFCnnBenchmarksStep(Step):
         if handler is not None:
             handler(process)
             
-        self._processes.remove(process)
         if not self._stopping:
-            self._stopping = True  #TODO: lock
-            self._stopAll(process)
-        
+            self._stopping = True            
+            log("Stopping remaining processes...")
+            wait_time_for_workers_to_exit_gracefully = len(self.workers()) - 1
+            time.sleep(wait_time_for_workers_to_exit_gracefully)
+            self._stopAll()
         return process.instance.returncode in [0, 143, -15]
         
     # -------------------------------------------------------------------- #
 
-    def _stopAll(self, process):
-        log("Stopping remaining processes...")
-        wait_time_for_workers_to_exit_gracefully = len(self.workers()) - 1 if process.is_worker else 0
-        time.sleep(wait_time_for_workers_to_exit_gracefully)
-        
+    def _stopAll(self):
+        log("Stopping processes...")
         for process in self._processes:
-            self.runInline("kill -15 %u >& /dev/null" % process.remote_pid, servers=[process.server])            
-#             if not process.is_worker:
-#                 log("   + [%s] ps_%u: %u" % (process.server, process.task_id, process.instance.pid))
-#                 os.killpg(os.getpgid(process.instance.pid), signal.SIGTERM)
+            if process.isAlive():
+                log("   + [%s] %s: %u" % (process.server, process.name, process.instance.pid))            
+                self.runInline("kill -15 %u >& /dev/null" % process.remote_pid, servers=[process.server], verbose=False)
         log("Done.")
          
-# -------------------------------------------------------------------- #
+    # -------------------------------------------------------------------- #
 
     def perform(self, index):
         self.setLogsDir(index)
@@ -411,7 +409,7 @@ class TFCnnBenchmarksStep(Step):
                                on_output=self._onOut,
                                on_process_start=TestEnvironment.onNewProcess(),
                                on_process_done=self._onJobDone)
-        if not res:
+        if not res or self._stop:
             return False
 
         self._appendToPerformanceFile()
@@ -424,6 +422,13 @@ class TFCnnBenchmarksStep(Step):
         waitForProcesses(processes, wait_timeout=10)
         return True
 
+    # -------------------------------------------------------------------- #
+    
+    def stop(self):
+        Step.stop(self)
+        self._stopping = True
+        self._stopAll()
+        
 ###############################################################################################################################################################
 #
 #                                                                         DEMO
