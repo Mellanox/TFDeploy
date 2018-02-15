@@ -176,9 +176,10 @@ class TFCnnBenchmarksStep(Step):
             os.makedirs(process.graph_dir)
         remote_monitor_title = lambda process: "Monitor [%s]" % process.server 
         remote_monitor_bin = os.path.join(self._work_dir, "Monitor.py")
-        remote_monitor_flags = "--cpu %u 0 --gpu 0 --net %s %u 0.1 -d %s" % (process.remote_pid, 
-                                                                             process.rdma_device, process.rdma_port,
-                                                                             process.remote_graph_dir)
+        remote_monitor_flags = "--cpu %u 0 --gpu 0 --net %s %u 0.05 --net_errors %s %u 1 -d %s" % (process.remote_pid, 
+                                                                                                   process.rdma_device, process.rdma_port,
+                                                                                                   process.rdma_device, process.rdma_port,
+                                                                                                   process.remote_graph_dir)
         process.monitor_log_path = os.path.join(process.graph_dir, "monitor.log") 
         process.monitor = RemoteMonitor(process.server, remote_monitor_bin, remote_monitor_flags, remote_monitor_title, process.monitor_log_path)
         
@@ -436,7 +437,11 @@ class TFCnnBenchmarksStep(Step):
 #
 ###############################################################################################################################################################
 
+import shutil
+
 if __name__ == '__main__':
+    if os.path.isdir("/tmp/test_logs"):
+        shutil.rmtree("/tmp/test_logs")        
     TestEnvironment.Get().setTestLogsDir("/tmp/test_logs")
     step = TFCnnBenchmarksStep()
     step.perform(0)
