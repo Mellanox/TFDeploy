@@ -541,7 +541,7 @@ class SequenceWidget(QMainWindow):
 
         central_widget = QWidget()
         central_widget.setLayout(QHBoxLayout())
-        central_widget.layout().addWidget(sequence_pane, 3)
+        central_widget.layout().addWidget(sequence_pane, 2)
         central_widget.layout().addWidget(logs_pane, 5)
         central_widget.layout().addWidget(self.edit_pane, 2)
 
@@ -1083,8 +1083,8 @@ if __name__ == '__main__':
     else:
         setLogLevel(LOG_LEVEL_INFO, LOG_LEVEL_ALL)
         prompt.setTestEnvironment()
-        prompt.loadFromXml("samples/performance_regression.xml")
-        prompt.setGeometry(200, 30, 1900, 800)
-        #prompt.showMaximized()
+        prompt.loadFromXml("samples/performance_regression_lab.xml")
+        #prompt.setGeometry(200, 30, 1900, 800)
+        prompt.showMaximized()
         prompt.show()
         app.exec_()

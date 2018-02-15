@@ -279,6 +279,16 @@ class TFCnnBenchmarksStep(Step):
             self._startProcessMonitors(process)
         elif "images/sec" in line:
             if "total " in line:
+                m = re.match("total images\/sec: ([0-9\.]+)", line)
+                if m is None:
+                    print "Error: Regex match failed. Please contact the developers to fix it."
+                    sys.exit(1)
+                images_sec = float(m.group(1))
+                process.perf.images_sec.val = images_sec
+                process.perf.images_sec.total = images_sec
+                process.perf.images_sec.min = images_sec
+                process.perf.images_sec.max = images_sec
+                process.perf.images_sec.count = 1
                 self._stopProcessMonitors(process)
             else:
                 # https://regex101.com/
