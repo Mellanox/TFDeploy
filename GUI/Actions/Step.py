@@ -4,7 +4,7 @@
 import copy
 
 import sys
-from PyQt4.QtGui import QWidget, QGridLayout, QLineEdit, QLabel
+from PyQt4.QtGui import QWidget, QGridLayout, QLineEdit, QLabel, QComboBox
 from xml.dom import minidom
 from xml.etree import cElementTree as etree
 import re
@@ -14,6 +14,15 @@ from TestEnvironment import TestEnvironment
 from Common.Util import executeCommand, executeRemoteCommand, checkRetCode,\
     copyToRemote, waitForProcesses, BasicProcess
 from Common.Log import log, error, UniBorder, title
+from PyQt4.Qt import QString
+
+###############################################################################
+
+class StepAttribute():
+    def __init__(self, name, default_value, possible_values = None):
+        self.name = name
+        self.default_value = default_value
+        self.possible_values = possible_values
 
 ###############################################################################
 
@@ -22,35 +31,94 @@ class DefaultAttributesWidget(QWidget):
     def __init__(self, attributes, parent = None):
         super(DefaultAttributesWidget, self).__init__(parent)
         self._attributes = attributes
-        self._line_edits = []
+        self._field_widgets = []
+        self._field_labels = []
         self._values = None
+        self._on_field_changed = []
         self._initGui()
 
     # -------------------------------------------------------------------- #
     
     def _initGui(self):
         self.setLayout(QGridLayout())
-        for row in range(len(self._attributes)):
-            attr_name = self._attributes[row][0]
-            le = QLineEdit()
-            self._line_edits.append(le) 
-            self.layout().addWidget(QLabel(attr_name), row, 0)
-            self.layout().addWidget(le, row, 1)
+        for field_index in range(len(self._attributes)):
+            attribute = self._attributes[field_index]
+            l = QLabel(attribute.name)
+            self._field_labels.append(l)
+            if attribute.possible_values is None:
+                w = QLineEdit()
+            else:
+                w = QComboBox()
+                w.addItems(attribute.possible_values)
+            self._field_widgets.append(w)
+            self._bindField(field_index)
+            self.layout().addWidget(l, field_index, 0)
+            self.layout().addWidget(w, field_index, 1)
 
     # -------------------------------------------------------------------- #
     
-    def bindTextChanged(self, handler):
-        for row in range(len(self._line_edits)):
-            le = self._line_edits[row]
-            le.textChanged.connect(handler(row))
+    def _showField(self, field_index, val):
+        if val:
+            self._field_labels[field_index].show()
+            self._field_widgets[field_index].show()
+        else:
+            self._field_labels[field_index].hide()
+            self._field_widgets[field_index].hide()
+
+    # -------------------------------------------------------------------- #
+    
+    def _setFieldValue(self, field_index, val):
+        w = self._field_widgets[field_index]
+        if isinstance(w, QLineEdit):
+            w.setText(val)
+        elif isinstance(w, QComboBox):
+            index = w.findText(QString(str(val)))
+            w.setCurrentIndex(index)
+            
+    # -------------------------------------------------------------------- #
+    
+    def _getFieldValue(self, field_index):
+        w = self._field_widgets[field_index]
+        if isinstance(w, QLineEdit):
+            return w.text()
+        elif isinstance(w, QComboBox):
+            return w.currentText()
+        return None
+        
+    # -------------------------------------------------------------------- #
+
+    def _onFieldChanged(self, field_index, val):
+#         print "ON FIELD CHANGED " + str(field_index) + " " + str(val)
+        for handler in self._on_field_changed:
+            handler(field_index, val)
+
+    # -------------------------------------------------------------------- #
+    
+    def _bindField(self, field_index):
+        w = self._field_widgets[field_index]
+        op = lambda _: self._onFieldChanged(field_index, self._getFieldValue(field_index))
+        if isinstance(w, QLineEdit):
+            w.textChanged.connect(op)
+        elif isinstance(w, QComboBox):
+            w.currentIndexChanged.connect(op)
+
+    # -------------------------------------------------------------------- #
+    
+    def addFieldChangedHandler(self, handler):
+        self._on_field_changed.append(handler)
         
     # -------------------------------------------------------------------- #
 
     def load(self, values):
         self._values = values 
-        for row in range(len(self._line_edits)):
-            attr_value = self._values[row]
-            self._line_edits[row].setText(str(attr_value))
+        for field_index in range(len(self._field_widgets)):
+            attr_value = self._values[field_index]
+            w = self._field_widgets[field_index]
+            if isinstance(w, QLineEdit): 
+                w.setText(str(attr_value))
+            elif isinstance(w, QComboBox):
+                index = w.findText(QString(str(attr_value)))
+                w.setCurrentIndex(index)
         
     # -------------------------------------------------------------------- #
                     
@@ -94,7 +162,7 @@ class Step(object):
     def __init__(self, values = None):
         attributes = type(self).ATTRIBUTES
         if values is None:
-            values = [att[1] for att in attributes]
+            values = [att.default_value for att in attributes]
         self._values = values   # The attribute values of individual step
         self._status = Step.STATUS_IDLE
         self._widget = None
@@ -255,7 +323,7 @@ class Step(object):
         attributes = type(self).ATTRIBUTES
         step_node = etree.SubElement(root_node, "Step", Name = type(self).NAME)
         for i in range(len(attributes)):
-            attr_name = attributes[i][0]
+            attr_name = attributes[i].name
             attr_value = self._values[i]
             attr_node = etree.SubElement(step_node, "Attribute", Name = attr_name, Value = str(attr_value))
         etree.SubElement(step_node, "Enabled", Value = str(self.isEnabled()))
@@ -274,7 +342,7 @@ class Step(object):
         
         step_class = Step.__REGISTERED_STEPS[step_name]
         
-        attribute_names = [attr[0] for attr in step_class.ATTRIBUTES]
+        attribute_names = [attr.name for attr in step_class.ATTRIBUTES]
         step = step_class() 
         for attr_node in step_node.getchildren():
             if attr_node.tag == "Attribute":

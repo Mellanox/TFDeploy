@@ -827,7 +827,7 @@ class SequenceWidget(QMainWindow):
                 break
         
         if not widget_exists:
-            widget.bindTextChanged(self._onAttributeChanged)
+            widget.addFieldChangedHandler(self._onAttributeChanged)
             layout.addWidget(widget)
             layout.addStretch(1) 
 
@@ -837,13 +837,11 @@ class SequenceWidget(QMainWindow):
     
     #--------------------------------------------------------------------#
     
-    def _onAttributeChanged(self, attribute_index):
-        def op(text):
-            self._attributes_widget._values[attribute_index] = text 
-            step_index = self.sequence_widget.currentRow()
-            self._refreshItem(step_index)
-            self._setModified()
-        return op
+    def _onAttributeChanged(self, attribute_index, value):
+        self._attributes_widget._values[attribute_index] = value 
+        step_index = self.sequence_widget.currentRow()
+        self._refreshItem(step_index)
+        self._setModified()
     
     #--------------------------------------------------------------------#
     
@@ -1083,8 +1081,8 @@ if __name__ == '__main__':
     else:
         setLogLevel(LOG_LEVEL_INFO, LOG_LEVEL_ALL)
         prompt.setTestEnvironment()
-        prompt.loadFromXml("samples/performance_regression_lab.xml")
-        #prompt.setGeometry(200, 30, 1900, 800)
-        prompt.showMaximized()
+        prompt.loadFromXml("samples/performance_regression.xml")
+        prompt.setGeometry(200, 30, 1900, 600)
+#         prompt.showMaximized()
         prompt.show()
         app.exec_()

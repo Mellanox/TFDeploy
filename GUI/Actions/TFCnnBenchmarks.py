@@ -10,13 +10,22 @@ from Monitor import Measurement, CommonPerformanceMeasurements
 from RemoteMonitor import RemoteMonitor
 import os
 import time
-import signal
 
 from TestEnvironment import TestEnvironment
 from Common.FormattedTable import FormattedTable
 from Common.Log import LogWriter, LOG_LEVEL_NOTE, LOG_LEVEL_INFO, log, title,\
     error, UniBorder
 from Common.Util import BasicProcess, executeRemoteCommand, waitForProcesses
+from Actions.Step import StepAttribute, DefaultAttributesWidget
+
+###############################################################################
+
+class RemoteDeviceInfo(object):
+    def __init__(self):
+        self.link = None
+        self.name = None
+        self.port = 0
+        self.is_up = False
 
 ###############################################################################
 
@@ -38,27 +47,74 @@ class TFCnnBenchmarksStep(Step):
     
     NAME = "TF CNN Benchmarks"
     
-    ATTRIBUTE_ID_PS = 0
-    ATTRIBUTE_ID_WORKERS = 1
-    ATTRIBUTE_ID_BASE_PORT = 2
-    ATTRIBUTE_ID_SCRIPT = 3
-    ATTRIBUTE_ID_MODEL = 4
-    ATTRIBUTE_ID_BATCH_SIZE = 5
-    ATTRIBUTE_ID_NUM_GPUS = 6
-    ATTRIBUTE_ID_SERVER_PROTOCOL = 7
-    ATTRIBUTE_ID_DATA_DIR = 8
-    ATTRIBUTE_ID_LOG_LEVEL = 9
+    ATTRIBUTE_ID_MODE = 0
+    ATTRIBUTE_ID_ALL_REDUCE_SPECS = 1
+    ATTRIBUTE_ID_CONTROLLER = 2
+    ATTRIBUTE_ID_PS = 3
+    ATTRIBUTE_ID_WORKERS = 4
+    ATTRIBUTE_ID_BASE_PORT = 5
+    ATTRIBUTE_ID_SCRIPT = 6
+    ATTRIBUTE_ID_MODEL = 7
+    ATTRIBUTE_ID_BATCH_SIZE = 8
+    ATTRIBUTE_ID_NUM_GPUS = 9
+    ATTRIBUTE_ID_SERVER_PROTOCOL = 10
+    ATTRIBUTE_ID_DATA_DIR = 11
+    ATTRIBUTE_ID_LOG_LEVEL = 12
     
-    ATTRIBUTES = [["PS", "12.12.12.25,12.12.12.26"],
-                  ["Workers", "12.12.12.25,12.12.12.26"],
-                  ["Base Port", "5000"],
-                  ["Script", "~/benchmarks/scripts/tf_cnn_benchmarks/"],
-                  ["Model", "vgg16"],
-                  ["Batch Size", "32"],
-                  ["Num GPUs", "2"],
-                  ["Server Protocol", "grpc+verbs"],
-                  ["Data Dir", "/data/imagenet_data/"],
-                  ["Log Level", "0"]]
+    MODE_PARAMETER_SERVER = 0
+    MODE_DISTRIBUTED_ALL_REDUCE = 1
+    
+    MODE_NAMES = ["Parameter Server", "Distributed All-Reduce"]
+    ALL_REDUCE_SPECS = ["xring", "xring#2", "nccl", "nccl/xring", "pscpu", "psgpu#4", "pscpu:2k:pscpu#2:64k:xring", "pscpu/pscpu#2"] 
+    MODELS = ["trivial", "inception3", "inception4", "resnet50", "resnet101", "resnet152", "vgg16", "vgg19"]
+    
+    ATTRIBUTES = [StepAttribute("Mode", MODE_NAMES[1], MODE_NAMES),
+                  StepAttribute("All-Reduce Spec", ALL_REDUCE_SPECS[0], ALL_REDUCE_SPECS),
+                  StepAttribute("Controller", "12.12.12.25"),
+                  StepAttribute("PS", "12.12.12.25"),
+                  StepAttribute("Workers", "12.12.12.25,12.12.12.26"),
+                  StepAttribute("Base Port", "5000"),
+                  StepAttribute("Script", "~/benchmarks/scripts/tf_cnn_benchmarks/"),
+                  StepAttribute("Model", "vgg16", MODELS),
+                  StepAttribute("Batch Size", "32"),
+                  StepAttribute("Num GPUs", "2"),
+                  StepAttribute("Server Protocol", "grpc+verbs"),
+                  StepAttribute("Data Dir", "/data/imagenet_data/"),
+                  StepAttribute("Log Level", "0")]
+
+    # -------------------------------------------------------------------- #
+
+    class AttributesWidget(DefaultAttributesWidget):
+        def __init__(self, attributes, parent = None):
+            super(TFCnnBenchmarksStep.AttributesWidget, self).__init__(attributes, parent = None)
+        
+        def _setMode(self, val):
+            if val in TFCnnBenchmarksStep.MODE_NAMES:
+                mode = TFCnnBenchmarksStep.MODE_NAMES.index(val)
+            else:
+                mode = TFCnnBenchmarksStep.MODE_NAMES[0]
+                self._setFieldValue(TFCnnBenchmarksStep.ATTRIBUTE_ID_MODE, mode)
+                
+            is_parameter_server       = (mode == TFCnnBenchmarksStep.MODE_PARAMETER_SERVER)
+            is_distributed_all_reduce = (mode == TFCnnBenchmarksStep.MODE_DISTRIBUTED_ALL_REDUCE)
+            
+            self._showField(TFCnnBenchmarksStep.ATTRIBUTE_ID_ALL_REDUCE_SPECS, is_distributed_all_reduce)
+            self._showField(TFCnnBenchmarksStep.ATTRIBUTE_ID_CONTROLLER, is_distributed_all_reduce)
+            self._showField(TFCnnBenchmarksStep.ATTRIBUTE_ID_PS, is_parameter_server)
+            
+        def _onFieldChanged(self, field_index, val):
+            if field_index == TFCnnBenchmarksStep.ATTRIBUTE_ID_MODE:
+                self._setMode(val)
+            DefaultAttributesWidget._onFieldChanged(self, field_index, val) 
+            
+        def load(self, values):
+            DefaultAttributesWidget.load(self, values)
+            mode = self._getFieldValue(TFCnnBenchmarksStep.ATTRIBUTE_ID_MODE)
+            self._setMode(mode)
+
+    # -------------------------------------------------------------------- #
+    
+    WIDGET_CLASS = AttributesWidget
 
     # -------------------------------------------------------------------- #
     
@@ -70,6 +126,16 @@ class TFCnnBenchmarksStep(Step):
 
     # -------------------------------------------------------------------- #
 
+    def mode(self):
+        mode_name = os.path.expandvars(self._values[TFCnnBenchmarksStep.ATTRIBUTE_ID_MODE])
+        return TFCnnBenchmarksStep.MODE_NAMES.index(mode_name)
+    
+    def all_reduce_spec(self):
+        return os.path.expandvars(self._values[TFCnnBenchmarksStep.ATTRIBUTE_ID_ALL_REDUCE_SPECS])
+
+    def controller(self):
+        return os.path.expandvars(self._values[TFCnnBenchmarksStep.ATTRIBUTE_ID_CONTROLLER])
+    
     def ps(self):
         return os.path.expandvars(self._values[TFCnnBenchmarksStep.ATTRIBUTE_ID_PS]).split(",")
     
@@ -99,6 +165,12 @@ class TFCnnBenchmarksStep(Step):
     
     def log_level(self):
         return self._values[TFCnnBenchmarksStep.ATTRIBUTE_ID_LOG_LEVEL]
+    
+    def trace_file(self):
+        return None
+    
+    def model_graph_file(self):
+        return None
     
     # -------------------------------------------------------------------- #
     
@@ -177,8 +249,8 @@ class TFCnnBenchmarksStep(Step):
         remote_monitor_title = lambda process: "Monitor [%s]" % process.server 
         remote_monitor_bin = os.path.join(self._work_dir, "Monitor.py")
         remote_monitor_flags = "--cpu %u 0 --gpu 0 --net %s %u 0.05 --net_errors %s %u 1 -d %s" % (process.remote_pid, 
-                                                                                                   process.rdma_device, process.rdma_port,
-                                                                                                   process.rdma_device, process.rdma_port,
+                                                                                                   process.rdma_device.name, process.rdma_device.port,
+                                                                                                   process.rdma_device.name, process.rdma_device.port,
                                                                                                    process.remote_graph_dir)
         process.monitor_log_path = os.path.join(process.graph_dir, "monitor.log") 
         process.monitor = RemoteMonitor(process.server, remote_monitor_bin, remote_monitor_flags, remote_monitor_title, process.monitor_log_path)
@@ -243,39 +315,134 @@ class TFCnnBenchmarksStep(Step):
 
     # -------------------------------------------------------------------- #
     
+    def _findRemoteProcessID(self, process):
+        process.remote_pid = None
+        def parser(line, parser):
+            process.remote_pid = int(line.split()[1])
+            
+        while process.remote_pid is None:
+            procs = executeRemoteCommand([process.server], 
+                                         "ps -ef | grep %s | grep job_name=%s | grep task_index=%u | grep -v ssh" % (self._work_dir, process.job_name, process.task_id), 
+                                         verbose=False)
+            waitForProcesses(procs, 5, on_output=parser, verbose=False)
+            time.sleep(0.1)
+        
+    # -------------------------------------------------------------------- #
+    
+    def _getDeviceNameAndPort(self, ip):
+        res = RemoteDeviceInfo()
+
+        def linkNameParser(line, process):
+            res.link = line
+        
+        def deviceNameAndPortParser(line, process):
+            parts = line.split()
+            res.name = parts[0]
+            res.port = int(parts[2])
+            res.is_up = parts[5] == "(Up)"
+        
+        server = TestEnvironment.Get().getServer(ip)
+        procs = executeRemoteCommand([server], "ip -o a s | grep %s | cut -d ' ' -f 2 | cut -d'.' -f1" % ip, verbose=False)
+        if not waitForProcesses(procs, wait_timeout=5, on_output=linkNameParser, verbose=False):
+            return None
+        procs = executeRemoteCommand([server], "ibdev2netdev | grep %s" % res.link, verbose = False)
+        if not waitForProcesses(procs, wait_timeout=5, on_output=deviceNameAndPortParser, verbose=False):
+            return None
+        return res
+                
+    # -------------------------------------------------------------------- #
+    
     def _runJob(self, work_dir, ip, job_name, task_id):
-        command = ""
-        command += " TF_PS_HOSTS=%s" % ",".join(self._cluster_ps)
-        command += " TF_WORKER_HOSTS=%s" % ",".join(self._cluster_workers)
-        command += " TF_MODEL=%s" % self.model()
-        command += " TF_NUM_GPUS=%s" % self.num_gpus()
-        command += " TF_BATCH_SIZE=%s" % self.batch_size()
-        command += " TF_SERVER_PROTOCOL=%s" % self.server_protocol()
-        command += " TF_CPP_MIN_VLOG_LEVEL=%s" % self.log_level()
-        command += " TF_DATA_DIR=%s" % self.data_dir()
-        command += " DEVICE_IP=%s" % ip
-        command += " %s/run_job2.sh %s %u" % (work_dir, job_name, task_id)
+        device_info = self._getDeviceNameAndPort(ip)
+        if device_info is None:
+            raise Exception("Error")
+        
+        #####################
+        # Build TF command: #
+        #####################
+        tf_command =  ""
+        
+        ##################
+        # Env variables: #
+        ##################
+        tf_command += " TF_CPP_MIN_VLOG_LEVEL=%s" % self.log_level()
+        tf_command += " RDMA_DEVICE=%s" % device_info.name
+        tf_command += " RDMA_DEVICE_PORT=%u" % device_info.port
+        tf_command += " RDMA_GID_INDEX=3"
+        tf_command += " RDMA_PKEY=0"
+        tf_command += " RDMA_QUEUE_DEPTH=1024"
+        tf_command += " RDMA_TIMEOUT=10"
+        tf_command += " RDMA_RETRY_CNT=10"
+        tf_command += " RDMA_SL=1"
+        tf_command += " RDMA_MTU=512"
+        tf_command += " RDMA_TRAFFIC_CLASS=8"
+        tf_command += " UCX_NET_DEVICES=%s:%u" % (device_info.name, device_info.port)
+        if job_name in ["ps", "controller"]:
+            tf_command += " CUDA_VISIBLE_DEVICES="
+
+        ##############  
+        # UCX stuff: #
+        ##############
+        # Ucx should be compiled ./contrib/configure-devel --enable-debug 
+        #export UCX_IB_ETH_PAUSE_ON=y
+        #export UCX_LOG_LEVEL=trace 
+
+        ###############
+        # GRPC Debug: #
+        ###############
+        #export GRPC_VERBOSITY=DEBUG
+        #export GRPC_TRACE=api,call_combiner
+        #export GRPC_TRACE=queue_pluck,flowctl,http1,http2_stream_state,http,op_failure
+        #export GRPC_TRACE=client_channel,call_error,channel,server_channel,channel_stack_builder,connectivity_state  #all
+
+        ##############
+        # Arguments: #
+        ##############
+        # tf_command += " gdb --args"
+        tf_command += " python -u %s/tf_cnn_benchmarks.py" % self._work_dir
+        tf_command += " --job_name=%s" % job_name
+        tf_command += " --task_index=%u" % task_id
+        tf_command += " --worker_hosts=%s" % ",".join(self._cluster_workers)
+        if self.mode() == TFCnnBenchmarksStep.MODE_PARAMETER_SERVER:
+            tf_command += " --ps_hosts=%s" % ",".join(self._cluster_ps)
+        elif self.mode() == TFCnnBenchmarksStep.MODE_DISTRIBUTED_ALL_REDUCE:
+            tf_command += " --variable_update=distributed_all_reduce"
+            tf_command += " --all_reduce_spec=%s" % self.all_reduce_spec()
+        if job_name in ["worker", "controller"]:
+            tf_command += " --model=%s" % self.model()
+            tf_command += " --batch_size=%s" % self.batch_size()
+            tf_command += " --server_protocol=%s" % self.server_protocol()
+            tf_command += " --data_dir=%s" % self.data_dir()
+            if self.num_gpus() > 0:
+                tf_command += " --num_gpus=%s --local_parameter_device=gpu" % self.num_gpus()
+            if self.trace_file():
+                tf_command += "--trace_file=trace_%s_%u.json" % (job_name, task_id)
+        
+        #command = " %s/run_job2.sh %s" % (self._work_dir, tf_command)
+        command = tf_command
+
         title = "[%s] %s - %u" % (ip, job_name, task_id)
         log_file_path = os.path.join(self._logs_dir, "%s_%u.log" % (job_name, task_id))
         factory = BasicProcess.getFactory(title, log_file_path)
         server = TestEnvironment.Get().getServer(ip)
         process = executeRemoteCommand([server], command, factory = factory)[0]
         process.name = "%s_%u" % (job_name, task_id)
+        process.job_name = job_name 
         process.task_id = task_id
         process.is_worker = job_name == "worker"
+        process.rdma_device = device_info
+        self._findRemoteProcessID(process)        
         self._processes.append(process)
         return process
 
     # -------------------------------------------------------------------- #
     
     def _onOut(self, line, process):
-        if "PROCESS ID: " in line:
-            process.remote_pid = int(line.split("PROCESS ID: ")[1])
-        elif "RDMA device: " in line:
+        if "RDMA device: " in line:
             process.rdma_device = line.split("RDMA device: ")[1]
         elif "RDMA port: " in line:
             process.rdma_port = int(line.split("RDMA port: ")[1])
-        elif "Img/sec" in line:
+        elif "Running warm up" in line:
             self._startProcessMonitors(process)
         elif "images/sec" in line:
             if "total " in line:
@@ -355,7 +522,8 @@ class TFCnnBenchmarksStep(Step):
         log("Stopping processes...")
         for process in self._processes:
             if process.isAlive():
-                log("   + [%s] %s: %u" % (process.server, process.name, process.instance.pid))            
+                log("   + [%s] %s: %u" % (process.server, process.name, process.instance.pid))
+                os.kill(process.instance.pid, 15)            
                 self.runInline("kill -15 %u >& /dev/null" % process.remote_pid, servers=[process.server], verbose=False)
         log("Done.")
          
@@ -408,14 +576,20 @@ class TFCnnBenchmarksStep(Step):
         
         title("Running:", UniBorder.BORDER_STYLE_SINGLE)
         processes = []
-        for i in range(len(self.ps())):
-            ip = self.ps()[i]
-            process = self._runJob(work_dir, ip, "ps", i)
-            processes.append(process)
         for i in range(len(self.workers())):
             ip = self.workers()[i]
             process = self._runJob(work_dir, ip, "worker", i)
             processes.append(process)
+        
+        if self.mode() == TFCnnBenchmarksStep.MODE_PARAMETER_SERVER:
+            for i in range(len(self.ps())):
+                ip = self.ps()[i]
+                process = self._runJob(work_dir, ip, "ps", i)
+                processes.append(process)
+        elif self.mode() == TFCnnBenchmarksStep.MODE_DISTRIBUTED_ALL_REDUCE:
+            process = self._runJob(work_dir, ip, "controller", 0)
+            processes.append(process) 
+        
         res = waitForProcesses(processes, 
                                wait_timeout=600,
                                on_output=self._onOut,

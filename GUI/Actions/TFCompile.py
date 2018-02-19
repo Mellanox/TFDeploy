@@ -9,6 +9,7 @@ from Common.Log import UniBorder, title
 from Common.Util import executeRemoteCommand, waitForProcesses
 from TestEnvironment import TestEnvironment
 from Step import Step
+from Actions.Step import StepAttribute
 
 ###############################################################################
 
@@ -22,10 +23,10 @@ class TFCompileStep(Step):
     ATTRIBUTE_ID_ADDITIONAL_FLAGS = 2
     ATTRIBUTE_ID_INSTALL_SERVERS = 3
     
-    ATTRIBUTES = [["TensorFlow home", "~/tensorflow"],
-                  ["CUDA", "True"],
-                  ["Additional build flags", ""],
-                  ["Install on servers", "12.12.12.25,12.12.12.26"]]
+    ATTRIBUTES = [StepAttribute("TensorFlow home", "~/tensorflow"),
+                  StepAttribute("CUDA", "True"),
+                  StepAttribute("Additional build flags", ""),
+                  StepAttribute("Install on servers", "12.12.12.25,12.12.12.26")]
 
     # -------------------------------------------------------------------- #
     
