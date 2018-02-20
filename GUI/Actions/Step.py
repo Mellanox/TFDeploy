@@ -12,7 +12,7 @@ import os
 
 from TestEnvironment import TestEnvironment
 from Common.Util import executeCommand, executeRemoteCommand, checkRetCode,\
-    copyToRemote, waitForProcesses, BasicProcess
+    copyToRemote, waitForProcesses, BasicProcess, toFileName
 from Common.Log import log, error, UniBorder, title
 from PyQt4.Qt import QString
 
@@ -175,9 +175,11 @@ class Step(object):
     
     def setLogsDir(self, index):
         self._logs_dir = os.path.join(TestEnvironment.Get().testLogsDir(),
-                                      "step_%u_%s" % (index, re.sub("[^0-9a-zA-Z]", "_", self.__repr__())))
+                                      "step_%u_%s" % (index, toFileName(self.__repr__())))
         if not os.path.isdir(self._logs_dir):
             os.makedirs(self._logs_dir)
+        link_path = os.path.join(TestEnvironment.Get().testLogsDir(), "step_%u" % index)
+        os.symlink(self._logs_dir, link_path)
         
     # -------------------------------------------------------------------- #
     

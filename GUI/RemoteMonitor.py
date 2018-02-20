@@ -104,15 +104,15 @@ class RemoteMonitor(object):
        
 if __name__ == '__main__':
     
-    rm = RemoteMonitor("12.12.12.25", "/home/eladw/TFDeploy/GUI/Monitor.py", "--cpu 1 0 --gpu 0 --net mlx5_0 1 0.1 -d .")
+    rm = RemoteMonitor("12.12.12.25", "/home/eladw/TFDeploy/GUI/Monitor.py", "--cpu 1,2 0 --gpu 0 --net mlx5_0:1 0.1 -d .")
     print rm.search()
     print rm.search("GPU")
     print rm.get()
-    print rm.get(["CPU"])
-    print rm.get(["CPU.val"])
-    print rm.get(["CPU.avg", "MEM.avg", "TDTA.rate.avg"])
+    print rm.get(["STIME-1"])
+    print rm.get(["STIME-1.val"])
+    print rm.get(["STIME-1.avg", "RDTA-mlx5_0:1.avg", "TDTA-mlx5_0:1.rate.avg"])
     
-    cpu = Measurement("CPU", "%")
+    cpu = Measurement("STIME-2", "%")
     rm.fillMeasurement(cpu)
     print cpu
 

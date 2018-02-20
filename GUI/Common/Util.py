@@ -7,6 +7,12 @@ import threading
 import sys
 from Log import log,error,title,UniBorder,LOG_LEVEL_NOTE
 import os
+import re
+
+###############################################################################
+
+def toFileName(val):
+    return re.sub("[^0-9a-zA-Z]", "_", val)
 
 ###############################################################################
 

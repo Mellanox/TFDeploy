@@ -387,65 +387,96 @@ class StickyCounterSampler(Sampler):
             counter.update()
         return True
 
+###############################################################################
 
+def procStatUTimeParser(val):
+    return int(val.split()[13])
+     
+def procStatSTimeParser(val):
+    return int(val.split()[14])
+
+class CPUSampler(StickyCounterSampler):
+  
+    def __init__(self, pids, delay = 0, graph_dir = None):
+        super(CPUSampler, self).__init__(delay, graph_dir)
+        self._pids = pids
+
+        for pid in self._pids:
+            stime = Measurement("STIME-%u" % pid, "u", False, width=10, rate_width=8)
+            utime = Measurement("UTIME-%u" % pid, "u", False, width=10, rate_width=8)
+            counters_path = os.path.join("/proc", "%u" % pid, "stat")
+            self._counters.append(StickyCounter(self, stime, counters_path, procStatSTimeParser))                           
+            self._counters.append(StickyCounter(self, utime, counters_path, procStatUTimeParser))
+            self._measurements.append(stime)
+            self._measurements.append(utime)
+    
 ###############################################################################
 
 class RXTXSampler(StickyCounterSampler):
   
-    def __init__(self, device, port, delay = 0, graph_dir = None):
+    def __init__(self, devices, delay = 0, graph_dir = None):
         super(RXTXSampler, self).__init__(delay, graph_dir)
-        self._device = device
-        self._port = port
-        
-        self._rpkt = Measurement("RPKT", "Mpkts", True)
-        self._rdta = Measurement("RDTA", "Mbit",  True, width=10, rate_width=8)
-        self._tpkt = Measurement("TPKT", "Mpkts", True)
-        self._tdta = Measurement("TDTA", "Mbit",  True, width=10, rate_width=8)
+        self._devices = devices
 
-        counters_dir = os.path.join("/sys", "class", "infiniband", self._device, "ports", str(self._port), "counters")
-        rpkt_path = os.path.join(counters_dir, "port_rcv_packets")
-        rdta_path = os.path.join(counters_dir, "port_rcv_data")
-        tpkt_path = os.path.join(counters_dir, "port_xmit_packets")
-        tdta_path = os.path.join(counters_dir, "port_xmit_data")
+        for device in devices:
+            parts = device.split(":")
+            dev_name = parts[0]
+            dev_port = parts[1]
+            
+            rpkt = Measurement("RPKT-%s" % device, "Mpkts", True)
+            rdta = Measurement("RDTA-%s" % device, "Mbit",  True, width=10, rate_width=8)
+            tpkt = Measurement("TPKT-%s" % device, "Mpkts", True)
+            tdta = Measurement("TDTA-%s" % device, "Mbit",  True, width=10, rate_width=8)
 
-        self._counters = []
-        self._counters.append(StickyCounter(self, self._rpkt, rpkt_path, ToMegaParser))                           
-        self._counters.append(StickyCounter(self, self._rdta, rdta_path, ToMbitParser))
-        self._counters.append(StickyCounter(self, self._tpkt, tpkt_path, ToMegaParser))
-        self._counters.append(StickyCounter(self, self._tdta, tdta_path, ToMbitParser))
+            counters_dir = os.path.join("/sys", "class", "infiniband", dev_name, "ports", dev_port, "counters")
+            rpkt_path = os.path.join(counters_dir, "port_rcv_packets")
+            rdta_path = os.path.join(counters_dir, "port_rcv_data")
+            tpkt_path = os.path.join(counters_dir, "port_xmit_packets")
+            tdta_path = os.path.join(counters_dir, "port_xmit_data")
+
+            self._counters.append(StickyCounter(self, rpkt, rpkt_path, ToMegaParser))                           
+            self._counters.append(StickyCounter(self, rdta, rdta_path, ToMbitParser))
+            self._counters.append(StickyCounter(self, tpkt, tpkt_path, ToMegaParser))
+            self._counters.append(StickyCounter(self, tdta, tdta_path, ToMbitParser))
         
-        self._measurements = [self._rpkt, self._rdta, self._tpkt, self._tdta]
+            self._measurements.append(rpkt)
+            self._measurements.append(rdta)
+            self._measurements.append(tpkt)
+            self._measurements.append(tdta)
     
 ###############################################################################
 
 class NetErrorsSampler(StickyCounterSampler):
   
-    def __init__(self, device, port, delay = 0, graph_dir = None):
+    def __init__(self, devices, delay = 0, graph_dir = None):
         super(NetErrorsSampler, self).__init__(delay, graph_dir)
-        self._device = device
-        self._port = port
-        
-        self._excessive_buffer_overrun_errors   = Measurement("XBUF_OVERRUN_ERRORS"       , width=8)
-        self._port_xmit_discards                = Measurement("PORT_XMIT_DISCARDS"        , width=8)
-        self._port_rcv_errors                   = Measurement("PORT_RCV_ERRORS"           , width=8) 
-        self._port_rcv_constraint_errors        = Measurement("PORT_RCV_CONSTRAINT_ERRORS", width=8)
+        self._devices = devices
 
-        counters_dir = os.path.join("/sys", "class", "infiniband", self._device, "ports", str(self._port), "counters")
-        excessive_buffer_overrun_errors_path    = os.path.join(counters_dir, "excessive_buffer_overrun_errors")
-        port_xmit_discards_path                 = os.path.join(counters_dir, "port_xmit_discards")
-        port_rcv_errors_path                    = os.path.join(counters_dir, "port_rcv_errors")
-        port_rcv_constraint_errors_path         = os.path.join(counters_dir, "port_rcv_constraint_errors")
-
-        self._counters = []
-        self._counters.append(StickyCounter(self, self._excessive_buffer_overrun_errors, excessive_buffer_overrun_errors_path))
-        self._counters.append(StickyCounter(self, self._port_xmit_discards, port_xmit_discards_path ))
-        self._counters.append(StickyCounter(self, self._port_rcv_errors, port_rcv_errors_path))
-        self._counters.append(StickyCounter(self, self._port_rcv_constraint_errors, port_rcv_constraint_errors_path))
-        
-        self._measurements = [self._excessive_buffer_overrun_errors,
-                              self._port_xmit_discards,
-                              self._port_rcv_errors,
-                              self._port_rcv_constraint_errors]
+        for device in devices:
+            parts = device.split(":")
+            dev_name = parts[0]
+            dev_port = parts[1]
+            
+            excessive_buffer_overrun_errors   = Measurement("XBUF_OVERRUN_ERRORS-%s"        % device, width=8)
+            port_xmit_discards                = Measurement("PORT_XMIT_DISCARDS-%s"         % device, width=8)
+            port_rcv_errors                   = Measurement("PORT_RCV_ERRORS-%s"            % device, width=8) 
+            port_rcv_constraint_errors        = Measurement("PORT_RCV_CONSTRAINT_ERRORS-%s" % device, width=8)
+    
+            counters_dir = os.path.join("/sys", "class", "infiniband", dev_name, "ports", dev_port, "counters")
+            excessive_buffer_overrun_errors_path    = os.path.join(counters_dir, "excessive_buffer_overrun_errors")
+            port_xmit_discards_path                 = os.path.join(counters_dir, "port_xmit_discards")
+            port_rcv_errors_path                    = os.path.join(counters_dir, "port_rcv_errors")
+            port_rcv_constraint_errors_path         = os.path.join(counters_dir, "port_rcv_constraint_errors")
+    
+            self._counters.append(StickyCounter(self, excessive_buffer_overrun_errors, excessive_buffer_overrun_errors_path))
+            self._counters.append(StickyCounter(self, port_xmit_discards, port_xmit_discards_path ))
+            self._counters.append(StickyCounter(self, port_rcv_errors, port_rcv_errors_path))
+            self._counters.append(StickyCounter(self, port_rcv_constraint_errors, port_rcv_constraint_errors_path))
+            
+            self._measurements.append(excessive_buffer_overrun_errors)
+            self._measurements.append(port_xmit_discards)
+            self._measurements.append(port_rcv_errors)
+            self._measurements.append(port_rcv_constraint_errors)
     
 
 ###############################################################################
@@ -657,10 +688,10 @@ class Monitor(object):
 if __name__ == '__main__':
 
     arg_parser = argparse.ArgumentParser(description = "Simple system monitor with few samplers (CPU, GPU, etc...)")
-    arg_parser.add_argument("-c", "--cpu", action="append", nargs=2, metavar=("pid", "delay"), help="Enable CPU sampler for process-id")
+    arg_parser.add_argument("-c", "--cpu", action="append", nargs=2, metavar=("pids", "delay"), help="Enable CPU sampler for process-ids")
     arg_parser.add_argument("-g", "--gpu", action="append", nargs=1, metavar=("delay"), help="Enable GPU sampler")
-    arg_parser.add_argument("-n", "--net", action="append", nargs=3, metavar=("device", "port", "delay"), help="Enable NET sampler for device and port")
-    arg_parser.add_argument("-x", "--net_errors", action="append", nargs=3, metavar=("device", "port", "delay"), help="Enable NET errors sampler for device and port")
+    arg_parser.add_argument("-n", "--net", action="append", nargs=2, metavar=("devices", "delay"), help="Enable NET sampler for device and port")
+    arg_parser.add_argument("-x", "--net_errors", action="append", nargs=2, metavar=("devices", "delay"), help="Enable NET errors sampler for device and port")
 #     arg_parser.add_argument("-C", "--print_count", action="store_true", default=False, help="Output sample count.")
 #     arg_parser.add_argument("-A", "--print_count", action="store_true", default=True, help="Output sample average.")
 #     arg_parser.add_argument("-M", "--print_count", action="store_true", default=True, help="Output sample max.")
@@ -669,27 +700,26 @@ if __name__ == '__main__':
     arg_parser.add_argument("-d", "--graph_dir", default=None, help="Directory where to put the sample graphs. If empty, no sample graphs will be generated.")
      
     args = arg_parser.parse_args()
+#     args = arg_parser.parse_args("--cpu 1,2 0 --gpu 0 --net mlx5_0:1 0.1 -d .".split())
     
     graph_dir = args.graph_dir
     monitor = Monitor()
     
     if args.cpu is not None:
-        pid = int(args.cpu[0][0])
+        pids = [int(x) for x in args.cpu[0][0].split(",")]
         delay = float(args.cpu[0][1])
-        monitor.addSampler(CPUAndMemSampler(pid, delay, graph_dir))
+        monitor.addSampler(CPUSampler(pids, delay, graph_dir))
     if args.gpu is not None:
         delay = float(args.gpu[0][0])
         monitor.addSampler(GPUSampler(delay, graph_dir))
     if args.net is not None:
-        device = args.net[0][0]
-        port = int(args.net[0][1])
-        delay = float(args.net[0][2])
-        monitor.addSampler(RXTXSampler(device, port, delay, graph_dir))
+        devices = args.net[0][0].split(",")
+        delay = float(args.net[0][1])
+        monitor.addSampler(RXTXSampler(devices, delay, graph_dir))
     if args.net_errors is not None:
-        device = args.net_errors[0][0]
-        port = int(args.net_errors[0][1])
-        delay = float(args.net_errors[0][2])
-        monitor.addSampler(NetErrorsSampler(device, port, delay, graph_dir))
+        devices = args.net_errors[0][0].split(",")
+        delay = float(args.net_errors[0][1])
+        monitor.addSampler(NetErrorsSampler(devices, delay, graph_dir))
 
     if len(monitor.measurements()) == 0:
         print "No samplers selected. %s --help for help." % os.path.basename(sys.argv[0])
