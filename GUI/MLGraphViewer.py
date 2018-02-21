@@ -71,11 +71,10 @@ class Graph(object):
         
     # -------------------------------------------------------------------- #
         
-    def __init__(self, label, csv_path, graph_type, start_time, color, ymax=None):
+    def __init__(self, label, csv_path, graph_type, color, ymax=None):
         self._label = label
         self._csv_path = csv_path
         self._type = graph_type
-        self._start_time = start_time
         self._color = color
         self._ymax = ymax
         self._ax = None
@@ -86,6 +85,21 @@ class Graph(object):
     # -------------------------------------------------------------------- #
         
     def _readData(self):
+        ####################################
+        # Get start time from timeline.csv #
+        ####################################
+        dirname = os.path.dirname(self._csv_path)
+        timeline_path = os.path.join(dirname, "timeline.csv")
+        if os.path.isfile(timeline_path):
+            with open(timeline_path) as timeline:
+                timeline.readline() # Skip 1st step
+                start_time = float(timeline.readline().split(",")[0])
+        else:
+            start_time = 0
+        
+        ####################
+        # Read graph data: #
+        ####################
         i = 0
         last_val = None
         last_timestamp = None
@@ -93,7 +107,9 @@ class Graph(object):
             for line in csv:
                 parts = line.replace(" ","").split(",")
                 try:        
-                    timestamp = float(parts[0]) - self._start_time
+                    timestamp = float(parts[0]) - start_time
+                    if timestamp < 0:
+                        continue
                     val = float(parts[1])
                 except:
                     print "Error on graph: %s: %u \"%s\." % (os.path.basename(self._csv_path), i, line)
@@ -230,7 +246,7 @@ class MLGraphViewer(QMainWindow):
         label = csv_path #
         desc = Graph.getGraphDesc(csv_path)        
         color = self._getNextColor()
-        graph = Graph(label, csv_path, desc.graph_type, 0, str(color.name()), desc.ymax)
+        graph = Graph(label, csv_path, desc.graph_type, str(color.name()), desc.ymax)
         self._graphs[csv_path] = graph
         return graph
             
@@ -241,7 +257,6 @@ class MLGraphViewer(QMainWindow):
             return 
         
         csv_path = item.data(0, Qt.UserRole).toString()
-        print "%s checked: %u" % (csv_path, item.checkState(0))
         graph = self._getOrCreateGraph(csv_path)
         if item.checkState(0) == Qt.Checked:
             self.fig, self.host = graph.plot(self.fig, self.host, 1.0)#self.pos)
