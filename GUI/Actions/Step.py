@@ -174,12 +174,12 @@ class Step(object):
     # -------------------------------------------------------------------- #
     
     def setLogsDir(self, index):
-        self._logs_dir = os.path.join(TestEnvironment.Get().testLogsDir(),
-                                      "step_%u_%s" % (index, toFileName(self.__repr__())))
+        dir_name = "step_%u_%s" % (index, toFileName(self.__repr__()))
+        self._logs_dir = os.path.join(TestEnvironment.Get().testLogsDir(), dir_name)
         if not os.path.isdir(self._logs_dir):
             os.makedirs(self._logs_dir)
         link_path = os.path.join(TestEnvironment.Get().testLogsDir(), "step_%u" % index)
-        os.symlink(self._logs_dir, link_path)
+        os.symlink(dir_name, link_path)
         
     # -------------------------------------------------------------------- #
     
