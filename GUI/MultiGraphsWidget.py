@@ -1,11 +1,8 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-import csv
 import os
 import sys
 from matplotlib import pyplot
-import copy
-from numpy.random.mtrand import np
 
 ###############################################################################################################################################################
 #
@@ -76,7 +73,6 @@ class Graph(object):
 
     def plot(self, fig, host, pos):
         if host is None:
-            print "HOST IS: %s" % self._label
             fig, host = pyplot.subplots()
             ax = host
         else:
@@ -86,7 +82,9 @@ class Graph(object):
 
         ax.plot(self._x, self._y, self._color)
         if self._ymax is not None:
-            ax.set_ylim(ax.get_ylim()[0], self._ymax)
+            ax.set_ylim(0, self._ymax)
+        else:
+            ax.set_ylim(0)
         ax.set_ylabel(self._label, color=self._color)
         ax.tick_params('y', colors=self._color)
         return fig, host
@@ -128,10 +126,10 @@ if __name__ == '__main__':
     start_time = min([step.start_time for step in steps])  
 
     graphs = [Graph("step",    os.path.join(graph_dir, "timeline.csv"),      Graph.TYPE_DELTA, start_time, "r"),
-              Graph("rdta",    os.path.join(graph_dir, "RDTA-mlx5_1:1.csv"), Graph.TYPE_RATE,  start_time, "g"),
-              Graph("tdta",    os.path.join(graph_dir, "TDTA-mlx5_1:1.csv"), Graph.TYPE_RATE,  start_time, "b"),
-              Graph("worker",  os.path.join(graph_dir, "UTIME-20231.csv"),   Graph.TYPE_RATE,  start_time, "c"),
-              Graph("ps",      os.path.join(graph_dir, "UTIME-20591.csv"),   Graph.TYPE_RATE,  start_time, "m"),
+              Graph("rdta",    os.path.join(graph_dir, "RDTA-mlx5_1:1.csv"), Graph.TYPE_RATE,  start_time, "g", ymax=150000),
+              Graph("tdta",    os.path.join(graph_dir, "TDTA-mlx5_1:1.csv"), Graph.TYPE_RATE,  start_time, "b", ymax=150000),
+              Graph("worker",  os.path.join(graph_dir, "UTIME-31385.csv"),   Graph.TYPE_RATE,  start_time, "c", ymax=1600),
+              Graph("ps",      os.path.join(graph_dir, "UTIME-31816.csv"),   Graph.TYPE_RATE,  start_time, "m", ymax=1600),
               Graph("gpu (%)", os.path.join(graph_dir, "GPU-1.csv"),         Graph.TYPE_NORMAL,start_time, "y", ymax=300)]
     
     ####################
