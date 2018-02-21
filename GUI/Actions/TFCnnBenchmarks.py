@@ -339,11 +339,10 @@ class TFCnnBenchmarksStep(Step):
         for process in server.processes:
             if process.job_name != "ps":
                 process.table.unbind()
+                # Append to global performance results:
+                self._perf.reduce(process.perf)
 
         log("Server %s: monitors stopped." % server.ip)
-
-        # Append to global performance results:
-        self._perf.reduce(server.perf)
 
     # -------------------------------------------------------------------- #
     
