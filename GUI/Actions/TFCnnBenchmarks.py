@@ -346,48 +346,67 @@ class TFCnnBenchmarksStep(Step):
 
     # -------------------------------------------------------------------- #
     
-    def _findRemoteProcessID(self, process):
-        process.remote_pid = None
-        def parser(line, parser):
-            process.remote_pid = int(line.split()[1])
-            
-        while process.remote_pid is None:
-            procs = executeRemoteCommand([process.server], 
-                                         "ps -ef | grep %s | grep job_name=%s | grep task_index=%u | grep -v ssh" % (self._work_dir, process.job_name, process.task_id), 
-                                         verbose=False)
-            waitForProcesses(procs, 5, on_output=parser, verbose=False)
+    def _findRemoteProcessIDs(self, processes):
+        remote_process_ids = {}
+        def parser(line, find_process):
+            key = find_process.name
+            remote_process_ids[key] = int(line.split()[1])
+        
+        while len(remote_process_ids) < len(processes):
+            find_processes = []
+            for process in processes:
+                if process.server in remote_process_ids:
+                    continue
+                find_process = executeRemoteCommand([process.server], 
+                                                    "ps -ef | grep %s | grep job_name=%s | grep task_index=%u | grep -v ssh" % (self._work_dir, process.job_name, process.task_id), 
+                                                    verbose=False)[0]
+                find_process.name = process.name
+                find_processes.append(find_process)
+                
+            waitForProcesses(find_processes, 5, on_output=parser, verbose=False)
             time.sleep(0.1)
         
-    # -------------------------------------------------------------------- #
-    
-    def _getDeviceNameAndPort(self, ip):
-        res = RemoteDeviceInfo()
+        for process in processes:
+            process.remote_pid = remote_process_ids[process.name]
+            log(" + [%s]: %-10s: %-5u %-5u %s" % (process.server, process.name, process.instance.pid, process.remote_pid, process.command), log_level=LOG_LEVEL_NOTE)
 
+    # -------------------------------------------------------------------- #
+            
+    def _getDevices(self, ips):
+        links = []
+        self._devices = {}
+        
         def linkNameParser(line, process):
-            res.link = line
+            links.append(line)
         
         def deviceNameAndPortParser(line, process):
             parts = line.split()
+            res = RemoteDeviceInfo()
             res.name = parts[0]
             res.port = int(parts[2])
             res.is_up = parts[5] == "(Up)"
-        
-        server = TestEnvironment.Get().getServer(ip)
-        procs = executeRemoteCommand([server], "ip -o a s | grep %s | cut -d ' ' -f 2 | cut -d'.' -f1" % ip, verbose=False)
+            self._devices[process.server] = res
+
+        procs = []
+        for ip in ips:
+            server = TestEnvironment.Get().getServer(ip)
+            procs.extend(executeRemoteCommand([server], "ip -o a s | grep %s | cut -d ' ' -f 2 | cut -d'.' -f1" % ip, verbose=False))
         if not waitForProcesses(procs, wait_timeout=5, on_output=linkNameParser, verbose=False):
-            return None
-        procs = executeRemoteCommand([server], "ibdev2netdev | grep %s" % res.link, verbose = False)
+            raise Exception("Internal Error")
+        
+        procs = []
+        for ip in ips:
+            server = TestEnvironment.Get().getServer(ip)
+            i = len(procs) 
+            link = links[i]
+            procs.extend(executeRemoteCommand([server], "ibdev2netdev | grep %s" % link, verbose=False))
         if not waitForProcesses(procs, wait_timeout=5, on_output=deviceNameAndPortParser, verbose=False):
-            return None
-        return res
-                
+            raise Exception("Internal Error")
+
     # -------------------------------------------------------------------- #
     
     def _runJob(self, work_dir, ip, job_name, task_id):
-        device_info = self._getDeviceNameAndPort(ip)
-        if device_info is None:
-            raise Exception("Error")
-        
+        device_info = self._devices[ip]
         #####################
         # Build TF command: #
         #####################
@@ -463,8 +482,7 @@ class TFCnnBenchmarksStep(Step):
         process.task_id = task_id
         process.is_worker = job_name == "worker"
         process.rdma_device = device_info
-        self._findRemoteProcessID(process)
-        log(" + %-25s: %-5u %-5u %s" % (title, process.instance.pid, process.remote_pid, command), log_level=LOG_LEVEL_NOTE)
+        process.command = tf_command
         self._processes.append(process)
         server.processes.append(process)
         return process
@@ -607,14 +625,10 @@ class TFCnnBenchmarksStep(Step):
         # Run: #
         ########
         self._openPerformanceFile()
+        self._getDevices(ips)
         
         title("Running:", UniBorder.BORDER_STYLE_SINGLE)
         processes = []
-        for i in range(len(self.workers())):
-            ip = self.workers()[i]
-            process = self._runJob(work_dir, ip, "worker", i)
-            processes.append(process)
-        
         if self.mode() == TFCnnBenchmarksStep.MODE_PARAMETER_SERVER:
             for i in range(len(self.ps())):
                 ip = self.ps()[i]
@@ -623,7 +637,12 @@ class TFCnnBenchmarksStep(Step):
         elif self.mode() == TFCnnBenchmarksStep.MODE_DISTRIBUTED_ALL_REDUCE:
             process = self._runJob(work_dir, ip, "controller", 0)
             processes.append(process) 
+        for i in range(len(self.workers())):
+            ip = self.workers()[i]
+            process = self._runJob(work_dir, ip, "worker", i)
+            processes.append(process)
         
+        self._findRemoteProcessIDs(processes)
         res = waitForProcesses(processes, 
                                wait_timeout=600,
                                on_output=self._onOut,

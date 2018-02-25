@@ -886,6 +886,7 @@ class SequenceWidget(QMainWindow):
         for count in range(step.repeat()):        
             title("Step %u - %s (%u/%u)" % (index, str(step), count + 1, step.repeat()), style = UniBorder.BORDER_STYLE_DOUBLE)
             res = step.perform(index)
+            self._all_passed &= res
             if not res:
                 self._setStepStatus(step, index, Step.STATUS_FAILED)                
                 if step.stopOnFailure():
@@ -898,6 +899,7 @@ class SequenceWidget(QMainWindow):
     #--------------------------------------------------------------------#
             
     def _runSequence(self):
+        self._all_passed = True
         self._do_stop = False
         self._reset()
         for index in range(len(self._sequence)):
@@ -1046,7 +1048,7 @@ class SequenceWidget(QMainWindow):
     def run(self):
         self._run()
         self.thread.wait()
-        
+    
     #--------------------------------------------------------------------#
     
     # Override:
