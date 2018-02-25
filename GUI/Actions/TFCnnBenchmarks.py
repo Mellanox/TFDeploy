@@ -305,7 +305,7 @@ class TFCnnBenchmarksStep(Step):
     
     def _stopServerMonitors(self, ip):
         server = self._servers[ip]
-        log("Server %s: stopping monitors..." % ip)        
+        log("Server %s: stopping monitors..." % ip)
         server.monitor.stop()
         server.perf = TFPerformanceMeasurements()
         #server.monitor.fillMeasurement(server.perf.cpu)
@@ -341,6 +341,7 @@ class TFCnnBenchmarksStep(Step):
                 process.table.unbind()
                 # Append to global performance results:
                 self._perf.reduce(process.perf)
+        server.processes = []
 
         log("Server %s: monitors stopped." % server.ip)
 
@@ -498,6 +499,7 @@ class TFCnnBenchmarksStep(Step):
             self._startServerMonitors(process.server)
         elif "images/sec" in line:
             if "total " in line:
+                log(line, process)
                 m = re.match("total images\/sec: ([0-9\.]+)", line)
                 if m is None:
                     print "Error: Regex match failed. Please contact the developers to fix it."

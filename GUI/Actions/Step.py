@@ -179,6 +179,8 @@ class Step(object):
         if not os.path.isdir(self._logs_dir):
             os.makedirs(self._logs_dir)
         link_path = os.path.join(TestEnvironment.Get().testLogsDir(), "step_%u" % index)
+        if os.path.isfile(link_path):
+            os.remove(link_path)
         os.symlink(dir_name, link_path)
         
     # -------------------------------------------------------------------- #

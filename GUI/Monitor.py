@@ -9,6 +9,7 @@ import re
 import argparse
 import cmd
 
+from Common.Log import error
 from Common.Util import executeCommand, waitForProcesses
 from Common.FormattedTable import FormattedTable
 
@@ -265,7 +266,8 @@ class Sampler(object):
     
     def _sampleInLoop(self):
         while not self._stop:
-            self._sample()
+            if not self._sample():
+                break
             self._appendToGraphs()
             time.sleep(self._delay)
 
@@ -377,14 +379,22 @@ class StickyCounterSampler(Sampler):
     
     def start(self):
         for counter in self._counters:
-            counter.resetBase()
+            try:
+                counter.resetBase()
+            except IOError:
+                error("Failed to open %s." % counter.file_path)
+                continue
         Sampler.start(self)
         
     # -------------------------------------------------------------------- #
              
     def _sample(self):
         for counter in self._counters:
-            counter.update()
+            try:
+                counter.update()
+            except IOError:
+                error("Failed to open %s." % counter.file_path)
+                return False
         return True
 
 ###############################################################################
