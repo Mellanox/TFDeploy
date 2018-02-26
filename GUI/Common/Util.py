@@ -86,6 +86,7 @@ def processCommunicateLive(process, on_output = None, on_error = None):
         #err = process.stderr.readline()
         err = ""
         if (out == "") and (err == "") and not process.isAlive():
+            process.instance.communicate() # Close pipes
             break
         if (out != "") and (on_output is not None):
             on_output(out[:-1], process)
