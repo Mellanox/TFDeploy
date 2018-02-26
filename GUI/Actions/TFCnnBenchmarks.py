@@ -588,7 +588,8 @@ class TFCnnBenchmarksStep(Step):
         self._stopping = False
         work_dir_name = "tmp." + next(tempfile._get_candidate_names()) + next(tempfile._get_candidate_names())
         work_dir = os.path.join(tempfile._get_default_tempdir(), work_dir_name)
-        script_dir = os.path.dirname(self._values[TFCnnBenchmarksStep.ATTRIBUTE_ID_SCRIPT]) 
+        script_dir = os.path.dirname(self._values[TFCnnBenchmarksStep.ATTRIBUTE_ID_SCRIPT])
+        current_dir = os.path.dirname(os.path.realpath(__file__))
         
         user = getuser()
         self._work_dir = work_dir
@@ -619,8 +620,10 @@ class TFCnnBenchmarksStep(Step):
         # Copy: #
         #########
         title("Copying scripts:", UniBorder.BORDER_STYLE_SINGLE)    
-        res = self.runSCP(ips, [script_dir], work_dir, wait_timeout = 10)
-        if not res:
+        if not self.runSCP(ips, [script_dir], work_dir, wait_timeout = 10): # Also create it
+            return False
+        if not self.runSCP(ips, [os.path.join(current_dir, "..", "Monitor.py"),
+                                 os.path.join(current_dir, "..", "Common")], work_dir, wait_timeout = 10):
             return False
             
         ########
