@@ -327,7 +327,7 @@ class ServerInfo(object):
         
 #############################################################################
 
-class SequenceWidget(QMainWindow):
+class MLTester(QMainWindow):
     
     log_signal = pyqtSignal(str, object, int)
     open_log_signal = pyqtSignal(object)
@@ -338,7 +338,7 @@ class SequenceWidget(QMainWindow):
     #--------------------------------------------------------------------#
             
     def __init__(self, parent = None):
-        super(SequenceWidget, self).__init__(parent)
+        super(MLTester, self).__init__(parent)
         self._doc = DocumentControl(self, "ML tester", "Xml file (*.xml);;Any File (*.*);;", ".")
         self._sequence = []
         self._selected_step = None
@@ -551,22 +551,26 @@ class SequenceWidget(QMainWindow):
     #--------------------------------------------------------------------#
 
     def _log(self, line, process, log_level):
-        if process is None:
+        if (process is None) or (process.log_file_path is None):
             print line
             return
-        self._log_widget.log(line, process, log_level)
+        self._log_widget.log(line, process.log_file_path, log_level)
 
     #--------------------------------------------------------------------#
 
     def _openLog(self, process):
-        process.openLog()
-        self._log_widget.open(process, str(process.title))
+        if (process is None) or (process.log_file_path is None):
+            return
+        process.openLog(verbose=False)
+        return self._log_widget.open(process.log_file_path, str(process.title))
 
     #--------------------------------------------------------------------#
 
     def _closeLog(self, process):
+        if (process is None) or (process.log_file_path is None):
+            return        
         process.closeLog()
-        self._log_widget.close(process)
+        self._log_widget.close(process.log_file_path)
                             
     #--------------------------------------------------------------------#
     
@@ -899,6 +903,7 @@ class SequenceWidget(QMainWindow):
     #--------------------------------------------------------------------#
             
     def _runSequence(self):
+        self.emitOpenLog(getMainProcess())
         self._all_passed = True
         self._do_stop = False
         self._reset()
@@ -956,7 +961,6 @@ class SequenceWidget(QMainWindow):
         title = "Running: %s" % self._doc.filePath()
         log(title, log_level = LOG_LEVEL_NOTE)
         main_process = BasicProcess(None, title, os.path.join(self._test_logs_dir, "main.log"), None)
-        self._openLog(main_process)
         setMainProcess(main_process)
         self._runSequenceInNewThread()
         
@@ -1056,7 +1060,7 @@ class SequenceWidget(QMainWindow):
         if not self._doc.close():
             evnt.ignore()
             return
-        super(SequenceWidget, self).closeEvent(evnt)
+        super(MLTester, self).closeEvent(evnt)
                 
 ###############################################################################################################################################################
 #
@@ -1072,8 +1076,14 @@ if __name__ == '__main__':
     arg_parser.add_argument("-L", "--log_level", type=int, default="3", help="Log level.")    
     
     args = arg_parser.parse_args()
+#     QApplication.setStyle(QStyleFactory.create("motif"))
+#     QApplication.setStyle(QStyleFactory.create("Windows"))
+#     QApplication.setStyle(QStyleFactory.create("cde"))
+#     QApplication.setStyle(QStyleFactory.create("Plastique"))
+    QApplication.setStyle(QStyleFactory.create("Cleanlooks"))
+#     QApplication.setStyle(QStyleFactory.create("windowsvista"))
     app = QApplication([])
-    prompt = SequenceWidget()
+    prompt = MLTester()
     if args.xml is not None:
         prompt.loadFromXml(args.xml)
     

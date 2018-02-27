@@ -39,7 +39,9 @@ class BasicProcess(object):
         self.instance = instance
         self.server = server
         self.title = self._getStrValue(title)
-        self.log_file_path = self._getStrValue(log_file_path)        
+        self.log_file_path = self._getStrValue(log_file_path)
+        if self.log_file_path is not None:
+            self.log_file_path = os.path.abspath(self.log_file_path)        
         self._log_file = None
                 
         # Note: Vulnerable to race conditions:
@@ -53,12 +55,13 @@ class BasicProcess(object):
         
     # -------------------------------------------------------------------- #
             
-    def openLog(self):
+    def openLog(self, verbose=True):
         if self.log_file_path is None:
             return
-        prefix = "" if self.instance is None else "Process %u: " % self.instance.pid
-        log("%sSee log %s" % (prefix, self.log_file_path), log_level = LOG_LEVEL_NOTE)
-        self._log_file = open(self.log_file_path, "w") 
+        self._log_file = open(self.log_file_path, "w")
+        if verbose:
+            prefix = "" if self.instance is None else "Process %u: " % self.instance.pid
+            log("%sSee log %s" % (prefix, self.log_file_path), log_level = LOG_LEVEL_NOTE)
 
     # -------------------------------------------------------------------- #
     

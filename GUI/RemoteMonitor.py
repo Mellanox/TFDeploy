@@ -8,8 +8,7 @@ import os
 import signal
 sys.path.insert(0, "..")
 from Monitor import Measurement
-from Common.Util import executeRemoteCommand, BasicProcess, waitForProcesses,\
-    processCommunicateLive, executeCommand
+from Common.Util import executeRemoteCommand, BasicProcess, processCommunicateLive
 from Common.Log import log, error
 
 
@@ -18,7 +17,7 @@ class RemoteMonitor(object):
     
     def __init__(self, server, bin, args, title = None, log_file_path = None, on_new_process = None):
         factory = None if log_file_path is None else BasicProcess.getFactory(title, log_file_path)
-        self.monitor_process = executeRemoteCommand([server], "python -u " + bin + " " + args, factory = factory)[0]
+        self.monitor_process = executeRemoteCommand([server], "python -u " + bin + " " + args, factory=factory, verbose=False)[0]
         if on_new_process is not None:
             on_new_process(self.monitor_process)
         self.pid = self.monitor_process.instance.pid

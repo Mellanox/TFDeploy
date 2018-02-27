@@ -369,7 +369,8 @@ class TFCnnBenchmarksStep(Step):
         
         for process in processes:
             process.remote_pid = remote_process_ids[process.name]
-            log(" + [%s]: %-10s: %-5u %-5u %s" % (process.server, process.name, process.instance.pid, process.remote_pid, process.command), log_level=LOG_LEVEL_NOTE)
+            log(" + [%s]: <a href='%s'>%s</a>:%*s %-5u %-5u %s" % (process.server, process.log_file_path, process.name, 10 - len(process.name), "", 
+                                                                   process.instance.pid, process.remote_pid, process.command), log_level=LOG_LEVEL_NOTE)
 
     # -------------------------------------------------------------------- #
             
@@ -429,7 +430,7 @@ class TFCnnBenchmarksStep(Step):
         tf_command += " RDMA_MTU=512"
         tf_command += " RDMA_TRAFFIC_CLASS=8"
         tf_command += " UCX_NET_DEVICES=%s:%u" % (device_info.name, device_info.port)
-        if job_name in ["ps", "controller"]:
+        if (job_name in ["ps", "controller"]) or (self.num_gpus() == 0):
             tf_command += " CUDA_VISIBLE_DEVICES="
 
         ##############  
@@ -554,6 +555,14 @@ class TFCnnBenchmarksStep(Step):
             pass
         else:
             log(line, process)                
+    
+    # -------------------------------------------------------------------- #
+    
+    def _onJobStart(self, process):
+        handler = TestEnvironment.onNewProcess()
+        if handler is not None:
+            handler(process)
+        title("Log: " + process.log_file_path, process = process) 
             
     # -------------------------------------------------------------------- #
 
@@ -585,6 +594,7 @@ class TFCnnBenchmarksStep(Step):
 
     def perform(self, index):
         Step.perform(self, index)
+        log("<img src='images/tensorflow.jpg' width=600 style='border:1px solid black'/>") #https://www.skylinelabs.in/blog/images/tensorflow.jpg?width=500'/>")
         self._stopping = False
         work_dir_name = "tmp." + next(tempfile._get_candidate_names()) + next(tempfile._get_candidate_names())
         work_dir = os.path.join(tempfile._get_default_tempdir(), work_dir_name)
@@ -651,7 +661,7 @@ class TFCnnBenchmarksStep(Step):
         res = waitForProcesses(processes, 
                                wait_timeout=600,
                                on_output=self._onOut,
-                               on_process_start=TestEnvironment.onNewProcess(),
+                               on_process_start=self._onJobStart,
                                on_process_done=self._onJobDone)
         if not res or self._stop:
             return False

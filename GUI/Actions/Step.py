@@ -80,9 +80,9 @@ class DefaultAttributesWidget(QWidget):
     def _getFieldValue(self, field_index):
         w = self._field_widgets[field_index]
         if isinstance(w, QLineEdit):
-            return w.text()
+            return str(w.text())
         elif isinstance(w, QComboBox):
-            return w.currentText()
+            return str(w.currentText())
         return None
         
     # -------------------------------------------------------------------- #
@@ -178,10 +178,11 @@ class Step(object):
         self._logs_dir = os.path.join(TestEnvironment.Get().testLogsDir(), dir_name)
         if not os.path.isdir(self._logs_dir):
             os.makedirs(self._logs_dir)
-        link_path = os.path.join(TestEnvironment.Get().testLogsDir(), "step_%u" % index)
-        if os.path.isfile(link_path):
-            os.remove(link_path)
-        os.symlink(dir_name, link_path)
+        log("Logs dir: " + self._logs_dir)
+#         link_path = os.path.join(TestEnvironment.Get().testLogsDir(), "step_%u" % index)
+#         if os.path.isfile(link_path):
+#             os.remove(link_path)
+#         os.symlink(dir_name, link_path)
         
     # -------------------------------------------------------------------- #
     

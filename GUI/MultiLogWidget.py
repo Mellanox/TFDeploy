@@ -3,8 +3,11 @@
 
 from random import randint
 from PyQt4.QtCore import QPoint,QString,QSize
-from PyQt4.QtGui import QMdiArea,QMdiSubWindow,QPlainTextEdit,QVBoxLayout,QPushButton,QApplication,QWidget
+from PyQt4.QtGui import QMdiArea,QMdiSubWindow,QPlainTextEdit,QVBoxLayout,QPushButton,QApplication,QWidget,\
+    QTextBrowser
 from Common.Log import LOG_LEVEL_INFO, LogLevelNames
+import os
+# import validators
 
 ###############################################################################
 
@@ -15,18 +18,32 @@ LogColorsForLevel = ["purple", "red", "orange", "green", None, None, None]
 
 class LogWidget(QMdiSubWindow):
     
-    def __init__(self, log_id, title = None, parent = None):
-        super(LogWidget, self).__init__(parent)
+    def __init__(self, owner, log_id, title = None, source = None):
+        super(LogWidget, self).__init__()
+        self._owner = owner
         if title is None:
             title = str(log_id)
         self._initGui(title)
+
+    #--------------------------------------------------------------------#
+    
+    def _onAnchorClicked(self, url):
+        path = url.toString()
+        if url.isLocalFile() or os.path.isfile(path):
+            path = os.path.abspath(str(path))
+            log = self._owner.open(path, source_path=path)
+            log.setFocus()
+        else:
+            print "External link: %s" % path
         
     #--------------------------------------------------------------------#
     
     def _initGui(self, title):
         self.setWindowTitle(str(title))
-        self._te_log = QPlainTextEdit()
-        self._te_log.setLineWrapMode(QPlainTextEdit.NoWrap)
+        self._te_log = QTextBrowser()
+        self._te_log.setLineWrapMode(QTextBrowser.NoWrap)
+        self._te_log.anchorClicked.connect(self._onAnchorClicked)
+        self._te_log.setOpenLinks(False)
         self._te_log.setStyleSheet("""
             font-family: monospace;
             white-space: pre;            
@@ -37,15 +54,28 @@ class LogWidget(QMdiSubWindow):
     #--------------------------------------------------------------------#
     
     def append(self, line, log_level = LOG_LEVEL_INFO):
-        line = line.replace(" ", "&nbsp;")
         line = QString.fromUtf8(line)
+        line = unicode(line)
+#         words = line.split()
+#         for word in words:
+#             is_file = os.path.isfile(word)
+#             is_log_file = is_file and (word.endswith(".log") or word.endswith(".txt") or word.endswith(".html"))
+#             is_csv_file = is_file and (word.endswith(".csv"))
+#             is_url = validators.url(word)
+#             if is_log_file or is_url:
+#                 line = line.replace(word, "<a href='%s'>%s</a>" % (word, word))
+                 
+        line = line.replace("  ", " &nbsp;")
+            
         color = LogColorsForLevel[log_level]
-        if color is not None: 
+        if color is None: 
+            line = "<font family='monospace'>%s</font>" % (line)
+        else:
             line = "<font family='monospace' color='%s'>%s</font>" % (color, line)
 
         scrollbar = self._te_log.verticalScrollBar()
         follow = scrollbar.value() == scrollbar.maximum() 
-        self._te_log.appendHtml(line)
+        self._te_log.append(line)
         if follow:
             scrollbar.setValue(scrollbar.maximum())
 
@@ -105,7 +135,7 @@ class MultiLogWidget(QMdiArea):
     def _getOrCreateLog(self, log_id, title):
         if log_id in self._logs:
             return self._logs[log_id]
-        log_widget = LogWidget(log_id, title)
+        log_widget = LogWidget(self, log_id, title)
         self._logs[log_id] = log_widget
         return log_widget 
     
@@ -123,10 +153,17 @@ class MultiLogWidget(QMdiArea):
         
     #--------------------------------------------------------------------#
     
-    def open(self, log_id = GLOBAL_LOG, title = None):
-        log = self._getOrCreateLog(log_id, title)
-        
-        if not log in self.subWindowList():
+    def open(self, log_id = GLOBAL_LOG, title = None, source_path = None):
+        if log_id in self._logs:
+            log = self._logs[log_id]
+        else:
+            log = LogWidget(self, log_id, title)
+            self._logs[log_id] = log
+            if source_path is not None:
+                with open(source_path, "r") as source:
+                    for line in source:
+                        log.append(line)
+            
             pos = self._getNextWindowPosition()
             size = QSize(self.width() * MultiLogWidget.SUB_WINDOW_DEFAULT_RATIO_X, 
                          self.height() * MultiLogWidget.SUB_WINDOW_DEFAULT_RATIO_Y)
@@ -179,7 +216,8 @@ def test():
     log_level = randint(0, 5)
     if not mlog.isOpen(log_id):
         mlog.open(log_id, "Title for log #%u" % log_id)
-    mlog.log("☀ %s Line #%u ☀ SPACES: #      #" % (LogLevelNames[log_level], x), log_id, log_level)
+    mlog.log("☀ %s Line #%u ☀ SPACES: #      # http://www.kikar.co.il" % (LogLevelNames[log_level], x), log_id, log_level)
+    mlog.log("More: test.log", log_id)
     x += 1
     log_id = (log_id + 1) % 8
 
