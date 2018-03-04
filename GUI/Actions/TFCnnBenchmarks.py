@@ -78,6 +78,7 @@ class TFCnnBenchmarksStep(Step):
     MODE_NAMES = ["Parameter Server", "Distributed All-Reduce"]
     ALL_REDUCE_SPECS = ["xring", "xring#2", "nccl", "nccl/xring", "pscpu", "psgpu#4", "pscpu:2k:pscpu#2:64k:xring", "pscpu/pscpu#2"] 
     MODELS = ["trivial", "inception3", "inception4", "resnet50", "resnet101", "resnet152", "vgg16", "vgg19"]
+    PROTOCOLS = ["grpc", "grpc+verbs", "grpc+ucx"]
     
     ATTRIBUTES = [StepAttribute("Mode", MODE_NAMES[0], MODE_NAMES),
                   StepAttribute("All-Reduce Spec", ALL_REDUCE_SPECS[0], ALL_REDUCE_SPECS),
@@ -89,7 +90,7 @@ class TFCnnBenchmarksStep(Step):
                   StepAttribute("Model", "vgg16", MODELS),
                   StepAttribute("Batch Size", "32"),
                   StepAttribute("Num GPUs", "2"),
-                  StepAttribute("Server Protocol", "grpc+verbs"),
+                  StepAttribute("Server Protocol", "grpc+verbs", PROTOCOLS),
                   StepAttribute("Data Dir", "/data/imagenet_data/"),
                   StepAttribute("Log Level", "0")]
 
@@ -504,6 +505,7 @@ class TFCnnBenchmarksStep(Step):
                 m = re.match("total images\/sec: ([0-9\.]+)", line)
                 if m is None:
                     print "Error: Regex match failed. Please contact the developers to fix it."
+                    print "Line: %s" % line
                     sys.exit(1)
                 images_sec = float(m.group(1))
                 process.perf.images_sec.val = images_sec
@@ -517,6 +519,7 @@ class TFCnnBenchmarksStep(Step):
                 m = re.match("([0-9]+)\s+images\/sec: ([0-9\.]+) \+\/- ([0-9\.]+) \(jitter = ([0-9\.]+)\)\s+([0-9\.]+)", line)
                 if m is None:
                     print "Error: Regex match failed. Please contact the developers to fix it."
+                    print "Line: %s" % line
                     sys.exit(1)
                     
                 step = int(m.group(1))

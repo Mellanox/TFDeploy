@@ -95,7 +95,7 @@ class MultiLogWidget(QMdiArea):
     GLOBAL_LOG = GlobalLog()
     SUB_WINDOW_DEFAULT_RATIO_X = 0.7
     SUB_WINDOW_DEFAULT_RATIO_Y = 0.7
-    CASCADE_SKIP_PIXELS_X = 22
+    CASCADE_SKIP_PIXELS_X = 10
     CASCADE_SKIP_PIXELS_Y = 22
     
     #--------------------------------------------------------------------#

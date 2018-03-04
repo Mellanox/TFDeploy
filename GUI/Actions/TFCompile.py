@@ -24,7 +24,7 @@ class TFCompileStep(Step):
     ATTRIBUTE_ID_INSTALL_SERVERS = 3
     
     ATTRIBUTES = [StepAttribute("TensorFlow home", "~/tensorflow"),
-                  StepAttribute("CUDA", "True"),
+                  StepAttribute("CUDA", "True", ["True", "False"]),
                   StepAttribute("Additional build flags", ""),
                   StepAttribute("Install on servers", "12.12.12.25,12.12.12.26")]
 

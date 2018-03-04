@@ -106,7 +106,12 @@ class DefaultAttributesWidget(QWidget):
     
     def addFieldChangedHandler(self, handler):
         self._on_field_changed.append(handler)
-        
+    
+    # -------------------------------------------------------------------- #
+    
+    def values(self):
+        return self._values
+    
     # -------------------------------------------------------------------- #
 
     def load(self, values):
@@ -143,12 +148,12 @@ class Step(object):
     WIDGET = None
     WIDGET_CLASS = DefaultAttributesWidget
     
-    __REGISTERED_STEPS = {}
+    REGISTERED_STEPS = {}
     
     @classmethod
     def REGISTER(cls):
         def _register(stepclass):
-            cls.__REGISTERED_STEPS[stepclass.NAME] = stepclass
+            cls.REGISTERED_STEPS[stepclass.NAME] = stepclass
             # print "REGISTERING '%s'" % stepclass.NAME
             return stepclass 
         return _register     
@@ -340,12 +345,12 @@ class Step(object):
     @staticmethod
     def loadFromXml(step_node):
         step_name = step_node.attrib["Name"]
-        if not step_name in Step.__REGISTERED_STEPS:
+        if not step_name in Step.REGISTERED_STEPS:
             error("Node: %s" % minidom.parseString(etree.tostring(step_node)).toprettyxml())
             error("Invalid step name: %s" % step_name)
             raise
         
-        step_class = Step.__REGISTERED_STEPS[step_name]
+        step_class = Step.REGISTERED_STEPS[step_name]
         
         attribute_names = [attr.name for attr in step_class.ATTRIBUTES]
         step = step_class() 
@@ -373,27 +378,20 @@ class Step(object):
 #
 ###############################################################################################################################################################
 
-@Step.REGISTER()
-class DemoStep1(Step):
-    NAME = "Demo Step 1"
-    ATTRIBUTES = [["ATTR1", ""], 
-                  ["ATTR2", ""],
-                  ["ATTR3", ""]]
-
-
-
-###############################################################################
-
-@Step.REGISTER()
-class DemoStep2(Step):
-    NAME = "Demo Step 2"
-    ATTRIBUTES = [["TEST1", ""], 
-                  ["TEST2", ""],
-                  ["TEST3", ""]]
-
-###############################################################################
-
 if __name__ == '__main__':
+    @Step.REGISTER()
+    class DemoStep1(Step):
+        NAME = "Demo Step 1"
+        ATTRIBUTES = [["ATTR1", ""], 
+                      ["ATTR2", ""],
+                      ["ATTR3", ""]]
+    
+    @Step.REGISTER()
+    class DemoStep2(Step):
+        NAME = "Demo Step 2"
+        ATTRIBUTES = [["TEST1", ""], 
+                      ["TEST2", ""],
+                      ["TEST3", ""]]
             
     title("Demo", UniBorder.BORDER_STYLE_STRONG)
     xml = etree.Element("root")

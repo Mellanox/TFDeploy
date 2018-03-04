@@ -21,6 +21,7 @@ from Actions.TestEnvironment import TestEnvironment
 from Actions.Step import Step
 import time
 from Common.Util import BasicProcess
+from StepEditDialog import StepEditDialog
 
 def create_combo_widget(parent, list, default_value_index):
     new_combo = QComboBox(parent)
@@ -72,47 +73,6 @@ class TestDataItem(object):
     def createWidget(self):
         return self._widget
 
-#############################################################################
-
-class TestDataStepList(TestDataItem):
-    
-    def __init__(self, on_step_select):
-        super(TestDataStepList, self).__init__("Steps")
-        
-        self._on_step_select = on_step_select
-        self._steps = {}
-        self._widget = QListWidget()
-        self._widget.itemSelectionChanged.connect(self._setSelectedStep)
-        
-    #--------------------------------------------------------------------#
-    
-    def _setSelectedStep(self):
-        selected_items = self._widget.selectedItems()
-        if selected_items is None:
-            return
-
-        step_class = self._steps[str(selected_items[0].text())]  
-        step = step_class()
-        self._on_step_select(step)
- 
-    #--------------------------------------------------------------------#
-    
-    def addStep(self, step_class):
-        self._widget.addItem(QListWidgetItem(step_class.NAME))
-        self._steps[step_class.NAME] = step_class
-#         
-#     #--------------------------------------------------------------------#
-#     
-#     def writeToXml(self, parent_node):
-#         new_node = etree.SubElement(parent_node, "Attribute", Name = self._name)
-#         mode_node = etree.SubElement(step_node, "Mode")
-#         mode_node = EZRandomWidget.MODE_NAMES[self._widget.getMode()]
-#         basic_node = etree.SubElement(step_node, "Basic")
-#         basic_node.text = self._widget.getBasicText()
-#         advanced_node = etree.SubElement(step_node, "Advanced")
-#         advanced_node.text = self._widget.getAdvancedText()
-#         return new_node    
-        
 #############################################################################
 
 class TestDataAttribute(TestDataItem):
@@ -224,7 +184,6 @@ class TestDataFolder(TestDataItem):
     def __init__(self, name):
         
         super(TestDataFolder, self).__init__(name)
-        self._step_list = None        
         self._attributes = []
         self._sub_folders = []
         
@@ -233,11 +192,6 @@ class TestDataFolder(TestDataItem):
     def createWidget(self):
         self._widget = TestDataFolder.Widget(self)
         self._widget.setLayout(QVBoxLayout())
-        
-        if self._step_list is not None:
-            step_list_widget = self._step_list.createWidget()
-            self._widget.layout().addWidget(step_list_widget, 1)
-            return self._widget
             
         for attribute in self._attributes:
             attribute_widget = attribute.createWidget()
@@ -346,6 +300,7 @@ class MLTester(QMainWindow):
         self._test_logs_dir = None
         self._step_logs_dir = None
         self._current_step = None
+        self._copied_steps = []
         self._is_running = False
         self._do_stop = False
         self._initGui()
@@ -380,6 +335,7 @@ class MLTester(QMainWindow):
         
         self._attributes_widget = QWidget()
         self.configuration_pane.layout().addWidget(self._attributes_widget, 0)
+        self.configuration_pane.layout().addStretch(1) 
 
         self.configurations_folder  = self._createFolder(None, "Configurations")
         self.steps_folder           = self._createFolder(self.configurations_folder, "Steps")
@@ -395,9 +351,6 @@ class MLTester(QMainWindow):
 #        self.global_steps_folder    = self._createFolder(self.steps_folder, "Global")
         self.benchmark_steps_folder = self._createFolder(self.steps_folder, "Benchmarks")
 
-#         self.general_steps          = self._createStepsList(self.global_steps_folder)
-        self.benchmark_steps        = self._createStepsList(self.benchmark_steps_folder)
-
 #         self._createAttribute(self.variables_folder, 
         ##########
         # Steps: #
@@ -406,8 +359,6 @@ class MLTester(QMainWindow):
 #         self._createStep(self.general_steps,    "Delay",        {"Duration": "1"},                                   performDelay,       reprNameAndAttributes,  DefaultAttributesWidget  )
 #         self._createStep(self.general_steps,    "Pause",        None,                                                performStub,        reprNameAndAttributes,  DefaultAttributesWidget  )
 #         self._createStep(self.general_steps,    "Compile TensorFlow",        None,                                   performCompileTF,   reprNameAndAttributes,  DefaultAttributesWidget  )
-        self._addStep(self.benchmark_steps, TFCompileStep)        
-        self._addStep(self.benchmark_steps, TFCnnBenchmarksStep)
         
         ##################
         # Configuration: #
@@ -424,16 +375,21 @@ class MLTester(QMainWindow):
         ############
         self.b_add = QPushButton()
         self.b_edit = QPushButton()
+        self.b_copy = QPushButton()
+        self.b_paste = QPushButton()
         self.b_remove = QPushButton()
+        self.b_check = QPushButton()
         self.b_move_up = QPushButton()
         self.b_move_down = QPushButton()
         self.b_run = QPushButton()
         self.b_stop = QPushButton()
-
         
         self.b_add.setIcon(QIcon("images/add.jpg"));
         self.b_edit.setIcon(QIcon("images/edit.jpg"));
+        self.b_copy.setIcon(QIcon("images/copy.png"));
+        self.b_paste.setIcon(QIcon("images/paste.png"));
         self.b_remove.setIcon(QIcon("images/remove.jpg"));
+        self.b_check.setIcon(QIcon("images/check.jpg"));
         self.b_move_up.setIcon(QIcon("images/move_up.jpg"));
         self.b_move_down.setIcon(QIcon("images/move_down.jpg"));
         self.b_run.setIcon(QIcon("images/start.jpg"));
@@ -441,7 +397,10 @@ class MLTester(QMainWindow):
 
         self.b_add.setIconSize(QSize(32,32))
         self.b_edit.setIconSize(QSize(32,32))
+        self.b_copy.setIconSize(QSize(32,32))
+        self.b_paste.setIconSize(QSize(32,32))
         self.b_remove.setIconSize(QSize(32,32))
+        self.b_check.setIconSize(QSize(32,32))        
         self.b_move_up.setIconSize(QSize(32,32))
         self.b_move_down.setIconSize(QSize(32,32))
         self.b_run.setIconSize(QSize(32,32))
@@ -449,18 +408,23 @@ class MLTester(QMainWindow):
                 
         self.b_add.setStyleSheet("QPushButton { background-color: white }");
         self.b_edit.setStyleSheet("QPushButton { background-color: white }");        
-        self.b_remove.setStyleSheet("QPushButton { background-color: white }");        
+        self.b_copy.setStyleSheet("QPushButton { background-color: white }");
+        self.b_paste.setStyleSheet("QPushButton { background-color: white }");
+        self.b_remove.setStyleSheet("QPushButton { background-color: white }");
+        self.b_check.setStyleSheet("QPushButton { background-color: white }");
         self.b_move_up.setStyleSheet("QPushButton { background-color: white }");        
         self.b_move_down.setStyleSheet("QPushButton { background-color: white }");        
         self.b_run.setStyleSheet("QPushButton { background-color: white }");
         self.b_stop.setStyleSheet("QPushButton { background-color: white }");
         
         self.b_add.clicked.connect      (self._bAddClicked)
-        self.b_remove.clicked.connect   (self._removeStepFromSequence)
-        self.b_move_up.clicked.connect  (self._moveUpInSequence)
-        self.b_move_down.clicked.connect(self._moveDownInSequence)
-        self.b_run.clicked.connect      (self._runClicked)
-        self.b_stop.clicked.connect     (self._stopClicked)
+        self.b_edit.clicked.connect     (self._bEditClicked)
+        self.b_remove.clicked.connect   (self._bRemoveClicked)
+        self.b_check.clicked.connect    (self._bCheckClicked)        
+        self.b_move_up.clicked.connect  (self._bMoveUpClicked)
+        self.b_move_down.clicked.connect(self._bMoveDownClicked)
+        self.b_run.clicked.connect      (self._bRunClicked)
+        self.b_stop.clicked.connect     (self._bStopClicked)
         
         self.b_stop.setEnabled(False)
         
@@ -511,8 +475,9 @@ class MLTester(QMainWindow):
         sequence_buttons_pane.layout().addWidget(self.b_stop)
         sequence_buttons_pane.layout().addStretch()
         sequence_buttons_pane.layout().addWidget(self.b_add)
-        sequence_buttons_pane.layout().addWidget(self.b_edit)
+#         sequence_buttons_pane.layout().addWidget(self.b_edit)
         sequence_buttons_pane.layout().addWidget(self.b_remove)
+        sequence_buttons_pane.layout().addWidget(self.b_check)
         sequence_buttons_pane.layout().addWidget(self.b_move_up)
         sequence_buttons_pane.layout().addWidget(self.b_move_down)
         sequence_pane.layout().addWidget(sequence_buttons_pane)
@@ -539,11 +504,10 @@ class MLTester(QMainWindow):
         self.edit_pane.layout().addWidget(QLabel("Properties:"))
         self.edit_pane.layout().addWidget(self.configuration_pane, 1)
 
-        central_widget = QWidget()
-        central_widget.setLayout(QHBoxLayout())
-        central_widget.layout().addWidget(sequence_pane, 2)
-        central_widget.layout().addWidget(logs_pane, 5)
-        central_widget.layout().addWidget(self.edit_pane, 2)
+        central_widget = QSplitter()
+        central_widget.addWidget(sequence_pane)
+        central_widget.addWidget(logs_pane)
+        central_widget.addWidget(self.edit_pane)
 
         self.setCentralWidget(central_widget)
         #self.layout().addWidget(b_remove, 1, 1)
@@ -623,22 +587,6 @@ class MLTester(QMainWindow):
         self._doc.setModified(True)
     
     #--------------------------------------------------------------------#
-
-    def _selectedSteps(self):
-        current_folder = self.steps_folder
-        step_list = current_folder.getStepList()
-        while step_list is None:
-            current_folder = current_folder.getSelectedSubFolder()
-            step_list = current_folder.getStepList()
-        selectedIndexes = step_list.getWidget().selectedIndexes()
-        return selectedIndexes
-    
-    #--------------------------------------------------------------------#
-         
-    def _addStep(self, step_list, step_class):
-        step_list.addStep(step_class)
-    
-    #--------------------------------------------------------------------#
     
     def _createFolder(self, parent_folder, name):
         folder = TestDataFolder(name)
@@ -691,16 +639,48 @@ class MLTester(QMainWindow):
         
     #--------------------------------------------------------------------#
     
-    def _addOrUpdateSequence(self, index, step):
-        if index == len(self._sequence):
-            self._sequence.append(step)
+    def _addStepsToSequence(self, steps, index):
+        new_indexes = []
+        for step in steps:
+            self._sequence.insert(index, step)
             self.sequence_widget.insertRow(index)
             self._addSequenceCell(index, 0, checkbox_handler=self._getStepEnabledHandler(index))
             self._addSequenceCell(index, 1, spinbox_handler=self._getStepRepeatHandler(index))
             self._addSequenceCell(index, 2)
             self._addSequenceCell(index, 3)
             self._addSequenceCell(index, 4)
+            self._updateStepInSequence(index, step)
+            new_indexes.append(index)
+            index += 1
+        return new_indexes
+    
+    #--------------------------------------------------------------------#
 
+    def _addStepsToSequenceStart(self, steps):
+        return self._addStepsToSequence(steps, 0)
+    
+    #--------------------------------------------------------------------#
+
+    def _addStepsToSequenceEnd(self, steps):
+        return self._addStepsToSequence(steps, self.sequence_widget.rowCount())
+            
+    #--------------------------------------------------------------------#
+
+    def _addStepsToSequenceBefore(self, steps):
+        selected_indexes = self._getSelectedIndexes()
+        index = self.sequence_widget.rowCount() if len(selected_indexes) == 0 else min(selected_indexes)
+        return self._addStepsToSequence(steps, index)
+
+    #--------------------------------------------------------------------#
+
+    def _addStepsToSequenceAfter(self, steps):
+        selected_indexes = self._getSelectedIndexes()
+        index = 0 if len(selected_indexes) == 0 else max(selected_indexes) + 1
+        return self._addStepsToSequence(steps, index)
+        
+    #--------------------------------------------------------------------#
+    
+    def _updateStepInSequence(self, index, step):
         self.sequence_widget.cellWidget(index, 0).setChecked(Qt.Checked if step.isEnabled() else Qt.Unchecked)
         self.sequence_widget.cellWidget(index, 1).setValue(step.repeat())
         #self.sequence_widget.item(index, 2).font().setPointSize(50)
@@ -727,19 +707,19 @@ class MLTester(QMainWindow):
     def _setStepEnabled(self, index, val):
         step = self._sequence[index]
         step.setEnabled(val)
-        if self._is_running:
-            self.sequence_widget.cellWidget(index, 0).setEnabled(False)
-            self.sequence_widget.cellWidget(index, 1).setEnabled(False)
-        else:
-            self.sequence_widget.cellWidget(index, 0).setEnabled(True)
-            self.sequence_widget.cellWidget(index, 1).setEnabled(val)
+#         if self._is_running:
+#             self.sequence_widget.cellWidget(index, 0).setEnabled(False)
+#             self.sequence_widget.cellWidget(index, 1).setEnabled(False)
+#         else:
+#             self.sequence_widget.cellWidget(index, 0).setEnabled(True)
+#             self.sequence_widget.cellWidget(index, 1).setEnabled(val)
             
-        for col in range(2, self.sequence_widget.columnCount()):
-            item = self.sequence_widget.item(index, col)
-            if val:
-                item.setFlags(item.flags() | Qt.ItemIsEnabled);
-            else:
-                item.setFlags(item.flags() & ~Qt.ItemIsEnabled);
+#         for col in range(2, self.sequence_widget.columnCount()):
+#             item = self.sequence_widget.item(index, col)
+#             if val:
+#                 item.setFlags(item.flags() | Qt.ItemIsEnabled);
+#             else:
+#                 item.setFlags(item.flags() & ~Qt.ItemIsEnabled);
 
     #--------------------------------------------------------------------#
     
@@ -758,60 +738,104 @@ class MLTester(QMainWindow):
         step2 = self._sequence[new_index]
         self._sequence[index] = step2
         self._sequence[new_index] = step1
-        self._addOrUpdateSequence(index, step2)
-        self._addOrUpdateSequence(new_index, step1)
+        self._updateStepInSequence(index, step2)
+        self._updateStepInSequence(new_index, step1)
         self.sequence_widget.setCurrentCell(new_index, 0)
         self._setModified()
     
     #--------------------------------------------------------------------#
     
-    def _moveUpInSequence(self):
+    def _bMoveUpClicked(self):
         self._moveInSequence(-1)
         
     #--------------------------------------------------------------------#
     
-    def _moveDownInSequence(self):
+    def _bMoveDownClicked(self):
         self._moveInSequence(1)
                     
     #--------------------------------------------------------------------#
     
-    def _removeStepFromSequence(self):
-        index = self.sequence_widget.currentRow()
-        self._sequence.pop(index)
-        while index < len(self._sequence):
-            self._addOrUpdateSequence(index, self._sequence[index])
-            index += 1
-        self.sequence_widget.removeRow(index)
+    def _getSelectedIndexes(self):                    
+        return [s.row() for s in self.sequence_widget.selectionModel().selectedRows()]
+    
+    #--------------------------------------------------------------------#
+    
+    def _removeSelectedStepsFromSequence(self):
+        indexes_to_remove = self._getSelectedIndexes()
+        indexes_to_remove.sort(reverse=True)
+        for index in indexes_to_remove:
+            self._sequence.pop(index)
+            while index < len(self._sequence):
+                self._updateStepInSequence(index, self._sequence[index])
+                index += 1
+            self.sequence_widget.removeRow(index)
+        self.sequence_widget.clearSelection()
         self._setModified()
 
     #--------------------------------------------------------------------#
     
-    def _bAddClicked(self):
-        if self._selected_step is None:
+    def _copyStepsToClipboard(self):
+        selected_indexes = self._getSelectedIndexes()
+        selected_indexes.sort() #reversed=True)
+        self._copied_steps = [self._sequence[index].clone() for index in selected_indexes]
+                
+    #--------------------------------------------------------------------#
+    
+    def _pasteStepsToSequence(self, before):
+        if len(self._copied_steps) == 0:
             return
-        self._addOrUpdateSequence(self.sequence_widget.rowCount(), self._selected_step)
-        self._setModified()
+        
+        if before:
+            indexes = self._addStepsToSequenceBefore(self._copied_steps)
+        else:
+            indexes = self._addStepsToSequenceAfter(self._copied_steps)
+        
+        if before:
+            pass
+        else:
+            self.sequence_widget.clearSelection()
+            print indexes
+            for index in indexes:
+                self.sequence_widget.selectRow(index)
+        self._setModified()        
+        
+    #--------------------------------------------------------------------#
+    
+    def _bAddClicked(self):
+        prompt = StepEditDialog(self, None)
+        res = prompt.exec_()
+        if res == QDialog.Accepted:
+            index = self._addStepsToSequenceAfter([prompt.step()])
+            self.sequence_widget.setCurrentCell(index, 0)
+            self._setModified()
 
+    #--------------------------------------------------------------------#
+    
+    def _bEditClicked(self):
+        self.configuration_pane.setFocus()
+        
+    #--------------------------------------------------------------------#
+    
+    def _bCheckClicked(self):
+        selected_indexes = self._getSelectedIndexes()
+        all_enabled = all(self._sequence[index].isEnabled() for index in selected_indexes)
+        val = Qt.Unchecked if all_enabled else Qt.Checked
+        for index in selected_indexes:
+            self.sequence_widget.cellWidget(index, 0).setChecked(val)
+            self._sequence[index].setEnabled(not all_enabled)
+        self._setModified()
+                
+    #--------------------------------------------------------------------#
+    
+    def _bRemoveClicked(self):
+        self._removeSelectedStepsFromSequence()
+        
     #--------------------------------------------------------------------#
 
     def _clear(self):
         while self.sequence_widget.rowCount() > 0:
             self.sequence_widget.removeRow(0)
         self._sequence = []
-
-    #--------------------------------------------------------------------#
-
-    def _createStepsList(self, folder):
-        step_list = TestDataStepList(self._stepListStepSelected)
-        folder.setStepList(step_list)
-        return step_list
-    
-    #--------------------------------------------------------------------#
-    
-    def _stepListStepSelected(self, step):
-        self._selected_step = step
-        #widget = step.attributesWidget()
-        #self._setConfigurationPane(widget)
 
     #--------------------------------------------------------------------#
         
@@ -832,8 +856,7 @@ class MLTester(QMainWindow):
         
         if not widget_exists:
             widget.addFieldChangedHandler(self._onAttributeChanged)
-            layout.addWidget(widget)
-            layout.addStretch(1) 
+            layout.insertWidget(0, widget)
 
         self._attributes_widget.hide()
         self._attributes_widget = widget
@@ -850,7 +873,7 @@ class MLTester(QMainWindow):
     #--------------------------------------------------------------------#
     
     def _refreshItem(self, index):
-        self._addOrUpdateSequence(index, self._sequence[index])
+        self._updateStepInSequence(index, self._sequence[index])
     
     #--------------------------------------------------------------------#
     
@@ -937,14 +960,16 @@ class MLTester(QMainWindow):
     def _setEditWidgetsEnabled(self, val):
         if val:
             self.edit_pane.show()
-            self.sequence_widget.setSelectionMode(QAbstractItemView.SingleSelection)
+            self.sequence_widget.setSelectionMode(QAbstractItemView.MultiSelection)
         else:
             self.edit_pane.hide()
             self.sequence_widget.setSelectionMode(QAbstractItemView.NoSelection)
-        
+
+        #self.sequence_widget.setEnabled(val)
         self.b_add.setEnabled(val)
         self.b_edit.setEnabled(val)
         self.b_remove.setEnabled(val)
+        self.b_check.setEnabled(val)
         self.b_move_down.setEnabled(val)
         self.b_move_up.setEnabled(val)
         self.b_run.setEnabled(val)
@@ -975,12 +1000,12 @@ class MLTester(QMainWindow):
     
     #--------------------------------------------------------------------#
         
-    def _runClicked(self):
+    def _bRunClicked(self):
         self._run()
     
     #--------------------------------------------------------------------#
 
-    def _stopClicked(self):
+    def _bStopClicked(self):
         self._stop()
         
     #--------------------------------------------------------------------#
@@ -1044,7 +1069,7 @@ class MLTester(QMainWindow):
             
         for step_node in sequence_node.getchildren():
             step = Step.loadFromXml(step_node)
-            self._addOrUpdateSequence(len(self._sequence), step)
+            self._addStepsToSequenceEnd([step])
         self._doc.setModified(False)
             
     #--------------------------------------------------------------------#
@@ -1052,6 +1077,15 @@ class MLTester(QMainWindow):
     def run(self):
         self._run()
         self.thread.wait()
+    
+    #--------------------------------------------------------------------#
+    
+    def keyPressEvent(self, event):
+        if (event.key() == Qt.Key_C) and (event.modifiers() & Qt.ControlModifier):
+            self._copyStepsToClipboard()
+        elif (event.key() == Qt.Key_V) and (event.modifiers() & Qt.ControlModifier):
+            before = bool(event.modifiers() & Qt.ShiftModifier)
+            self._pasteStepsToSequence(before)
     
     #--------------------------------------------------------------------#
     
