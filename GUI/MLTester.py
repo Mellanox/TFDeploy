@@ -274,11 +274,59 @@ class TestDataFolder(TestDataItem):
 
 #############################################################################
 
-class ServerInfo(object):
-    def __init__(self, name, ips):
-        self._name = name
-        self._ips = ips
+class ActionWithButton(QAction):
+    def __init__(self, mnt, icon_path, text, shortcut, status_tip, handler, enabled=True, checkable=False, checked=False):
+        super(ActionWithButton, self).__init__(QIcon(icon_path), text, mnt.menu)
+        self.setShortcut(shortcut)
+        self.setStatusTip(status_tip)
+        self.triggered.connect(handler)
+        self.setEnabled(enabled)
+        self.setCheckable(checkable)
+        self.setChecked(checked)
         
+        self.button = QPushButton()
+        self.button.setIconSize(QSize(24,24))
+        self._updateButtonStatusFromAction()
+        
+        self.changed.connect(self._updateButtonStatusFromAction)
+        self.button.clicked.connect(self._buttonClicked)
+
+        mnt.menu.addAction(self)
+        if os.path.isfile(icon_path):
+            mnt.toolbar.addWidget(self.button)
+    
+    # -------------------------------------------------------------------- #
+    
+    def _buttonClicked(self, checked):
+        self.trigger()
+
+    # -------------------------------------------------------------------- #
+        
+    def _updateButtonStatusFromAction(self):
+        #self.button.setText        (self.text())
+        self.button.setStatusTip   (self.statusTip())
+        self.button.setToolTip     (self.toolTip())
+        self.button.setIcon        (self.icon())
+        self.button.setEnabled     (self.isEnabled())
+        self.button.setCheckable   (self.isCheckable())
+        self.button.setChecked     (self.isChecked())        
+
+#############################################################################
+
+class MenuWithToolbar(object):
+    def __init__(self, parent, text):
+        self.parent = parent
+        self.name = text.replace("&", "")
+        self.menu = parent.menuBar().addMenu(text)
+        self.toolbar = QToolBar(text)
+        self.parent.addToolBar(self.toolbar)
+    
+    #--------------------------------------------------------------------#
+    
+    def add(self, action_with_button):
+        self.menu.addAction(action_with_button)
+        self.toolbar.addWidget(action_with_button.button)
+
 #############################################################################
 
 class MLTester(QMainWindow):
@@ -301,6 +349,7 @@ class MLTester(QMainWindow):
         self._step_logs_dir = None
         self._current_step = None
         self._copied_steps = []
+        self._error_processes = []
         self._is_running = False
         self._do_stop = False
         self._initGui()
@@ -309,6 +358,10 @@ class MLTester(QMainWindow):
                         
     def _initGui(self):
         
+        self.setStyleSheet('''
+            QPushButton { background-color: white } 
+            QPushButton:hover { background-color: #cccccc }
+            ''')
         self.setWindowIcon(QIcon("/usr/share/icons/Humanity/categories/16/preferences-desktop.svg"))
         self.log_signal.connect(self._log)
         self.open_log_signal.connect(self._openLog)
@@ -328,15 +381,20 @@ class MLTester(QMainWindow):
         self.sequence_widget.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.sequence_widget.selectionModel().selectionChanged.connect(self._sequenceStepSelected)
         self.sequence_widget.itemChanged.connect(self._onSequenceItemChanged)
-        
+        self.sequence_widget.setSelectionMode(QAbstractItemView.ExtendedSelection)
+
         self.configuration_pane = QWidget()
         self.configuration_pane.setLayout(QVBoxLayout())
-        self.configuration_pane.setObjectName("HighLevelWidget")
-        self.configuration_pane.setStyleSheet("QWidget#HighLevelWidget { border:1px solid black; }")
-        
+#         self.configuration_pane.setObjectName("HighLevelWidget")
+#         self.configuration_pane.setStyleSheet("QWidget#HighLevelWidget { border:1px solid black; }")
         self._attributes_widget = QWidget()
         self.configuration_pane.layout().addWidget(self._attributes_widget, 0)
-        self.configuration_pane.layout().addStretch(1) 
+        self.configuration_pane.layout().addStretch(1)
+
+        self.configuration_box = QScrollArea()
+        self.configuration_box.setWidget(self.configuration_pane)
+        self.configuration_box.setWidgetResizable(True)
+        self.configuration_box.setFixedHeight(400)
 
         self.configurations_folder  = self._createFolder(None, "Configurations")
         self.steps_folder           = self._createFolder(self.configurations_folder, "Steps")
@@ -371,117 +429,49 @@ class MLTester(QMainWindow):
         attribute = VariablesAttribute("Variables")
         self.variables_folder.addAttribute(attribute)
         
-        ############
-        # Buttons: #
-        ############
-        self.b_add = QPushButton()
-        self.b_edit = QPushButton()
-        self.b_copy = QPushButton()
-        self.b_paste = QPushButton()
-        self.b_remove = QPushButton()
-        self.b_check = QPushButton()
-        self.b_move_up = QPushButton()
-        self.b_move_down = QPushButton()
-        self.b_run = QPushButton()
-        self.b_stop = QPushButton()
-        
-        self.b_add.setIcon(QIcon("images/add.jpg"));
-        self.b_edit.setIcon(QIcon("images/edit.jpg"));
-        self.b_copy.setIcon(QIcon("images/copy.png"));
-        self.b_paste.setIcon(QIcon("images/paste.png"));
-        self.b_remove.setIcon(QIcon("images/remove.jpg"));
-        self.b_check.setIcon(QIcon("images/check.jpg"));
-        self.b_move_up.setIcon(QIcon("images/move_up.jpg"));
-        self.b_move_down.setIcon(QIcon("images/move_down.jpg"));
-        self.b_run.setIcon(QIcon("images/start.jpg"));
-        self.b_stop.setIcon(QIcon("images/stop.jpg"));
-
-        self.b_add.setIconSize(QSize(32,32))
-        self.b_edit.setIconSize(QSize(32,32))
-        self.b_copy.setIconSize(QSize(32,32))
-        self.b_paste.setIconSize(QSize(32,32))
-        self.b_remove.setIconSize(QSize(32,32))
-        self.b_check.setIconSize(QSize(32,32))        
-        self.b_move_up.setIconSize(QSize(32,32))
-        self.b_move_down.setIconSize(QSize(32,32))
-        self.b_run.setIconSize(QSize(32,32))
-        self.b_stop.setIconSize(QSize(32,32))
-                
-        self.b_add.setStyleSheet("QPushButton { background-color: white }");
-        self.b_edit.setStyleSheet("QPushButton { background-color: white }");        
-        self.b_copy.setStyleSheet("QPushButton { background-color: white }");
-        self.b_paste.setStyleSheet("QPushButton { background-color: white }");
-        self.b_remove.setStyleSheet("QPushButton { background-color: white }");
-        self.b_check.setStyleSheet("QPushButton { background-color: white }");
-        self.b_move_up.setStyleSheet("QPushButton { background-color: white }");        
-        self.b_move_down.setStyleSheet("QPushButton { background-color: white }");        
-        self.b_run.setStyleSheet("QPushButton { background-color: white }");
-        self.b_stop.setStyleSheet("QPushButton { background-color: white }");
-        
-        self.b_add.clicked.connect      (self._bAddClicked)
-        self.b_edit.clicked.connect     (self._bEditClicked)
-        self.b_remove.clicked.connect   (self._bRemoveClicked)
-        self.b_check.clicked.connect    (self._bCheckClicked)        
-        self.b_move_up.clicked.connect  (self._bMoveUpClicked)
-        self.b_move_down.clicked.connect(self._bMoveDownClicked)
-        self.b_run.clicked.connect      (self._bRunClicked)
-        self.b_stop.clicked.connect     (self._bStopClicked)
-        
-        self.b_stop.setEnabled(False)
-        
         #########
         # Menus:
         #########
-        newAction = QAction(QIcon('new.png'), '&New', self)
-        newAction.setShortcut('Ctrl+N')
-        newAction.setStatusTip('New test')
-        newAction.triggered.connect(self._newAction)
-
-        openAction = QAction(QIcon('open.png'), '&Open...', self)
-        openAction.setShortcut('Ctrl+O')
-        openAction.setStatusTip('Open test...')
-        openAction.triggered.connect(self._loadAction)
-
-        saveAction = QAction(QIcon('save.png'), '&Save', self)
-        saveAction.setShortcut('Ctrl+S')
-        saveAction.setStatusTip('Save test')
-        saveAction.triggered.connect(self._saveAction)
-
-        saveAsAction = QAction(QIcon('save_as.png'), 'Save &As...', self)
-        saveAsAction.setStatusTip('Save test as...')
-        saveAsAction.triggered.connect(self._saveAsAction)
-
-        exitAction = QAction(QIcon('exit.png'), '&Exit', self)
-        exitAction.setShortcut('Ctrl+Q')
-        exitAction.setStatusTip('Exit application')
-        exitAction.triggered.connect(qApp.quit)
-                        
-        fileMenu = self.menuBar().addMenu("&File");
-        fileMenu.addAction(newAction);
-        fileMenu.addAction(openAction);
-        fileMenu.addAction(saveAction);        
-        fileMenu.addAction(saveAsAction);
-        fileMenu.addSeparator();
-        fileMenu.addAction(exitAction);
+                          
+        self.file_menu   = MenuWithToolbar(self, "&File")      
+        self.edit_menu   = MenuWithToolbar(self, "&Edit")
+        self.run_menu    = MenuWithToolbar(self, "&Run")
+        self.window_menu = MenuWithToolbar(self, "&Window")
+        self.help_menu   = MenuWithToolbar(self, "&Help")
+                
+        self.newAction       = ActionWithButton(self.file_menu, "images/new.jpeg",      "&New",          "Ctrl+N", "New test", self._newAction)
+        self.openAction      = ActionWithButton(self.file_menu, "images/open.jpeg",     "&Open...",      "Ctrl+O", "Open test...", self._openAction)
+        self.saveAction      = ActionWithButton(self.file_menu, "images/save.jpeg",     "&Save",         "Ctrl+S", "Save test", self._saveAction)
+        self.saveAsAction    = ActionWithButton(self.file_menu, "images/save_as.jpeg",  "Save &As...",   "Ctrl+S", "Save test as...", self._saveAction)
+        self.file_menu.menu.addSeparator()        
+        self.quitAction      = ActionWithButton(self.file_menu, "images/save_as.jpeg",  "E&xit",         "Ctrl+S", "Exit application", qApp.quit)
+        
+        self.addAction       = ActionWithButton(self.edit_menu, "images/add.jpg",       "Add",           "Ctrl++",       "Exit application", self._addActionHandler)
+        self.copyAction      = ActionWithButton(self.edit_menu, "images/copy.png",      "Copy",          "Ctrl+C",       "Exit application", self._copyActionHandler, enabled=False)
+        self.pasteAction     = ActionWithButton(self.edit_menu, "images/paste.png",     "Paste",         "Ctrl+V",       "Exit application", self._pasteAfterActionHandler, enabled=False)
+        self.pasteBeforeAction = ActionWithButton(self.edit_menu, "images/paste.png",   "Paste Before",  "Ctrl+Shift+V", "Exit application", self._pasteBeforeActionHandler, enabled=False)
+        self.removeAction    = ActionWithButton(self.edit_menu, "images/remove.jpg",    "Remove",        "Ctrl+-",       "Exit application", self._removeActionHandler, enabled=False)
+        self.checkAction     = ActionWithButton(self.edit_menu, "images/check.jpg",     "Check/Uncheck", "Ctrl+Space",   "Exit application", self._checkActionHandler, enabled=False)
+        self.moveUpAction    = ActionWithButton(self.edit_menu, "images/move_up.jpg",   "MoveUp",        "Ctrl+Up",      "Exit application", self._moveUpActionHandler, enabled=False)
+        self.moveDownAction  = ActionWithButton(self.edit_menu, "images/move_down.jpg", "MoveDown",      "Ctrl+Down",    "Exit application", self._moveDownActionHandler, enabled=False)
+        
+        self.startAction     = ActionWithButton(self.run_menu, "images/start.jpg",      "Start",          "Ctrl+F5",      "Exit application",  self._runActionHandler)
+        self.stopAction      = ActionWithButton(self.run_menu, "images/stop.jpg",       "Stop",           "Ctrl+F11",     "Exit application", self._stopActionHandler, enabled=False)
+        
+        self.editAction      = ActionWithButton(self.window_menu, "images/edit.jpg",     "Show edit pane","",       "Exit application", self._showEditPaneAction, checkable=True, checked=True)
+        self.closeWinsAction = ActionWithButton(self.window_menu, "images/close_all_windows.jpeg","&Close Open Windows", "Ctrl+X", "Exit application", self._closeAllWindowsAction)
+        
+        self.aboutAction     = ActionWithButton(self.help_menu, "images/about.jpeg",   "&About",        "F1", "Exit application", self._aboutAction, checkable=True)
         
         #########
         # Panes:
         #########
-        sequence_pane = QWidget()
+        sequence_pane = QSplitter()
+        sequence_pane.setOrientation(Qt.Vertical)
         sequence_pane.setLayout(QVBoxLayout())
-        sequence_pane.layout().addWidget(self.sequence_widget, 1)
-        sequence_buttons_pane = QWidget()
-        sequence_buttons_pane.setLayout(QHBoxLayout())
-        sequence_buttons_pane.layout().addWidget(self.b_run)
-        sequence_buttons_pane.layout().addWidget(self.b_stop)
-        sequence_buttons_pane.layout().addStretch()
-        sequence_buttons_pane.layout().addWidget(self.b_add)
-#         sequence_buttons_pane.layout().addWidget(self.b_edit)
-        sequence_buttons_pane.layout().addWidget(self.b_remove)
-        sequence_buttons_pane.layout().addWidget(self.b_check)
-        sequence_buttons_pane.layout().addWidget(self.b_move_up)
-        sequence_buttons_pane.layout().addWidget(self.b_move_down)
-        sequence_pane.layout().addWidget(sequence_buttons_pane)
+        sequence_pane.layout().addWidget(self.sequence_widget, 2)
+        sequence_pane.layout().addWidget(self.configuration_box, 1)
+        sequence_pane.resize(500, sequence_pane.height())
 
         configurations_folder_widget = self.configurations_folder.createWidget()
         configurations_folder_widget.layout().setMargin(0)
@@ -499,19 +489,18 @@ class MLTester(QMainWindow):
 #         configurations_folder_widget.setObjectName("HighLevelWidget")
 #         configurations_folder_widget.setStyleSheet("QWidget#HighLevelWidget { border:1px solid black; }")        
 
-        self.edit_pane = QWidget()
-        self.edit_pane.setLayout(QVBoxLayout())
-        self.edit_pane.layout().addWidget(steps_select_pane, 1)
-        self.edit_pane.layout().addWidget(QLabel("Properties:"))
-        self.edit_pane.layout().addWidget(self.configuration_pane, 1)
+#         self.edit_pane = QWidget()
+#         self.edit_pane.setLayout(QVBoxLayout())
+#         self.edit_pane.layout().addWidget(steps_select_pane, 1)
+#         self.edit_pane.layout().addWidget(QLabel("Properties:"))
+        #self.edit_pane.layout().addWidget(self.configuration_pane, 1)
 
         central_widget = QSplitter()
         central_widget.addWidget(sequence_pane)
         central_widget.addWidget(logs_pane)
-        central_widget.addWidget(self.edit_pane)
+        #central_widget.addWidget(self.edit_pane)
 
         self.setCentralWidget(central_widget)
-        #self.layout().addWidget(b_remove, 1, 1)
 
     #--------------------------------------------------------------------#
 
@@ -573,6 +562,8 @@ class MLTester(QMainWindow):
         if process.instance.returncode in [0, 143, -15]:
             self.emitCloseLog(process)
             return True
+        
+        self._error_processes.append(process)
         return False
         
     #--------------------------------------------------------------------#
@@ -683,14 +674,14 @@ class MLTester(QMainWindow):
 
     def _addStepsToSequenceBefore(self, steps):
         selected_indexes = self._getSelectedIndexes()
-        index = self.sequence_widget.rowCount() if len(selected_indexes) == 0 else min(selected_indexes)
+        index = 0 if len(selected_indexes) == 0 else min(selected_indexes)
         return self._addStepsToSequence(steps, index)
 
     #--------------------------------------------------------------------#
 
     def _addStepsToSequenceAfter(self, steps):
         selected_indexes = self._getSelectedIndexes()
-        index = 0 if len(selected_indexes) == 0 else max(selected_indexes) + 1
+        index = self.sequence_widget.rowCount() if len(selected_indexes) == 0 else max(selected_indexes) + 1
         return self._addStepsToSequence(steps, index)
         
     #--------------------------------------------------------------------#
@@ -757,12 +748,12 @@ class MLTester(QMainWindow):
     
     #--------------------------------------------------------------------#
     
-    def _bMoveUpClicked(self):
+    def _moveUpActionHandler(self):
         self._moveInSequence(-1)
         
     #--------------------------------------------------------------------#
     
-    def _bMoveDownClicked(self):
+    def _moveDownActionHandler(self):
         self._moveInSequence(1)
                     
     #--------------------------------------------------------------------#
@@ -781,7 +772,7 @@ class MLTester(QMainWindow):
                 self._updateStepInSequence(index, self._sequence[index])
                 index += 1
             self.sequence_widget.removeRow(index)
-        self.sequence_widget.clearSelection()
+#         self.sequence_widget.clearSelection()
         self._setModified()
 
     #--------------------------------------------------------------------#
@@ -790,6 +781,8 @@ class MLTester(QMainWindow):
         selected_indexes = self._getSelectedIndexes()
         selected_indexes.sort() #reversed=True)
         self._copied_steps = [self._sequence[index].clone() for index in selected_indexes]
+        self.pasteAction.setEnabled(True)
+        self.pasteBeforeAction.setEnabled(True)
                 
     #--------------------------------------------------------------------#
     
@@ -813,22 +806,32 @@ class MLTester(QMainWindow):
         
     #--------------------------------------------------------------------#
     
-    def _bAddClicked(self):
+    def _addActionHandler(self):
         prompt = StepEditDialog(self, None)
         res = prompt.exec_()
         if res == QDialog.Accepted:
-            index = self._addStepsToSequenceAfter([prompt.step()])
-            self.sequence_widget.setCurrentCell(index, 0)
+            indexes = self._addStepsToSequenceAfter([prompt.step()])
+            self.sequence_widget.setCurrentCell(indexes[0], 0)
             self._setModified()
 
     #--------------------------------------------------------------------#
     
-    def _bEditClicked(self):
-        self.configuration_pane.setFocus()
+    def _copyActionHandler(self):
+        self._copyStepsToClipboard()
+
+    #--------------------------------------------------------------------#
+    
+    def _pasteBeforeActionHandler(self):
+        self._pasteStepsToSequence(True)
+
+    #--------------------------------------------------------------------#
+    
+    def _pasteAfterActionHandler(self):
+        self._pasteStepsToSequence(False)
         
     #--------------------------------------------------------------------#
     
-    def _bCheckClicked(self):
+    def _checkActionHandler(self):
         selected_indexes = self._getSelectedIndexes()
         all_enabled = all(self._sequence[index].isEnabled() for index in selected_indexes)
         val = Qt.Unchecked if all_enabled else Qt.Checked
@@ -839,7 +842,7 @@ class MLTester(QMainWindow):
                 
     #--------------------------------------------------------------------#
     
-    def _bRemoveClicked(self):
+    def _removeActionHandler(self):
         self._removeSelectedStepsFromSequence()
         
     #--------------------------------------------------------------------#
@@ -847,6 +850,7 @@ class MLTester(QMainWindow):
     def _clear(self):
         while self.sequence_widget.rowCount() > 0:
             self.sequence_widget.removeRow(0)
+        self._clearConfigurationPane()
         self._sequence = []
 
     #--------------------------------------------------------------------#
@@ -855,6 +859,13 @@ class MLTester(QMainWindow):
         index = self.sequence_widget.currentRow()
         item = self._sequence[index]
         self._setConfigurationPane(item.attributesWidget())
+        selected_indexes = self._getSelectedIndexes()
+        something_selected = len(selected_indexes) > 0
+        self.removeAction.setEnabled(something_selected)
+        self.checkAction.setEnabled(something_selected)
+        self.copyAction.setEnabled(something_selected)
+        self.moveDownAction.setEnabled(something_selected)
+        self.moveUpAction.setEnabled(something_selected)
 
     #--------------------------------------------------------------------#
     
@@ -874,6 +885,20 @@ class MLTester(QMainWindow):
         self._attributes_widget = widget
         self._attributes_widget.show()
     
+    #--------------------------------------------------------------------#
+    
+    def _clearConfigurationPane(self):
+        layout = self.configuration_pane.layout()
+        widgets = []
+        for i in range(layout.count()):
+            w = layout.itemAt(i).widget()
+            if w is not None:
+                widgets.append(w)
+                
+        for w in widgets:
+            w.hide() 
+            w.setParent(None)
+        
     #--------------------------------------------------------------------#
     
     def _onAttributeChanged(self, attribute_index, value):
@@ -971,21 +996,20 @@ class MLTester(QMainWindow):
     
     def _setEditWidgetsEnabled(self, val):
         if val:
-            self.edit_pane.show()
-            self.sequence_widget.setSelectionMode(QAbstractItemView.MultiSelection)
+            self.sequence_widget.setSelectionMode(QAbstractItemView.ExtendedSelection)
         else:
-            self.edit_pane.hide()
+            self.sequence_widget.clearSelection()
             self.sequence_widget.setSelectionMode(QAbstractItemView.NoSelection)
 
         #self.sequence_widget.setEnabled(val)
-        self.b_add.setEnabled(val)
-        self.b_edit.setEnabled(val)
-        self.b_remove.setEnabled(val)
-        self.b_check.setEnabled(val)
-        self.b_move_down.setEnabled(val)
-        self.b_move_up.setEnabled(val)
-        self.b_run.setEnabled(val)
-        self.b_stop.setEnabled(not val)
+        for action in self.edit_menu.menu.actions():
+            action.setEnabled(val)
+        self.startAction.setEnabled(val)
+        self.stopAction.setEnabled(not val)
+        
+        # Show/Hide edit pane
+        self.editAction.setEnabled(val)
+        self.configuration_box.setVisible(val and self.editAction.isChecked())
     
     #--------------------------------------------------------------------#
     
@@ -1012,14 +1036,31 @@ class MLTester(QMainWindow):
     
     #--------------------------------------------------------------------#
         
-    def _bRunClicked(self):
+    def _runActionHandler(self):
         self._run()
     
     #--------------------------------------------------------------------#
 
-    def _bStopClicked(self):
+    def _stopActionHandler(self):
         self._stop()
-        
+    
+    #--------------------------------------------------------------------#
+    
+    def _showEditPaneAction(self, checked):
+        self.configuration_box.setVisible(checked)
+    
+    #--------------------------------------------------------------------#
+    
+    def _closeAllWindowsAction(self, checked):
+        for process in self._error_processes:
+            self.emitCloseLog(process)
+        self._log_widget.closeAllSubWindows()
+    
+    #--------------------------------------------------------------------#
+    
+    def _aboutAction(self):
+        pass 
+            
     #--------------------------------------------------------------------#
     
     def _newAction(self):
@@ -1059,7 +1100,7 @@ class MLTester(QMainWindow):
 
     #--------------------------------------------------------------------#
     
-    def _loadAction(self, is_checked):
+    def _openAction(self, is_checked):
         self._loadFromXml(None)
         
     #--------------------------------------------------------------------#
@@ -1092,12 +1133,12 @@ class MLTester(QMainWindow):
     
     #--------------------------------------------------------------------#
     
-    def keyPressEvent(self, event):
-        if (event.key() == Qt.Key_C) and (event.modifiers() & Qt.ControlModifier):
-            self._copyStepsToClipboard()
-        elif (event.key() == Qt.Key_V) and (event.modifiers() & Qt.ControlModifier):
-            before = bool(event.modifiers() & Qt.ShiftModifier)
-            self._pasteStepsToSequence(before)
+#     def keyPressEvent(self, event):
+#         if (event.key() == Qt.Key_C) and (event.modifiers() & Qt.ControlModifier):
+#             self._copyStepsToClipboard()
+#         elif (event.key() == Qt.Key_V) and (event.modifiers() & Qt.ControlModifier):
+#             before = bool(event.modifiers() & Qt.ShiftModifier)
+#             self._pasteStepsToSequence(before)
     
     #--------------------------------------------------------------------#
     
@@ -1127,6 +1168,7 @@ if __name__ == '__main__':
 #     QApplication.setStyle(QStyleFactory.create("cde"))
 #     QApplication.setStyle(QStyleFactory.create("Plastique"))
     QApplication.setStyle(QStyleFactory.create("Cleanlooks"))
+    
 #     QApplication.setStyle(QStyleFactory.create("windowsvista"))
     app = QApplication([])
     prompt = MLTester()
@@ -1140,7 +1182,7 @@ if __name__ == '__main__':
         setLogLevel(LOG_LEVEL_INFO, LOG_LEVEL_ALL)
         prompt.setTestEnvironment()
         prompt.loadFromXml("samples/performance_regression.xml")
-        prompt.setGeometry(200, 30, 1900, 800)
-#         prompt.showMaximized()
+#         prompt.setGeometry(200, 30, 1900, 800)
+        prompt.showMaximized()
         prompt.show()
         app.exec_()
