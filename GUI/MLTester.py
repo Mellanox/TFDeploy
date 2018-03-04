@@ -327,6 +327,7 @@ class MLTester(QMainWindow):
         self.sequence_widget.horizontalHeader().setResizeMode(4, QHeaderView.Stretch)
         self.sequence_widget.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.sequence_widget.selectionModel().selectionChanged.connect(self._sequenceStepSelected)
+        self.sequence_widget.itemChanged.connect(self._onSequenceItemChanged)
         
         self.configuration_pane = QWidget()
         self.configuration_pane.setLayout(QVBoxLayout())
@@ -602,10 +603,11 @@ class MLTester(QMainWindow):
         return attribute
     #--------------------------------------------------------------------#
     
-    def _addSequenceCell(self, r, c, checkbox_handler = None, spinbox_handler = None):
+    def _addSequenceCell(self, r, c, text = None, editable = False, checkbox_handler = None, spinbox_handler = None):
         item = QTableWidgetItem()
         flags = item.flags()
-        flags ^= Qt.ItemIsEditable
+        if not editable:
+            flags ^= Qt.ItemIsEditable
         item.setFlags(flags)
         #item.setTextAlignment(Qt.AlignCenter)
             
@@ -619,6 +621,8 @@ class MLTester(QMainWindow):
             widget.setMaximumWidth(50)
             widget.valueChanged.connect(spinbox_handler)            
             self.sequence_widget.setCellWidget(r, c, widget)
+        elif text is not None: 
+            item.setText(text)
         self.sequence_widget.setItem(r, c, item)
     
     #--------------------------------------------------------------------#
@@ -636,6 +640,17 @@ class MLTester(QMainWindow):
             self._sequence[index].setRepeat(val)
             self._setModified()
         return op
+    
+    #--------------------------------------------------------------------#
+    
+    def _onSequenceItemChanged(self, item):
+        #print "Changed: (%u, %u)" % (item.row(), item.column())
+        index = item.row()
+        step = self._sequence[index]
+        if item.column() == 3:
+            name = str(item.text())
+            if name != step.name(): 
+                step.setName(name)
         
     #--------------------------------------------------------------------#
     
@@ -647,7 +662,7 @@ class MLTester(QMainWindow):
             self._addSequenceCell(index, 0, checkbox_handler=self._getStepEnabledHandler(index))
             self._addSequenceCell(index, 1, spinbox_handler=self._getStepRepeatHandler(index))
             self._addSequenceCell(index, 2)
-            self._addSequenceCell(index, 3)
+            self._addSequenceCell(index, 3, text = step.name() if step.name() is not None else step.className(), editable=True)
             self._addSequenceCell(index, 4)
             self._updateStepInSequence(index, step)
             new_indexes.append(index)
@@ -696,10 +711,7 @@ class MLTester(QMainWindow):
         elif step.status() == Step.STATUS_FAILED:
             self.sequence_widget.item(index, 2).setText(QString.fromUtf8("✘"))
             self.sequence_widget.item(index, 2).setForeground(Qt.red)
-
-        self.sequence_widget.item(index, 3).setText(step.name())
         self.sequence_widget.item(index, 4).setText(step.attributesRepr())
-
         self._setStepEnabled(index, step.isEnabled())
     
     #--------------------------------------------------------------------#
@@ -1128,7 +1140,7 @@ if __name__ == '__main__':
         setLogLevel(LOG_LEVEL_INFO, LOG_LEVEL_ALL)
         prompt.setTestEnvironment()
         prompt.loadFromXml("samples/performance_regression.xml")
-        prompt.setGeometry(200, 30, 1900, 600)
+        prompt.setGeometry(200, 30, 1900, 800)
 #         prompt.showMaximized()
         prompt.show()
         app.exec_()

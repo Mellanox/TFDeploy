@@ -1,22 +1,22 @@
 <?xml version="1.0" ?>
 <root>
 	<Sequence>
-		<Step Name="Send Frames">
+		<Step Class="Send Frames">
 			<Attribute Name="MinSize" Value="64"/>
 			<Attribute Name="MaxSize" Value="4096"/>
 			<Attribute Name="NumFrames" Value="1"/>
 		</Step>
-		<Step Name="Send Frames">
+		<Step Class="Send Frames">
 			<Attribute Name="MinSize" Value="64"/>
 			<Attribute Name="MaxSize" Value="4096"/>
 			<Attribute Name="NumFrames" Value="1"/>
 		</Step>
-		<Step Name="Send Frames">
+		<Step Class="Send Frames">
 			<Attribute Name="MinSize" Value="64"/>
 			<Attribute Name="MaxSize" Value="4096"/>
 			<Attribute Name="NumFrames" Value="1"/>
 		</Step>
-		<Step Name="Send Frames">
+		<Step Class="Send Frames">
 			<Attribute Name="MinSize" Value="64"/>
 			<Attribute Name="MaxSize" Value="4096"/>
 			<Attribute Name="NumFrames" Value="1"/>

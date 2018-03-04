@@ -1,13 +1,13 @@
 <?xml version="1.0" ?>
 <root>
 	<Sequence>
-		<Step Name="TF Compile">
+		<Step Class="TF Compile">
 			<Attribute Name="TensorFlow home" Value="~/tensorflow"/>
 			<Attribute Name="CUDA" Value="True"/>
 			<Attribute Name="Additional build flags" Value=""/>
 			<Attribute Name="Install on servers" Value="12.12.12.25,12.12.12.26"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="PS" Value="12.12.12.25,12.12.12.26"/>
 			<Attribute Name="Workers" Value="12.12.12.25,12.12.12.26"/>
 			<Attribute Name="Base Port" Value="5000"/>
@@ -19,7 +19,7 @@
 			<Attribute Name="Data Dir" Value="/data/imagenet_data/"/>
 			<Attribute Name="Log Level" Value="0"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="PS" Value="12.12.12.25,12.12.12.26"/>
 			<Attribute Name="Workers" Value="12.12.12.25,12.12.12.26"/>
 			<Attribute Name="Base Port" Value="5000"/>
@@ -31,7 +31,7 @@
 			<Attribute Name="Data Dir" Value="/data/imagenet_data/"/>
 			<Attribute Name="Log Level" Value="0"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="PS" Value="12.12.12.25,12.12.12.26"/>
 			<Attribute Name="Workers" Value="12.12.12.25,12.12.12.26"/>
 			<Attribute Name="Base Port" Value="5000"/>
@@ -43,7 +43,7 @@
 			<Attribute Name="Data Dir" Value="/data/imagenet_data/"/>
 			<Attribute Name="Log Level" Value="0"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="PS" Value="12.12.12.25,12.12.12.26"/>
 			<Attribute Name="Workers" Value="12.12.12.25,12.12.12.26"/>
 			<Attribute Name="Base Port" Value="5000"/>
@@ -55,7 +55,7 @@
 			<Attribute Name="Data Dir" Value="/data/imagenet_data/"/>
 			<Attribute Name="Log Level" Value="0"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="PS" Value="12.12.12.25,12.12.12.26"/>
 			<Attribute Name="Workers" Value="12.12.12.25,12.12.12.26"/>
 			<Attribute Name="Base Port" Value="5000"/>
@@ -67,7 +67,7 @@
 			<Attribute Name="Data Dir" Value="/data/imagenet_data/"/>
 			<Attribute Name="Log Level" Value="0"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="PS" Value="12.12.12.25,12.12.12.26"/>
 			<Attribute Name="Workers" Value="12.12.12.25,12.12.12.26"/>
 			<Attribute Name="Base Port" Value="5000"/>
@@ -79,7 +79,7 @@
 			<Attribute Name="Data Dir" Value="/data/imagenet_data/"/>
 			<Attribute Name="Log Level" Value="0"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="PS" Value="12.12.12.25,12.12.12.26"/>
 			<Attribute Name="Workers" Value="12.12.12.25,12.12.12.26"/>
 			<Attribute Name="Base Port" Value="5000"/>
@@ -91,7 +91,7 @@
 			<Attribute Name="Data Dir" Value="/data/imagenet_data/"/>
 			<Attribute Name="Log Level" Value="0"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="PS" Value="12.12.12.25,12.12.12.26"/>
 			<Attribute Name="Workers" Value="12.12.12.25,12.12.12.26"/>
 			<Attribute Name="Base Port" Value="5000"/>
@@ -103,7 +103,7 @@
 			<Attribute Name="Data Dir" Value="/data/imagenet_data/"/>
 			<Attribute Name="Log Level" Value="0"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="PS" Value="12.12.12.25,12.12.12.26"/>
 			<Attribute Name="Workers" Value="12.12.12.25,12.12.12.26"/>
 			<Attribute Name="Base Port" Value="5000"/>
@@ -115,7 +115,7 @@
 			<Attribute Name="Data Dir" Value="/data/imagenet_data/"/>
 			<Attribute Name="Log Level" Value="0"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="PS" Value="12.12.12.25,12.12.12.26"/>
 			<Attribute Name="Workers" Value="12.12.12.25,12.12.12.26"/>
 			<Attribute Name="Base Port" Value="5000"/>
@@ -127,7 +127,7 @@
 			<Attribute Name="Data Dir" Value="/data/imagenet_data/"/>
 			<Attribute Name="Log Level" Value="0"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="PS" Value="12.12.12.25,12.12.12.26"/>
 			<Attribute Name="Workers" Value="12.12.12.25,12.12.12.26"/>
 			<Attribute Name="Base Port" Value="5000"/>
@@ -139,7 +139,7 @@
 			<Attribute Name="Data Dir" Value="/data/imagenet_data/"/>
 			<Attribute Name="Log Level" Value="0"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="PS" Value="12.12.12.25,12.12.12.26"/>
 			<Attribute Name="Workers" Value="12.12.12.25,12.12.12.26"/>
 			<Attribute Name="Base Port" Value="5000"/>
@@ -151,7 +151,7 @@
 			<Attribute Name="Data Dir" Value="/data/imagenet_data/"/>
 			<Attribute Name="Log Level" Value="0"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="PS" Value="12.12.12.25,12.12.12.26"/>
 			<Attribute Name="Workers" Value="12.12.12.25,12.12.12.26"/>
 			<Attribute Name="Base Port" Value="5000"/>
@@ -163,7 +163,7 @@
 			<Attribute Name="Data Dir" Value="/data/imagenet_data/"/>
 			<Attribute Name="Log Level" Value="0"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="PS" Value="12.12.12.25,12.12.12.26"/>
 			<Attribute Name="Workers" Value="12.12.12.25,12.12.12.26"/>
 			<Attribute Name="Base Port" Value="5000"/>

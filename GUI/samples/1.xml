@@ -1,7 +1,7 @@
 <?xml version="1.0" ?>
 <root>
 	<Sequence>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="PS" Value="12.12.12.25"/>
 			<Attribute Name="Workers" Value="12.12.12.26"/>
 			<Attribute Name="Base Port" Value="5000"/>

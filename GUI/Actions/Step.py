@@ -165,6 +165,7 @@ class Step(object):
     # -------------------------------------------------------------------- #
     
     def __init__(self, values = None):
+        self._name = None
         attributes = type(self).ATTRIBUTES
         if values is None:
             values = [att.default_value for att in attributes]
@@ -188,7 +189,17 @@ class Step(object):
 #         if os.path.isfile(link_path):
 #             os.remove(link_path)
 #         os.symlink(dir_name, link_path)
+    
+    # -------------------------------------------------------------------- #
+    
+    def setName(self, value):
+        self._name = value
         
+    # -------------------------------------------------------------------- #
+    
+    def name(self):
+        return self._name
+    
     # -------------------------------------------------------------------- #
     
     def setStatus(self, value):
@@ -198,10 +209,10 @@ class Step(object):
     
     def status(self):
         return self._status
-    
+ 
     # -------------------------------------------------------------------- #
         
-    def name(self):
+    def className(self):
         return type(self).NAME
     
     # -------------------------------------------------------------------- #
@@ -325,13 +336,17 @@ class Step(object):
     # -------------------------------------------------------------------- #
     
     def __repr__(self):
-        return self.name() + ": " + self.attributesRepr() 
+        if self._name is not None:
+            return self._name 
+        return self.className() # + "\n" + self.attributesRepr()
         
     # -------------------------------------------------------------------- #
             
     def writeToXml(self, root_node):
         attributes = type(self).ATTRIBUTES
-        step_node = etree.SubElement(root_node, "Step", Name = type(self).NAME)
+        step_node = etree.SubElement(root_node, "Step", Class = self.className())
+        if self.name() is not None:
+            etree.SubElement(step_node, "Name", Value = self.name())
         for i in range(len(attributes)):
             attr_name = attributes[i].name
             attr_value = self._values[i]
@@ -344,18 +359,19 @@ class Step(object):
     
     @staticmethod
     def loadFromXml(step_node):
-        step_name = step_node.attrib["Name"]
-        if not step_name in Step.REGISTERED_STEPS:
+        step_class_name = step_node.attrib["Class"]
+        if not step_class_name in Step.REGISTERED_STEPS:
             error("Node: %s" % minidom.parseString(etree.tostring(step_node)).toprettyxml())
-            error("Invalid step name: %s" % step_name)
+            error("Invalid step name: %s" % step_class_name)
             raise
         
-        step_class = Step.REGISTERED_STEPS[step_name]
-        
+        step_class = Step.REGISTERED_STEPS[step_class_name]
         attribute_names = [attr.name for attr in step_class.ATTRIBUTES]
         step = step_class() 
         for attr_node in step_node.getchildren():
-            if attr_node.tag == "Attribute":
+            if attr_node.tag == "Name":
+                step.setName(attr_node.attrib["Value"])
+            elif attr_node.tag == "Attribute":
                 attribute_name = attr_node.attrib["Name"]
                 attribute_value = attr_node.attrib["Value"]
                 pos = attribute_names.index(attribute_name)
@@ -382,27 +398,28 @@ if __name__ == '__main__':
     @Step.REGISTER()
     class DemoStep1(Step):
         NAME = "Demo Step 1"
-        ATTRIBUTES = [["ATTR1", ""], 
-                      ["ATTR2", ""],
-                      ["ATTR3", ""]]
+        ATTRIBUTES = [StepAttribute("ATTR1", ""), 
+                      StepAttribute("ATTR2", ""),
+                      StepAttribute("ATTR3", "")]
     
     @Step.REGISTER()
     class DemoStep2(Step):
         NAME = "Demo Step 2"
-        ATTRIBUTES = [["TEST1", ""], 
-                      ["TEST2", ""],
-                      ["TEST3", ""]]
+        ATTRIBUTES = [StepAttribute("TEST1", ""), 
+                      StepAttribute("TEST2", ""),
+                      StepAttribute("TEST3", "")]
             
     title("Demo", UniBorder.BORDER_STYLE_STRONG)
     xml = etree.Element("root")
 
-    step1 = DemoStep1([1, 2, 3])
-    step2 = DemoStep1([4, 5, 6])
-    step3 = DemoStep2([1, 2, 3])
-    step4 = DemoStep2([4, 5, 6])
+    step1 = DemoStep1(values=[1, 2, 3])
+    step2 = DemoStep1(values=[4, 5, 6])
+    step3 = DemoStep2(values=[1, 2, 3])
+    step4 = DemoStep2(values=[4, 5, 6])
     
     step1.setEnabled(False)
     step1.setRepeat(20)
+    step1.setName("A test step #1")
     
     step1.writeToXml(xml)
     step2.writeToXml(xml)
@@ -419,5 +436,6 @@ if __name__ == '__main__':
     for step_node in root_node.getchildren():
         step = Step.loadFromXml(step_node)
         print step
+        print step.name()
         print step.isEnabled()
         print step.repeat()

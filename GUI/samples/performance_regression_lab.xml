@@ -1,7 +1,7 @@
 <?xml version="1.0" ?>
 <root>
 	<Sequence>
-		<Step Name="TF Compile">
+		<Step Class="TF Compile">
 			<Attribute Name="TensorFlow home" Value="~/tensorflow"/>
 			<Attribute Name="CUDA" Value="True"/>
 			<Attribute Name="Additional build flags" Value=""/>
@@ -9,7 +9,7 @@
 			<Enabled Value="False"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="Mode" Value="Parameter Server"/>
 			<Attribute Name="All-Reduce Spec" Value="xring"/>
 			<Attribute Name="Controller" Value="12.12.12.25"/>
@@ -26,7 +26,7 @@
 			<Enabled Value="False"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="Mode" Value="Parameter Server"/>
 			<Attribute Name="All-Reduce Spec" Value="xring"/>
 			<Attribute Name="Controller" Value="12.12.12.25"/>
@@ -43,7 +43,7 @@
 			<Enabled Value="False"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="Mode" Value="Parameter Server"/>
 			<Attribute Name="All-Reduce Spec" Value="xring"/>
 			<Attribute Name="Controller" Value="12.12.12.25"/>
@@ -60,7 +60,7 @@
 			<Enabled Value="False"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="Mode" Value="Parameter Server"/>
 			<Attribute Name="All-Reduce Spec" Value="xring"/>
 			<Attribute Name="Controller" Value="12.12.12.25"/>
@@ -77,7 +77,7 @@
 			<Enabled Value="False"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="Mode" Value="Parameter Server"/>
 			<Attribute Name="All-Reduce Spec" Value="xring"/>
 			<Attribute Name="Controller" Value="12.12.12.25"/>
@@ -94,7 +94,7 @@
 			<Enabled Value="False"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="Mode" Value="Parameter Server"/>
 			<Attribute Name="All-Reduce Spec" Value="xring"/>
 			<Attribute Name="Controller" Value="12.12.12.25"/>
@@ -111,7 +111,7 @@
 			<Enabled Value="False"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="Mode" Value="Parameter Server"/>
 			<Attribute Name="All-Reduce Spec" Value="xring"/>
 			<Attribute Name="Controller" Value="12.12.12.25"/>
@@ -128,7 +128,7 @@
 			<Enabled Value="False"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="Mode" Value="Parameter Server"/>
 			<Attribute Name="All-Reduce Spec" Value="xring"/>
 			<Attribute Name="Controller" Value="12.12.12.25"/>
@@ -145,7 +145,7 @@
 			<Enabled Value="False"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="Mode" Value="Parameter Server"/>
 			<Attribute Name="All-Reduce Spec" Value="xring"/>
 			<Attribute Name="Controller" Value="12.12.12.25"/>
@@ -162,7 +162,7 @@
 			<Enabled Value="False"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="Mode" Value="Parameter Server"/>
 			<Attribute Name="All-Reduce Spec" Value="xring"/>
 			<Attribute Name="Controller" Value="12.12.12.25"/>
@@ -179,7 +179,7 @@
 			<Enabled Value="False"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="Mode" Value="Parameter Server"/>
 			<Attribute Name="All-Reduce Spec" Value="xring"/>
 			<Attribute Name="Controller" Value="12.12.12.25"/>
@@ -196,7 +196,7 @@
 			<Enabled Value="False"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="Mode" Value="Parameter Server"/>
 			<Attribute Name="All-Reduce Spec" Value="xring"/>
 			<Attribute Name="Controller" Value="12.12.12.25"/>
@@ -213,7 +213,7 @@
 			<Enabled Value="False"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="Mode" Value="Parameter Server"/>
 			<Attribute Name="All-Reduce Spec" Value="xring"/>
 			<Attribute Name="Controller" Value="12.12.12.25"/>
@@ -230,7 +230,7 @@
 			<Enabled Value="False"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="Mode" Value="Parameter Server"/>
 			<Attribute Name="All-Reduce Spec" Value="xring"/>
 			<Attribute Name="Controller" Value="12.12.12.25"/>
@@ -247,7 +247,7 @@
 			<Enabled Value="False"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF Compile">
+		<Step Class="TF Compile">
 			<Attribute Name="TensorFlow home" Value="~/tensorflow"/>
 			<Attribute Name="CUDA" Value="True"/>
 			<Attribute Name="Additional build flags" Value=""/>
@@ -255,7 +255,7 @@
 			<Enabled Value="False"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="Mode" Value="Parameter Server"/>
 			<Attribute Name="All-Reduce Spec" Value="xring"/>
 			<Attribute Name="Controller" Value="12.12.12.25"/>
@@ -272,7 +272,7 @@
 			<Enabled Value="False"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="Mode" Value="Parameter Server"/>
 			<Attribute Name="All-Reduce Spec" Value="xring"/>
 			<Attribute Name="Controller" Value="12.12.12.25"/>
@@ -289,7 +289,7 @@
 			<Enabled Value="False"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="Mode" Value="Parameter Server"/>
 			<Attribute Name="All-Reduce Spec" Value="xring"/>
 			<Attribute Name="Controller" Value="12.12.12.25"/>
@@ -306,7 +306,7 @@
 			<Enabled Value="False"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="Mode" Value="Parameter Server"/>
 			<Attribute Name="All-Reduce Spec" Value="xring"/>
 			<Attribute Name="Controller" Value="12.12.12.25"/>
@@ -323,7 +323,7 @@
 			<Enabled Value="True"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="Mode" Value="Parameter Server"/>
 			<Attribute Name="All-Reduce Spec" Value="xring"/>
 			<Attribute Name="Controller" Value="12.12.12.25"/>
@@ -340,7 +340,7 @@
 			<Enabled Value="True"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="Mode" Value="Parameter Server"/>
 			<Attribute Name="All-Reduce Spec" Value="xring"/>
 			<Attribute Name="Controller" Value="12.12.12.25"/>
@@ -357,7 +357,7 @@
 			<Enabled Value="True"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="Mode" Value="Parameter Server"/>
 			<Attribute Name="All-Reduce Spec" Value="xring"/>
 			<Attribute Name="Controller" Value="12.12.12.25"/>
@@ -374,7 +374,7 @@
 			<Enabled Value="False"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="Mode" Value="Parameter Server"/>
 			<Attribute Name="All-Reduce Spec" Value="xring"/>
 			<Attribute Name="Controller" Value="12.12.12.25"/>
@@ -391,7 +391,7 @@
 			<Enabled Value="True"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="Mode" Value="Parameter Server"/>
 			<Attribute Name="All-Reduce Spec" Value="xring"/>
 			<Attribute Name="Controller" Value="12.12.12.25"/>
@@ -408,7 +408,7 @@
 			<Enabled Value="True"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="Mode" Value="Parameter Server"/>
 			<Attribute Name="All-Reduce Spec" Value="xring"/>
 			<Attribute Name="Controller" Value="12.12.12.25"/>
@@ -425,7 +425,7 @@
 			<Enabled Value="True"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="Mode" Value="Parameter Server"/>
 			<Attribute Name="All-Reduce Spec" Value="xring"/>
 			<Attribute Name="Controller" Value="12.12.12.25"/>
@@ -442,7 +442,7 @@
 			<Enabled Value="True"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="Mode" Value="Parameter Server"/>
 			<Attribute Name="All-Reduce Spec" Value="xring"/>
 			<Attribute Name="Controller" Value="12.12.12.25"/>
@@ -459,7 +459,7 @@
 			<Enabled Value="True"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="Mode" Value="Parameter Server"/>
 			<Attribute Name="All-Reduce Spec" Value="xring"/>
 			<Attribute Name="Controller" Value="12.12.12.25"/>
@@ -476,7 +476,7 @@
 			<Enabled Value="True"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="Mode" Value="Parameter Server"/>
 			<Attribute Name="All-Reduce Spec" Value="xring"/>
 			<Attribute Name="Controller" Value="12.12.12.25"/>
@@ -493,7 +493,7 @@
 			<Enabled Value="False"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF Compile">
+		<Step Class="TF Compile">
 			<Attribute Name="TensorFlow home" Value="~/tensorflow"/>
 			<Attribute Name="CUDA" Value="True"/>
 			<Attribute Name="Additional build flags" Value=""/>
@@ -501,7 +501,7 @@
 			<Enabled Value="False"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="Mode" Value="Parameter Server"/>
 			<Attribute Name="All-Reduce Spec" Value="xring"/>
 			<Attribute Name="Controller" Value="12.12.12.25"/>
@@ -518,7 +518,7 @@
 			<Enabled Value="True"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="Mode" Value="Parameter Server"/>
 			<Attribute Name="All-Reduce Spec" Value="xring"/>
 			<Attribute Name="Controller" Value="12.12.12.25"/>
@@ -535,7 +535,7 @@
 			<Enabled Value="True"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="Mode" Value="Parameter Server"/>
 			<Attribute Name="All-Reduce Spec" Value="xring"/>
 			<Attribute Name="Controller" Value="12.12.12.25"/>
@@ -552,7 +552,7 @@
 			<Enabled Value="True"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="Mode" Value="Parameter Server"/>
 			<Attribute Name="All-Reduce Spec" Value="xring"/>
 			<Attribute Name="Controller" Value="12.12.12.25"/>
@@ -569,7 +569,7 @@
 			<Enabled Value="True"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="Mode" Value="Parameter Server"/>
 			<Attribute Name="All-Reduce Spec" Value="xring"/>
 			<Attribute Name="Controller" Value="12.12.12.25"/>
@@ -586,7 +586,7 @@
 			<Enabled Value="True"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="Mode" Value="Parameter Server"/>
 			<Attribute Name="All-Reduce Spec" Value="xring"/>
 			<Attribute Name="Controller" Value="12.12.12.25"/>
@@ -603,7 +603,7 @@
 			<Enabled Value="True"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="Mode" Value="Parameter Server"/>
 			<Attribute Name="All-Reduce Spec" Value="xring"/>
 			<Attribute Name="Controller" Value="12.12.12.25"/>
@@ -620,7 +620,7 @@
 			<Enabled Value="False"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="Mode" Value="Parameter Server"/>
 			<Attribute Name="All-Reduce Spec" Value="xring"/>
 			<Attribute Name="Controller" Value="12.12.12.25"/>
@@ -637,7 +637,7 @@
 			<Enabled Value="True"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="Mode" Value="Parameter Server"/>
 			<Attribute Name="All-Reduce Spec" Value="xring"/>
 			<Attribute Name="Controller" Value="12.12.12.25"/>
@@ -654,7 +654,7 @@
 			<Enabled Value="True"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="Mode" Value="Parameter Server"/>
 			<Attribute Name="All-Reduce Spec" Value="xring"/>
 			<Attribute Name="Controller" Value="12.12.12.25"/>
@@ -671,7 +671,7 @@
 			<Enabled Value="True"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="Mode" Value="Parameter Server"/>
 			<Attribute Name="All-Reduce Spec" Value="xring"/>
 			<Attribute Name="Controller" Value="12.12.12.25"/>
@@ -688,7 +688,7 @@
 			<Enabled Value="True"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="Mode" Value="Parameter Server"/>
 			<Attribute Name="All-Reduce Spec" Value="xring"/>
 			<Attribute Name="Controller" Value="12.12.12.25"/>
@@ -705,7 +705,7 @@
 			<Enabled Value="True"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="Mode" Value="Parameter Server"/>
 			<Attribute Name="All-Reduce Spec" Value="xring"/>
 			<Attribute Name="Controller" Value="12.12.12.25"/>
@@ -722,7 +722,7 @@
 			<Enabled Value="True"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="Mode" Value="Parameter Server"/>
 			<Attribute Name="All-Reduce Spec" Value="xring"/>
 			<Attribute Name="Controller" Value="12.12.12.25"/>
@@ -739,7 +739,7 @@
 			<Enabled Value="False"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF Compile">
+		<Step Class="TF Compile">
 			<Attribute Name="TensorFlow home" Value="~/tensorflow"/>
 			<Attribute Name="CUDA" Value="True"/>
 			<Attribute Name="Additional build flags" Value=""/>
@@ -747,7 +747,7 @@
 			<Enabled Value="False"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="Mode" Value="Parameter Server"/>
 			<Attribute Name="All-Reduce Spec" Value="xring"/>
 			<Attribute Name="Controller" Value="12.12.12.25"/>
@@ -764,7 +764,7 @@
 			<Enabled Value="False"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="Mode" Value="Parameter Server"/>
 			<Attribute Name="All-Reduce Spec" Value="xring"/>
 			<Attribute Name="Controller" Value="12.12.12.25"/>
@@ -781,7 +781,7 @@
 			<Enabled Value="False"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="Mode" Value="Parameter Server"/>
 			<Attribute Name="All-Reduce Spec" Value="xring"/>
 			<Attribute Name="Controller" Value="12.12.12.25"/>
@@ -798,7 +798,7 @@
 			<Enabled Value="False"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="Mode" Value="Parameter Server"/>
 			<Attribute Name="All-Reduce Spec" Value="xring"/>
 			<Attribute Name="Controller" Value="12.12.12.25"/>
@@ -815,7 +815,7 @@
 			<Enabled Value="False"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="Mode" Value="Parameter Server"/>
 			<Attribute Name="All-Reduce Spec" Value="xring"/>
 			<Attribute Name="Controller" Value="12.12.12.25"/>
@@ -832,7 +832,7 @@
 			<Enabled Value="False"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="Mode" Value="Parameter Server"/>
 			<Attribute Name="All-Reduce Spec" Value="xring"/>
 			<Attribute Name="Controller" Value="12.12.12.25"/>
@@ -849,7 +849,7 @@
 			<Enabled Value="False"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="Mode" Value="Parameter Server"/>
 			<Attribute Name="All-Reduce Spec" Value="xring"/>
 			<Attribute Name="Controller" Value="12.12.12.25"/>
@@ -866,7 +866,7 @@
 			<Enabled Value="False"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="Mode" Value="Parameter Server"/>
 			<Attribute Name="All-Reduce Spec" Value="xring"/>
 			<Attribute Name="Controller" Value="12.12.12.25"/>
@@ -883,7 +883,7 @@
 			<Enabled Value="False"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="Mode" Value="Parameter Server"/>
 			<Attribute Name="All-Reduce Spec" Value="xring"/>
 			<Attribute Name="Controller" Value="12.12.12.25"/>
@@ -900,7 +900,7 @@
 			<Enabled Value="False"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="Mode" Value="Parameter Server"/>
 			<Attribute Name="All-Reduce Spec" Value="xring"/>
 			<Attribute Name="Controller" Value="12.12.12.25"/>
@@ -917,7 +917,7 @@
 			<Enabled Value="False"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="Mode" Value="Parameter Server"/>
 			<Attribute Name="All-Reduce Spec" Value="xring"/>
 			<Attribute Name="Controller" Value="12.12.12.25"/>
@@ -934,7 +934,7 @@
 			<Enabled Value="False"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="Mode" Value="Parameter Server"/>
 			<Attribute Name="All-Reduce Spec" Value="xring"/>
 			<Attribute Name="Controller" Value="12.12.12.25"/>
@@ -951,7 +951,7 @@
 			<Enabled Value="False"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="Mode" Value="Parameter Server"/>
 			<Attribute Name="All-Reduce Spec" Value="xring"/>
 			<Attribute Name="Controller" Value="12.12.12.25"/>
@@ -968,7 +968,7 @@
 			<Enabled Value="False"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="Mode" Value="Parameter Server"/>
 			<Attribute Name="All-Reduce Spec" Value="xring"/>
 			<Attribute Name="Controller" Value="12.12.12.25"/>
@@ -985,7 +985,7 @@
 			<Enabled Value="False"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF Compile">
+		<Step Class="TF Compile">
 			<Attribute Name="TensorFlow home" Value="~/tensorflow"/>
 			<Attribute Name="CUDA" Value="True"/>
 			<Attribute Name="Additional build flags" Value=""/>
@@ -993,7 +993,7 @@
 			<Enabled Value="False"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="Mode" Value="Parameter Server"/>
 			<Attribute Name="All-Reduce Spec" Value="xring"/>
 			<Attribute Name="Controller" Value="12.12.12.25"/>
@@ -1010,7 +1010,7 @@
 			<Enabled Value="True"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="Mode" Value="Parameter Server"/>
 			<Attribute Name="All-Reduce Spec" Value="xring"/>
 			<Attribute Name="Controller" Value="12.12.12.25"/>
@@ -1027,7 +1027,7 @@
 			<Enabled Value="True"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="Mode" Value="Parameter Server"/>
 			<Attribute Name="All-Reduce Spec" Value="xring"/>
 			<Attribute Name="Controller" Value="12.12.12.25"/>
@@ -1044,7 +1044,7 @@
 			<Enabled Value="True"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="Mode" Value="Parameter Server"/>
 			<Attribute Name="All-Reduce Spec" Value="xring"/>
 			<Attribute Name="Controller" Value="12.12.12.25"/>
@@ -1061,7 +1061,7 @@
 			<Enabled Value="True"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="Mode" Value="Parameter Server"/>
 			<Attribute Name="All-Reduce Spec" Value="xring"/>
 			<Attribute Name="Controller" Value="12.12.12.25"/>
@@ -1078,7 +1078,7 @@
 			<Enabled Value="True"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="Mode" Value="Parameter Server"/>
 			<Attribute Name="All-Reduce Spec" Value="xring"/>
 			<Attribute Name="Controller" Value="12.12.12.25"/>
@@ -1095,7 +1095,7 @@
 			<Enabled Value="True"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="Mode" Value="Parameter Server"/>
 			<Attribute Name="All-Reduce Spec" Value="xring"/>
 			<Attribute Name="Controller" Value="12.12.12.25"/>
@@ -1112,7 +1112,7 @@
 			<Enabled Value="False"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="Mode" Value="Parameter Server"/>
 			<Attribute Name="All-Reduce Spec" Value="xring"/>
 			<Attribute Name="Controller" Value="12.12.12.25"/>
@@ -1129,7 +1129,7 @@
 			<Enabled Value="True"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="Mode" Value="Parameter Server"/>
 			<Attribute Name="All-Reduce Spec" Value="xring"/>
 			<Attribute Name="Controller" Value="12.12.12.25"/>
@@ -1146,7 +1146,7 @@
 			<Enabled Value="True"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="Mode" Value="Parameter Server"/>
 			<Attribute Name="All-Reduce Spec" Value="xring"/>
 			<Attribute Name="Controller" Value="12.12.12.25"/>
@@ -1163,7 +1163,7 @@
 			<Enabled Value="True"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="Mode" Value="Parameter Server"/>
 			<Attribute Name="All-Reduce Spec" Value="xring"/>
 			<Attribute Name="Controller" Value="12.12.12.25"/>
@@ -1180,7 +1180,7 @@
 			<Enabled Value="True"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="Mode" Value="Parameter Server"/>
 			<Attribute Name="All-Reduce Spec" Value="xring"/>
 			<Attribute Name="Controller" Value="12.12.12.25"/>
@@ -1197,7 +1197,7 @@
 			<Enabled Value="True"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="Mode" Value="Parameter Server"/>
 			<Attribute Name="All-Reduce Spec" Value="xring"/>
 			<Attribute Name="Controller" Value="12.12.12.25"/>
@@ -1214,7 +1214,7 @@
 			<Enabled Value="True"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="Mode" Value="Parameter Server"/>
 			<Attribute Name="All-Reduce Spec" Value="xring"/>
 			<Attribute Name="Controller" Value="12.12.12.25"/>
@@ -1231,7 +1231,7 @@
 			<Enabled Value="False"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF Compile">
+		<Step Class="TF Compile">
 			<Attribute Name="TensorFlow home" Value="~/tensorflow"/>
 			<Attribute Name="CUDA" Value="True"/>
 			<Attribute Name="Additional build flags" Value=""/>
@@ -1239,7 +1239,7 @@
 			<Enabled Value="False"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="Mode" Value="Parameter Server"/>
 			<Attribute Name="All-Reduce Spec" Value="xring"/>
 			<Attribute Name="Controller" Value="12.12.12.25"/>
@@ -1256,7 +1256,7 @@
 			<Enabled Value="True"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="Mode" Value="Parameter Server"/>
 			<Attribute Name="All-Reduce Spec" Value="xring"/>
 			<Attribute Name="Controller" Value="12.12.12.25"/>
@@ -1273,7 +1273,7 @@
 			<Enabled Value="True"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="Mode" Value="Parameter Server"/>
 			<Attribute Name="All-Reduce Spec" Value="xring"/>
 			<Attribute Name="Controller" Value="12.12.12.25"/>
@@ -1290,7 +1290,7 @@
 			<Enabled Value="True"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="Mode" Value="Parameter Server"/>
 			<Attribute Name="All-Reduce Spec" Value="xring"/>
 			<Attribute Name="Controller" Value="12.12.12.25"/>
@@ -1307,7 +1307,7 @@
 			<Enabled Value="True"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="Mode" Value="Parameter Server"/>
 			<Attribute Name="All-Reduce Spec" Value="xring"/>
 			<Attribute Name="Controller" Value="12.12.12.25"/>
@@ -1324,7 +1324,7 @@
 			<Enabled Value="True"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="Mode" Value="Parameter Server"/>
 			<Attribute Name="All-Reduce Spec" Value="xring"/>
 			<Attribute Name="Controller" Value="12.12.12.25"/>
@@ -1341,7 +1341,7 @@
 			<Enabled Value="True"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="Mode" Value="Parameter Server"/>
 			<Attribute Name="All-Reduce Spec" Value="xring"/>
 			<Attribute Name="Controller" Value="12.12.12.25"/>
@@ -1358,7 +1358,7 @@
 			<Enabled Value="False"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="Mode" Value="Parameter Server"/>
 			<Attribute Name="All-Reduce Spec" Value="xring"/>
 			<Attribute Name="Controller" Value="12.12.12.25"/>
@@ -1375,7 +1375,7 @@
 			<Enabled Value="True"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="Mode" Value="Parameter Server"/>
 			<Attribute Name="All-Reduce Spec" Value="xring"/>
 			<Attribute Name="Controller" Value="12.12.12.25"/>
@@ -1392,7 +1392,7 @@
 			<Enabled Value="True"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="Mode" Value="Parameter Server"/>
 			<Attribute Name="All-Reduce Spec" Value="xring"/>
 			<Attribute Name="Controller" Value="12.12.12.25"/>
@@ -1409,7 +1409,7 @@
 			<Enabled Value="True"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="Mode" Value="Parameter Server"/>
 			<Attribute Name="All-Reduce Spec" Value="xring"/>
 			<Attribute Name="Controller" Value="12.12.12.25"/>
@@ -1426,7 +1426,7 @@
 			<Enabled Value="True"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="Mode" Value="Parameter Server"/>
 			<Attribute Name="All-Reduce Spec" Value="xring"/>
 			<Attribute Name="Controller" Value="12.12.12.25"/>
@@ -1443,7 +1443,7 @@
 			<Enabled Value="True"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="Mode" Value="Parameter Server"/>
 			<Attribute Name="All-Reduce Spec" Value="xring"/>
 			<Attribute Name="Controller" Value="12.12.12.25"/>
@@ -1460,7 +1460,7 @@
 			<Enabled Value="True"/>
 			<Repeat Value="1"/>
 		</Step>
-		<Step Name="TF CNN Benchmarks">
+		<Step Class="TF CNN Benchmarks">
 			<Attribute Name="Mode" Value="Parameter Server"/>
 			<Attribute Name="All-Reduce Spec" Value="xring"/>
 			<Attribute Name="Controller" Value="12.12.12.25"/>
