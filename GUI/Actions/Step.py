@@ -192,6 +192,11 @@ class Step(object):
     
     # -------------------------------------------------------------------- #
     
+    def logsDir(self):
+        return self._logs_dir
+    
+    # -------------------------------------------------------------------- #
+    
     def setName(self, value):
         self._name = value
         

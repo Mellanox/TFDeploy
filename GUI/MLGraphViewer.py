@@ -68,7 +68,6 @@ class Graph(object):
             return None
         return GraphDesc(graph_type, ymax)
 
-        
     # -------------------------------------------------------------------- #
         
     def __init__(self, label, csv_path, graph_type, color, ymax=None):
@@ -130,9 +129,9 @@ class Graph(object):
                     self._x.append(timestamp)
                     self._y.append(rate)
                 elif self._type == Graph.TYPE_DELTA:                
-                    self._x.append(timestamp - 0.01)
+                    self._x.append(timestamp - 0.0)
                     self._x.append(timestamp)
-                    self._x.append(timestamp + 0.01)
+                    self._x.append(timestamp + 0.0)
                     self._y.append(0)
                     self._y.append(1)
                     self._y.append(0)    
@@ -151,6 +150,11 @@ class Graph(object):
     def color(self):
         return self._color
     
+    # -------------------------------------------------------------------- #
+    
+    def setColor(self, val):
+        self._color = val
+        
     # -------------------------------------------------------------------- #
     
     def plot(self, fig, host, pos):
@@ -174,6 +178,20 @@ class Graph(object):
     def clear(self):
         self._ax.axes.get_yaxis().set_visible(False)
         self._ax.clear()
+        
+    # -------------------------------------------------------------------- #
+    
+    def scaleTo(self, host):
+        base_ymax = self._ymax if self._ymax is not None else max(self._y)
+        base_ymin = 0
+        host_ymin, host_ymax = host.get_ylim()
+        yrange = base_ymax - base_ymin
+        ymax = yrange * host_ymax # host_ymax is between 0 and 1
+        ymin = yrange * host_ymin # host_ymax is between 0 and 1
+        print yrange
+        print (host_ymin, host_ymax)
+        print (ymin, ymax)
+        self._ax.set_ylim(ymin, ymax)
         
 
 ###############################################################################
@@ -214,13 +232,27 @@ class MLGraphViewer(QMainWindow):
               QColor(0x80, 0x00, 0xff),
               QColor(0xbf, 0x00, 0xff),
               QColor(0xff, 0x00, 0xff)]
+
+    # -------------------------------------------------------------------- #
+
+    def _onXlimsChange(self, axes):
+        print "updated xlims: ", axes.get_xlim()
     
     # -------------------------------------------------------------------- #
+    
+    def _onYlimsChange(self, axes):
+        print "updated ylims: ", axes.get_ylim()
+        for graph in self._graphs.values():
+            graph.scaleTo(axes)
+        self.fig.tight_layout(pad=0)
         
-    def __init__(self, base_dir, parent=None):
+   
+    # -------------------------------------------------------------------- #
+        
+    def __init__(self, dirs, parent=None):
         QMainWindow.__init__(self, parent)
 
-        self._base_dir = base_dir
+        self._dirs = dirs
         self._graphs = {}
         self._handleChanges = True
         
@@ -233,21 +265,23 @@ class MLGraphViewer(QMainWindow):
     # -------------------------------------------------------------------- #
     
     def _getNextColor(self):
-        index = len(self._graphs)
+        index = self.num_plots 
         return MLGraphViewer.COLORS[index]
         
     # -------------------------------------------------------------------- #
     
     def _getOrCreateGraph(self, csv_path):
         csv_path = str(csv_path)
-        if csv_path in self._graphs:
-            return self._graphs[csv_path]
-        
-        label = csv_path #
-        desc = Graph.getGraphDesc(csv_path)        
         color = self._getNextColor()
-        graph = Graph(label, csv_path, desc.graph_type, str(color.name()), desc.ymax)
-        self._graphs[csv_path] = graph
+        color_str = str(color.name())
+        if csv_path in self._graphs:
+            graph = self._graphs[csv_path]
+            graph.setColor(color_str)
+        else:
+            label = csv_path #
+            desc = Graph.getGraphDesc(csv_path)        
+            graph = Graph(label, csv_path, desc.graph_type, color_str, desc.ymax)
+            self._graphs[csv_path] = graph
         return graph
             
     # -------------------------------------------------------------------- #
@@ -256,6 +290,7 @@ class MLGraphViewer(QMainWindow):
         if not self._handleChanges:
             return 
         
+        self._handleChanges = False
         csv_path = item.data(0, Qt.UserRole).toString()
         graph = self._getOrCreateGraph(csv_path)
         if item.checkState(0) == Qt.Checked:
@@ -271,13 +306,16 @@ class MLGraphViewer(QMainWindow):
 
         self.fig.tight_layout(pad=0)
         self.canvas.draw()
+        self._handleChanges = True
     
     # -------------------------------------------------------------------- #
     
     def _refresh(self):
         self._handleChanges = False
         self._tree.clear()
-        self._loadDir(self._base_dir, self._tree)
+        for dir in self._dirs:
+            top_level_item = QTreeWidgetItem(self._tree, [os.path.basename(dir)])
+            self._loadDir(dir, top_level_item)
         self._handleChanges = True
     
     # -------------------------------------------------------------------- #
@@ -302,7 +340,7 @@ class MLGraphViewer(QMainWindow):
                     (parent or root).removeChild(parent_itm)
                 else:                                        
                     parent_itm.setIcon(0, QIcon("/usr/share/icons/ubuntu-mono-light/places/16/folder-home.svg"))
-                    parent_itm.setExpanded(True)
+                    # parent_itm.setExpanded(True)
             else:
                 if Graph.getGraphDesc(path) is None:
                     continue
@@ -371,6 +409,10 @@ class MLGraphViewer(QMainWindow):
         self.num_plots = 0
         self.canvas = FigureCanvas(self.fig)
         self.canvas.setParent(self.main_frame)
+        self.fig.tight_layout(pad=0)
+
+        #self.host.callbacks.connect('xlim_changed', self._onXlimsChange)
+        #self.host.callbacks.connect('ylim_changed', self._onYlimsChange)        
         
         # Bind the 'pick' event for clicking on one of the bars
         #
@@ -396,7 +438,7 @@ class MLGraphViewer(QMainWindow):
                         
         self._tree = QTreeWidget(splitter)
         self._tree.setHeaderLabel("Files")
-        self._loadDir(self._base_dir, self._tree)
+        self._refresh()
         self._tree.itemChanged.connect(self._onTreeItemChanged)
         
         self.b_refresh = QPushButton("Refresh")

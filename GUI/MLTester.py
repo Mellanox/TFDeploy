@@ -22,6 +22,7 @@ from Actions.Step import Step
 import time
 from Common.Util import BasicProcess
 from StepEditDialog import StepEditDialog
+from MLGraphViewer import MLGraphViewer
 
 def create_combo_widget(parent, list, default_value_index):
     new_combo = QComboBox(parent)
@@ -455,13 +456,13 @@ class MLTester(QMainWindow):
         self.moveUpAction    = ActionWithButton(self.edit_menu, "images/move_up.jpg",   "MoveUp",        "Ctrl+Up",      "Exit application", self._moveUpActionHandler, enabled=False)
         self.moveDownAction  = ActionWithButton(self.edit_menu, "images/move_down.jpg", "MoveDown",      "Ctrl+Down",    "Exit application", self._moveDownActionHandler, enabled=False)
         
-        self.startAction     = ActionWithButton(self.run_menu, "images/start.jpg",      "Start",          "Ctrl+F5",      "Exit application",  self._runActionHandler)
-        self.stopAction      = ActionWithButton(self.run_menu, "images/stop.jpg",       "Stop",           "Ctrl+F11",     "Exit application", self._stopActionHandler, enabled=False)
+        self.startAction     = ActionWithButton(self.run_menu,  "images/start.jpg",     "Start",         "Ctrl+F5",     "Exit application",  self._runActionHandler)
+        self.stopAction      = ActionWithButton(self.run_menu,  "images/stop.jpg",      "Stop",          "Ctrl+F11",    "Exit application", self._stopActionHandler, enabled=False)
         
-        self.editAction      = ActionWithButton(self.window_menu, "images/edit.jpg",     "Show edit pane","",       "Exit application", self._showEditPaneAction, checkable=True, checked=True)
-        self.closeWinsAction = ActionWithButton(self.window_menu, "images/close_all_windows.jpeg","&Close Open Windows", "Ctrl+X", "Exit application", self._closeAllWindowsAction)
-        
-        self.aboutAction     = ActionWithButton(self.help_menu, "images/about.jpeg",   "&About",        "F1", "Exit application", self._aboutAction, checkable=True)
+        self.editAction      = ActionWithButton(self.window_menu,"images/edit.jpg",    "Show Edit Pane", "Ctrl+E",      "Exit application", self._showEditPaneActionHandler, checkable=True, checked=True)
+        self.closeWinsAction = ActionWithButton(self.window_menu,"images/close_all_windows.jpeg","&Close Open Windows", "Ctrl+X", "Exit application", self._closeAllWindowsActionHandler)
+        self.showGraphsAction= ActionWithButton(self.window_menu,"images/graphs.jpeg", "Show Graphs",    "Ctrl+G",      "Show graphs",      self._showGraphsActionHandler)
+        self.aboutAction     = ActionWithButton(self.help_menu,  "images/about.jpeg",  "&About",         "F1",          "Exit application", self._aboutActionHandler)
         
         #########
         # Panes:
@@ -860,12 +861,12 @@ class MLTester(QMainWindow):
         item = self._sequence[index]
         self._setConfigurationPane(item.attributesWidget())
         selected_indexes = self._getSelectedIndexes()
-        something_selected = len(selected_indexes) > 0
-        self.removeAction.setEnabled(something_selected)
-        self.checkAction.setEnabled(something_selected)
-        self.copyAction.setEnabled(something_selected)
-        self.moveDownAction.setEnabled(something_selected)
-        self.moveUpAction.setEnabled(something_selected)
+        enable_edit = not self._is_running and len(selected_indexes) > 0
+        self.removeAction.setEnabled(enable_edit)
+        self.checkAction.setEnabled(enable_edit)
+        self.copyAction.setEnabled(enable_edit)
+        self.moveDownAction.setEnabled(enable_edit)
+        self.moveUpAction.setEnabled(enable_edit)
 
     #--------------------------------------------------------------------#
     
@@ -996,10 +997,11 @@ class MLTester(QMainWindow):
     
     def _setEditWidgetsEnabled(self, val):
         if val:
-            self.sequence_widget.setSelectionMode(QAbstractItemView.ExtendedSelection)
+            pass
+#             self.sequence_widget.setSelectionMode(QAbstractItemView.ExtendedSelection)
         else:
             self.sequence_widget.clearSelection()
-            self.sequence_widget.setSelectionMode(QAbstractItemView.NoSelection)
+#             self.sequence_widget.setSelectionMode(QAbstractItemView.NoSelection)
 
         #self.sequence_widget.setEnabled(val)
         for action in self.edit_menu.menu.actions():
@@ -1046,20 +1048,38 @@ class MLTester(QMainWindow):
     
     #--------------------------------------------------------------------#
     
-    def _showEditPaneAction(self, checked):
+    def _showEditPaneActionHandler(self, checked):
         self.configuration_box.setVisible(checked)
     
     #--------------------------------------------------------------------#
     
-    def _closeAllWindowsAction(self, checked):
+    def _closeAllWindowsActionHandler(self, checked):
         for process in self._error_processes:
             self.emitCloseLog(process)
         self._log_widget.closeAllSubWindows()
     
     #--------------------------------------------------------------------#
     
-    def _aboutAction(self):
-        pass 
+    def _showGraphsActionHandler(self, checked):
+        selected_indexes = self._getSelectedIndexes()
+        dirs = []
+        for index in selected_indexes:
+            step = self._sequence[index]
+            logs_dir = step.logsDir()
+            if logs_dir is not None:
+                dirs.append(logs_dir)
+                
+        if len(dirs) > 0:
+            dialog = MLGraphViewer(dirs, parent = self)
+            dialog.show()
+        
+    #--------------------------------------------------------------------#
+    
+    def _aboutActionHandler(self):
+        msg = """ MLTester 
+        """
+        
+        QMessageBox.about(self, "ML Tester", msg.strip())
             
     #--------------------------------------------------------------------#
     
