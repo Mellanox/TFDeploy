@@ -351,6 +351,7 @@ class MLTester(QMainWindow):
         self._current_step = None
         self._copied_steps = []
         self._error_processes = []
+        self._cell_being_edited = None
         self._is_running = False
         self._do_stop = False
         self._initGui()
@@ -382,6 +383,7 @@ class MLTester(QMainWindow):
         self.sequence_widget.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.sequence_widget.selectionModel().selectionChanged.connect(self._sequenceStepSelected)
         self.sequence_widget.itemChanged.connect(self._onSequenceItemChanged)
+        self.sequence_widget.itemDoubleClicked.connect(self._onItemDoubleClicked)
         self.sequence_widget.setSelectionMode(QAbstractItemView.ExtendedSelection)
 
         self.configuration_pane = QWidget()
@@ -443,9 +445,9 @@ class MLTester(QMainWindow):
         self.newAction       = ActionWithButton(self.file_menu, "images/new.jpeg",      "&New",          "Ctrl+N", "New test", self._newAction)
         self.openAction      = ActionWithButton(self.file_menu, "images/open.jpeg",     "&Open...",      "Ctrl+O", "Open test...", self._openAction)
         self.saveAction      = ActionWithButton(self.file_menu, "images/save.jpeg",     "&Save",         "Ctrl+S", "Save test", self._saveAction)
-        self.saveAsAction    = ActionWithButton(self.file_menu, "images/save_as.jpeg",  "Save &As...",   "Ctrl+S", "Save test as...", self._saveAction)
+        self.saveAsAction    = ActionWithButton(self.file_menu, "images/save_as.jpeg",  "Save &As...",   "",       "Save test as...", self._saveAction)
         self.file_menu.menu.addSeparator()        
-        self.quitAction      = ActionWithButton(self.file_menu, "images/save_as.jpeg",  "E&xit",         "Ctrl+S", "Exit application", qApp.quit)
+        self.quitAction      = ActionWithButton(self.file_menu, "images/save_as.jpeg",  "E&xit",         "Alt+F4", "Exit application", qApp.quit)
         
         self.addAction       = ActionWithButton(self.edit_menu, "images/add.jpg",       "Add",           "Ctrl++",       "Exit application", self._addActionHandler)
         self.copyAction      = ActionWithButton(self.edit_menu, "images/copy.png",      "Copy",          "Ctrl+C",       "Exit application", self._copyActionHandler, enabled=False)
@@ -632,17 +634,36 @@ class MLTester(QMainWindow):
             self._sequence[index].setRepeat(val)
             self._setModified()
         return op
+
+    #--------------------------------------------------------------------#
     
+    def _onItemDoubleClicked(self, item):
+        row = item.row()
+        col = item.column()
+        #print "ITEM DOUBLE CLICKED: (%u, %u)" % (row, col)
+        if col != 3:
+            return
+        self._cell_being_edited = (row, col)
+
     #--------------------------------------------------------------------#
     
     def _onSequenceItemChanged(self, item):
-        #print "Changed: (%u, %u)" % (item.row(), item.column())
-        index = item.row()
+        if self._cell_being_edited is None:
+            return
+        row = item.row()
+        col = item.column()
+        edited_row, edited_col = self._cell_being_edited
+        if (row != edited_row) or (col != edited_col):
+            return
+        
+        #print "Changed: (%u, %u)" % (row, col)
+        index = row
         step = self._sequence[index]
         if item.column() == 3:
             name = str(item.text())
             if name != step.name(): 
                 step.setName(name)
+        self._cell_being_edited = None
         
     #--------------------------------------------------------------------#
     
@@ -703,6 +724,10 @@ class MLTester(QMainWindow):
         elif step.status() == Step.STATUS_FAILED:
             self.sequence_widget.item(index, 2).setText(QString.fromUtf8("✘"))
             self.sequence_widget.item(index, 2).setForeground(Qt.red)
+        name = step.name()
+        if name is None:
+            name = step.className() 
+        self.sequence_widget.item(index, 3).setText(name)
         self.sequence_widget.item(index, 4).setText(step.attributesRepr())
         self._setStepEnabled(index, step.isEnabled())
     
@@ -867,6 +892,7 @@ class MLTester(QMainWindow):
         self.copyAction.setEnabled(enable_edit)
         self.moveDownAction.setEnabled(enable_edit)
         self.moveUpAction.setEnabled(enable_edit)
+        self._cell_being_edited = None
 
     #--------------------------------------------------------------------#
     
