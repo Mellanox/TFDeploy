@@ -1,23 +1,5 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-
-"""
-This demo demonstrates how to embed a matplotlib (mpl) plot 
-into a PyQt4 GUI application, including:
-
-* Using the navigation toolbar
-* Adding data to the plot
-* Dynamically modifying the plot's properties
-* Processing mpl events
-* Saving the plot to a file from a menu
-
-The main goal is to serve as a basis for developing rich PyQt GUI
-applications featuring mpl plots (using the mpl OO API).
-
-Eli Bendersky (eliben@gmail.com)
-License: this code is in the public domain
-Last modified: 19.01.2009
-"""
 import sys, os, random
 from PyQt4.QtGui import QVBoxLayout, QMainWindow, QTreeWidgetItem, QIcon,\
     QMessageBox, QFileDialog, QWidget, QSplitter, QTreeWidget, QPushButton,\
@@ -70,12 +52,12 @@ class Graph(object):
 
     # -------------------------------------------------------------------- #
         
-    def __init__(self, label, csv_path, graph_type, color, ymax=None):
+    def __init__(self, label, csv_path, graph_type, ymax=None):
         self._label = label
         self._csv_path = csv_path
         self._type = graph_type
-        self._color = color
         self._ymax = ymax
+        self._color = None
         self._ax = None
         self._x = []
         self._y = []
@@ -218,20 +200,13 @@ class GraphFileTreeWidgetItem(QTreeWidgetItem):
         
         self.treeWidget().setItemWidget(self, 0, self.widget)        
 
-
 ###############################################################################
 
 class MLGraphViewer(QMainWindow):
     
-    COLORS = [QColor(0xff, 0x00, 0x00),
-              QColor(0xff, 0x80, 0x00),
-              QColor(0xbf, 0xff, 0x00),
-              QColor(0x00, 0xff, 0x00),
-              QColor(0x00, 0xff, 0xbf),
-              QColor(0x00, 0xbf, 0xff),
-              QColor(0x80, 0x00, 0xff),
-              QColor(0xbf, 0x00, 0xff),
-              QColor(0xff, 0x00, 0xff)]
+    COLORS = ["#ff0000", "#ff8000", "#bfff00", "#00ff00", "#00ffbf", "#00bfff", "#8000ff", "#bf00ff", "#ff00ff",    
+              "#cc5151", "#7f3333", "#51cccc", "#337f7f", "#8ecc51", "#597f33", "#8e51cc", "#59337f", "#ccad51", "#7f6c33", "#51cc70", "#337f46", "#5170cc", "#33467f", "#cc51ad", "#7f336c", "#cc7f51", "#7f4f33", "#bccc51", "#757f33", "#60cc51", "#3c7f33", "#51cc9e", "#337f62", "#519ecc", "#33627f", "#6051cc", "#3c337f", "#bc51cc", "#75337f", "#cc517f", "#7f334f", "#cc6851", "#7f4133", "#cc9651", "#7f5e33", "#ccc451", "#7f7a33", "#a5cc51", "#677f33", "#77cc51", "#4a7f33", "#51cc59", "#337f37", "#51cc87", "#337f54", "#51ccb5", "#337f71", "#51b5cc", "#33717f", "#5187cc", "#33547f", "#5159cc", "#33377f", "#7751cc", "#4a337f", "#a551cc", "#67337f", "#cc51c4", "#7f337a", "#cc5196", "#7f335e", "#cc5168", "#7f3341", "#cc5d51", "#7f3a33", "#cc7451", "#7f4833", "#cc8a51", "#7f5633", "#cca151", "#7f6533", "#ccb851", "#7f7333", "#c8cc51", "#7d7f33", "#b1cc51", "#6e7f33", "#9acc51", "#607f33", "#83cc51", "#527f33", "#6ccc51", "#437f33", "#55cc51", "#357f33", "#51cc64", "#337f3e", "#51cc7b", "#337f4d", "#51cc92", "#337f5b", "#51cca9", "#337f69", "#51ccc0", "#337f78", "#51c0cc", "#33787f", "#51a9cc", "#33697f"]
+    COLOR_MAP = dict((c, True) for c in COLORS)
 
     # -------------------------------------------------------------------- #
 
@@ -265,22 +240,21 @@ class MLGraphViewer(QMainWindow):
     # -------------------------------------------------------------------- #
     
     def _getNextColor(self):
-        index = self.num_plots 
-        return MLGraphViewer.COLORS[index]
+        for c in MLGraphViewer.COLORS:
+            if MLGraphViewer.COLOR_MAP[c]:
+                return c
+        raise Exception("No more available colors.")
         
     # -------------------------------------------------------------------- #
     
     def _getOrCreateGraph(self, csv_path):
         csv_path = str(csv_path)
-        color = self._getNextColor()
-        color_str = str(color.name())
         if csv_path in self._graphs:
             graph = self._graphs[csv_path]
-            graph.setColor(color_str)
         else:
             label = csv_path #
             desc = Graph.getGraphDesc(csv_path)        
-            graph = Graph(label, csv_path, desc.graph_type, color_str, desc.ymax)
+            graph = Graph(label, csv_path, desc.graph_type, desc.ymax)
             self._graphs[csv_path] = graph
         return graph
             
@@ -294,15 +268,28 @@ class MLGraphViewer(QMainWindow):
         csv_path = item.data(0, Qt.UserRole).toString()
         graph = self._getOrCreateGraph(csv_path)
         if item.checkState(0) == Qt.Checked:
+            ###################
+            # Allocate color: #
+            ###################
+            color = self._getNextColor()
+            graph.setColor(color)
+            MLGraphViewer.COLOR_MAP[graph.color()] = False
+            
             self.fig, self.host = graph.plot(self.fig, self.host, 1.0)#self.pos)
             self.pos += 0.08
             self.num_plots += 1
-            item.setBackground(0, QBrush(QColor(graph.color())))    
+            item.setBackground(0, QBrush(QColor(graph.color())))
         else:
+            ###############
+            # Free color: #
+            ###############
+            if graph.color() is not None:
+                MLGraphViewer.COLOR_MAP[graph.color()] = True
+            
             graph.clear()
             self.pos -= 0.08
             self.num_plots -= 1
-            item.setBackground(0, QBrush())    
+            item.setBackground(0, QBrush())
 
         self.fig.tight_layout(pad=0)
         self.canvas.draw()
@@ -314,7 +301,8 @@ class MLGraphViewer(QMainWindow):
         self._handleChanges = False
         self._tree.clear()
         for dir in self._dirs:
-            top_level_item = QTreeWidgetItem(self._tree, [os.path.basename(dir)])
+            name = os.path.basename(os.path.normpath(dir))
+            top_level_item = QTreeWidgetItem(self._tree, [name])
             self._loadDir(dir, top_level_item)
         self._handleChanges = True
     
@@ -511,9 +499,9 @@ class MLGraphViewer(QMainWindow):
 
 def main():
     if len(sys.argv) >= 2:
-        base_dir = sys.argv[1]
+        base_dir = sys.argv[1:]
     else:
-        base_dir = "."
+        base_dir = ["."]
     app = QApplication(sys.argv)
     form = MLGraphViewer(base_dir)
     form.show()
