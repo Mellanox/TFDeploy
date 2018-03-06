@@ -25,7 +25,7 @@ import threading
 class ServerInfo(object):
     def __init__(self, ip):
         self.ip = ip
-        self.hostname = ip
+        self.hostname = TestEnvironment.Get().getServer(ip)
         self.processes = []
         self.monitor = None
 
@@ -276,10 +276,10 @@ class TFCnnBenchmarksStep(Step):
         
         monitored_pids = ",".join(["%u" % p.remote_pid for p in server.processes])
         monitored_nics = ",".join(["%s:%u" % (p.rdma_device.name, p.rdma_device.port) for p in server.processes])
-        remote_monitor_flags = "--cpu %s 0.010 --gpu 0 --net %s 0.010 --net_errors %s 1 -d %s" % (monitored_pids, 
-                                                                                                  monitored_nics,
-                                                                                                  monitored_nics,
-                                                                                                  server.remote_graphs_dir)
+        remote_monitor_flags = "--cpu %s 0.010 --gpu 0.020 --net %s 0.010 --net_errors %s 1 -d %s" % (monitored_pids, 
+                                                                                                      monitored_nics,
+                                                                                                      monitored_nics,
+                                                                                                      server.remote_graphs_dir)
         server.monitor_log_path = os.path.join(server.graphs_dir, "monitor.log") 
         server.monitor = RemoteMonitor(ip, remote_monitor_bin, remote_monitor_flags, remote_monitor_title, server.monitor_log_path)
         server.monitor.start()
@@ -353,24 +353,33 @@ class TFCnnBenchmarksStep(Step):
         def parser(line, find_process):
             key = find_process.name
             remote_process_ids[key] = int(line.split()[1])
-        
+       
+        num_attempts = 0
+        max_num_attempts = 2
         while len(remote_process_ids) < len(processes):
             find_processes = []
             for process in processes:
-                if process.server in remote_process_ids:
+                if process.name in remote_process_ids:
                     continue
                 find_process = executeRemoteCommand([process.server], 
                                                     "ps -ef | grep %s | grep job_name=%s | grep task_index=%u | grep -v ssh" % (self._work_dir, process.job_name, process.task_id), 
-                                                    verbose=False)[0]
+                                                    verbose=True)[0]
                 find_process.name = process.name
                 find_processes.append(find_process)
                 
-            waitForProcesses(find_processes, 5, on_output=parser, verbose=False)
-            time.sleep(0.1)
-        
+            waitForProcesses(find_processes, wait_timeout=5, on_output=parser, verbose=True)
+            time.sleep(1)
+            num_attempts += 1
+            if num_attempts == max_num_attempts:
+                error("Failed to find remote process IDs. Most likely some processes failed to run.")
+                break
+
         for process in processes:
-            process.remote_pid = remote_process_ids[process.name]
-            log(" + [%s]: <a href='%s'>%s</a>:%*s %-5u %-5u %s" % (process.server, process.log_file_path, process.name, 10 - len(process.name), "", 
+            if process.name in remote_process_ids:
+                process.remote_pid = remote_process_ids[process.name]
+            else:
+                process.remote_pid = -1
+            log(" + [%s]: <a href='%s'>%s</a>:%*s %-5d %-5d %s" % (process.server, process.log_file_path, process.name, 10 - len(process.name), "", 
                                                                    process.instance.pid, process.remote_pid, process.command), log_level=LOG_LEVEL_NOTE)
 
     # -------------------------------------------------------------------- #
@@ -409,7 +418,8 @@ class TFCnnBenchmarksStep(Step):
     # -------------------------------------------------------------------- #
     
     def _runJob(self, work_dir, ip, job_name, task_id):
-        device_info = self._devices[ip]
+        server = self.getOrCreateServer(ip)
+        device_info = self._devices[server.hostname]
         #####################
         # Build TF command: #
         #####################
@@ -465,6 +475,9 @@ class TFCnnBenchmarksStep(Step):
         if job_name in ["worker", "controller"]:
             tf_command += " --model=%s" % self.model()
             tf_command += " --batch_size=%s" % self.batch_size()
+            if self.data_dir() != "":
+                tf_command += " --data_dir=%s" % self.data_dir()
+            
             tf_command += " --data_dir=%s" % self.data_dir()
             if self.num_gpus() > 0:
                 tf_command += " --num_gpus=%s --local_parameter_device=gpu" % self.num_gpus()
@@ -478,8 +491,7 @@ class TFCnnBenchmarksStep(Step):
         title = "[%s] %s - %u" % (ip, job_name, task_id)
         log_file_path = os.path.join(self._logs_dir, "%s_%u.log" % (job_name, task_id))
         factory = BasicProcess.getFactory(title, log_file_path)
-        server = self.getOrCreateServer(ip)
-        process = executeRemoteCommand([ip], command, factory = factory, verbose=False)[0]
+        process = executeRemoteCommand([server.hostname], command, factory = factory, verbose=False)[0]
         process.name = "%s_%u" % (job_name, task_id)
         process.job_name = job_name 
         process.task_id = task_id
@@ -587,7 +599,7 @@ class TFCnnBenchmarksStep(Step):
     def _stopAll(self):
         log("Stopping processes...")
         for process in self._processes:
-            if process.isAlive():
+            if process.remote_pid and process.isAlive():
                 log("   + [%s] %s: %u" % (process.server, process.name, process.instance.pid))
                 os.kill(process.instance.pid, 15)            
                 self.runInline("kill -15 %u >& /dev/null" % process.remote_pid, servers=[process.server], verbose=False)
@@ -606,13 +618,14 @@ class TFCnnBenchmarksStep(Step):
         
         user = getuser()
         self._work_dir = work_dir
-        ips = TestEnvironment.Get().getServers(list(set(self.ps() + self.workers())))
+        ips = list(set(self.ps() + self.workers()))
+        servers = TestEnvironment.Get().getServers(ips)
             
         #########################
         # Kill other instances: #
         #########################
         kill_cmd = "ps -ef | grep tf_cnn_benchmarks.py | grep -v grep | grep %s | grep -v %s | sed -e 's@%s *\\([0-9]\\+\\) .*@\\1@g' | xargs kill -9" % (user, work_dir, user)
-        res = self.runInline(kill_cmd, ips, wait_timeout = 5)
+        res = self.runInline(kill_cmd, servers, wait_timeout = 5)
         if not res:
             return False
         
@@ -633,10 +646,10 @@ class TFCnnBenchmarksStep(Step):
         # Copy: #
         #########
         title("Copying scripts:", UniBorder.BORDER_STYLE_SINGLE)    
-        if not self.runSCP(ips, [script_dir], work_dir, wait_timeout = 10): # Also create it
+        if not self.runSCP(servers, [script_dir], work_dir, wait_timeout = 10): # Also create it
             return False
-        if not self.runSCP(ips, [os.path.join(current_dir, "..", "Monitor.py"),
-                                 os.path.join(current_dir, "..", "Common")], work_dir, wait_timeout = 10):
+        if not self.runSCP(servers, [os.path.join(current_dir, "..", "Monitor.py"),
+                                     os.path.join(current_dir, "..", "Common")], work_dir, wait_timeout = 10):
             return False
             
         ########

@@ -531,8 +531,8 @@ class MLTester(QMainWindow):
                             
     #--------------------------------------------------------------------#
     
-    def emitLog(self, line, process, log_level):
-        self.log_signal.emit(line, process, log_level)
+#     def emitLog(self, line, process, log_level):
+#         self.log_signal.emit(line, process, log_level)
 
     #--------------------------------------------------------------------#
     
@@ -551,8 +551,9 @@ class MLTester(QMainWindow):
                    
     # -------------------------------------------------------------------- #
     
-    def logOp(self, msg, process, log_level):
-        self.emitLog(msg, process, log_level)
+    def logOp(self, line, process, log_level):
+        self._log(line, process, log_level) 
+        #self.emitLog(msg, process, log_level)
 
     # -------------------------------------------------------------------- #
     

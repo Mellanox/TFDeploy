@@ -354,7 +354,7 @@ class MLGraphViewer(QMainWindow):
     def on_about(self):
         msg = """ View one or more graphs on a joined canvas.
             
-            Many thanks to Eli Bendersky from Google for the PyPlot skeleton. 
+            Many thanks to Eli Bendersky for the PyPlot skeleton. 
         """
         QMessageBox.about(self, "ML Graph Viewer", msg.strip())
     

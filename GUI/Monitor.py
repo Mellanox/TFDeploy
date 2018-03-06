@@ -301,41 +301,6 @@ class Sampler(object):
 
 ###############################################################################
 
-class GPUSampler(Sampler):
-
-    def __init__(self, delay = 0, graph_dir = None):
-        super(GPUSampler, self).__init__(delay, graph_dir)
-    
-    # -------------------------------------------------------------------- #
-    
-    def getMeasurements(self):
-        if len(self._measurements) == 0:
-            self._sample()
-        return self._measurements
-        
-    # -------------------------------------------------------------------- #
-            
-    def _sample(self):
-        results = []
-        def parser(line, process):
-            m = re.search(" [0-9]+% ", line)
-            if m is not None:
-                results.append(float(m.group(0)[1:-2]))
-        
-        if not self._runCommand("nvidia-smi", parser):
-            return False
-        
-        if len(self._measurements) == 0:
-            for i in range(len(results)):
-                self._measurements.append(Measurement("GPU-%u" % i, "%"))
-        else:
-            for i in range(len(results)):
-                val = results[i]
-                self._measurements[i].update(val)            
-        return True
-    
-###############################################################################
-
 class CPUAndMemSampler(Sampler):
 
     def __init__(self, pid, delay = 0, graph_dir = None):
@@ -397,6 +362,70 @@ class StickyCounterSampler(Sampler):
                 return False
         return True
 
+###############################################################################
+
+class GPUSampler(Sampler):
+
+    def __init__(self, delay = 0, graph_dir = None):
+        super(GPUSampler, self).__init__(delay, graph_dir)
+        self._lms = delay * 1000.0
+        self._nvidia_smi_process = None 
+        
+    # -------------------------------------------------------------------- #
+            
+    def getMeasurements(self):
+        if len(self._measurements) == 0:        
+            def parser(line, process):
+                if line.endswith("%"):
+                    self._measurements.append(Measurement("GPU-%u" % len(self._measurements), "%"))
+            if not self._runCommand("nvidia-smi --query-gpu=\"utilization.gpu\" --format=csv", parser):
+                raise Exception("Failed to run nvidia-smi")
+        return self._measurements
+    
+    # -------------------------------------------------------------------- #
+    
+    def _runNvidiaSmi(self):
+        index = [0]
+        def parser(line, process):
+            if line.endswith("%"):
+                val = float(line.split()[0])
+                self._measurements[index[0]].update(val)
+                index[0] += 1
+            else:
+                index[0] = 0
+                                
+        self._nvidia_smi_process = executeCommand("while true; do nvidia-smi --query-gpu=\"utilization.gpu\" --format=csv --lms %u; done" % (self._lms))
+        waitForProcesses([self._nvidia_smi_process], on_output=parser, verbose=False)
+        
+    # -------------------------------------------------------------------- #
+    
+    def start(self):
+        self._nvidia_smi_thread = threading.Thread(target=self._runNvidiaSmi)
+        self._nvidia_smi_thread.start()
+        Sampler.start(self)
+    
+    # -------------------------------------------------------------------- #
+    
+    def stop(self):
+        if self._nvidia_smi_process is not None:
+            os.kill(self._nvidia_smi_process.instance.pid, 15)
+            self._nvidia_smi_process = None
+        Sampler.stop(self)
+            
+    # -------------------------------------------------------------------- #
+    
+    def _sample(self):
+#         results = []
+#         def parser(line, process):
+#             if line.endswith("%"):
+#                 val = float(line.split()[0])
+#                 results.append(val)
+        
+#         if not self._runCommand("nvidia-smi --query-gpu=\"utilization.gpu\" --format=csv --lms %u --filename=%s" % (self._lms, self._nvidia_file_path), parser):
+#             return False
+
+        return True
+    
 ###############################################################################
 
 def procStatUTimeParser(val):
