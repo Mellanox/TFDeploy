@@ -22,6 +22,8 @@ from Actions.Step import Step
 import time
 from Common.Util import BasicProcess
 from StepEditDialog import StepEditDialog
+import traceback
+from threading import Lock
 
 def create_combo_widget(parent, list, default_value_index):
     new_combo = QComboBox(parent)
@@ -33,7 +35,49 @@ def create_combo_widget(parent, list, default_value_index):
 #############################################################################
 # General        
 #############################################################################
-       
+
+LAST_OPENED_FILE = "LAST_OPENED_FILE"
+GEOMETRY = "GEOMETRY"
+
+conf_file_path = os.path.join(os.path.expanduser("~"), ".mltester")
+conf = {}
+
+#--------------------------------------------------------------------#
+
+def confRead():
+    try:
+        if not os.path.isfile(conf_file_path):
+            return
+        with open(conf_file_path, "r") as conf_file:
+            for line in conf_file:
+                pair = line.strip().split("=")
+                conf[pair[0]] = pair[1]
+    except IOError:
+        sys.stderr.write("Failed to read configuration file %s\n" % conf_file_path)
+
+#--------------------------------------------------------------------#
+
+def confWrite():
+    try:
+        with open(conf_file_path, "w") as conf_file:
+            for key, val in conf.iteritems():
+                conf_file.write("%s=%s\n" % (key, val))
+    except IOError:
+        sys.stderr.write("Failed to save configuration file %s\n" % conf_file_path)
+
+#--------------------------------------------------------------------#
+
+def confSet(key, value, writeback = True):
+    conf[key] = value
+    if writeback:
+        confWrite()
+    
+#--------------------------------------------------------------------#
+         
+def confGet(key, default):
+    return conf.get(key, default)
+    
+#--------------------------------------------------------------------#
          
 # Using a QRunnable
 # http://qt-project.org/doc/latest/qthreadpool.html
@@ -136,7 +180,6 @@ class MultiVariableWidget(QWidget):
         super(MultiVariableWidget, self).__init__(parent)
         self._values = {}
         self._initGui()
-        
     
     # -------------------------------------------------------------------- #
     
@@ -341,6 +384,7 @@ class MLTester(QMainWindow):
             
     def __init__(self, parent = None):
         super(MLTester, self).__init__(parent)
+        sys.excepthook = self.exceptionHook
         self._doc = DocumentControl(self, "ML tester", "Xml file (*.xml);;Any File (*.*);;", ".")
         self._sequence = []
         self._selected_step = None
@@ -350,6 +394,7 @@ class MLTester(QMainWindow):
         self._current_step = None
         self._copied_steps = []
         self._error_processes = []
+        self._error_lock = Lock()
         self._cell_being_edited = None
         self._is_running = False
         self._do_stop = False
@@ -1139,7 +1184,12 @@ class MLTester(QMainWindow):
     #--------------------------------------------------------------------#
             
     def _loadFromXml(self, file_path=None):
-        content = self._doc.load(file_path)
+        try:        
+            content = self._doc.load(file_path)
+            confSet(LAST_OPENED_FILE, self._doc.filePath())
+        except IOError, e:
+            sys.stderr.write("Failed to open xml file: %s\n" % e)
+            return
         if content == None:
             return
         
@@ -1189,6 +1239,16 @@ class MLTester(QMainWindow):
     
     #--------------------------------------------------------------------#
     
+    def exceptionHook(self, etype, value, tb):
+        with self._error_lock:
+            lines = traceback.format_exception(etype, value, tb)
+            title = "Internal Error"
+            trace = "\n".join(lines)
+            QMessageBox.critical(self, title, trace)
+        sys.__excepthook__(etype, value, tb)
+         
+    #--------------------------------------------------------------------#
+    
     # Override:
     def closeEvent(self, evnt):
         if not self._doc.close():
@@ -1201,9 +1261,8 @@ class MLTester(QMainWindow):
 #                                                                         DEMO
 #
 ###############################################################################################################################################################
-        
-if __name__ == '__main__':
-    
+
+def main():
     arg_parser = argparse.ArgumentParser(description = "ML tester")
     arg_parser.add_argument("xml", nargs="?", help="A test file to load.")
     arg_parser.add_argument("-a", "--autorun", action="store_true", help="Automatic regression run (no GUI).")
@@ -1217,6 +1276,7 @@ if __name__ == '__main__':
     QApplication.setStyle(QStyleFactory.create("Cleanlooks"))
     
 #     QApplication.setStyle(QStyleFactory.create("windowsvista"))
+    confRead()
     app = QApplication([])
     prompt = MLTester()
     if args.xml is not None:
@@ -1228,8 +1288,16 @@ if __name__ == '__main__':
     else:
         setLogLevel(LOG_LEVEL_INFO, LOG_LEVEL_ALL)
         prompt.setTestEnvironment()
-        prompt.loadFromXml("samples/performance_regression.xml")
+        last_opened_file = confGet(LAST_OPENED_FILE, None)
+        if last_opened_file is not None:
+            prompt.loadFromXml(last_opened_file)
 #         prompt.setGeometry(200, 30, 1900, 800)
         prompt.showMaximized()
         prompt.show()
         app.exec_()
+
+#--------------------------------------------------------------------#
+
+if __name__ == '__main__':
+    main()
+
