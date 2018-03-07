@@ -22,7 +22,6 @@ from Actions.Step import Step
 import time
 from Common.Util import BasicProcess
 from StepEditDialog import StepEditDialog
-from MLGraphViewer import MLGraphViewer
 
 def create_combo_widget(parent, list, default_value_index):
     new_combo = QComboBox(parent)
@@ -1088,6 +1087,7 @@ class MLTester(QMainWindow):
     #--------------------------------------------------------------------#
     
     def _showGraphsActionHandler(self, checked):
+        from MLGraphViewer import MLGraphViewer        
         selected_indexes = self._getSelectedIndexes()
         dirs = []
         for index in selected_indexes:
