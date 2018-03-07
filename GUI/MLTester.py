@@ -38,6 +38,7 @@ def create_combo_widget(parent, list, default_value_index):
 
 LAST_OPENED_FILE = "LAST_OPENED_FILE"
 GEOMETRY = "GEOMETRY"
+GEOMETRY_MAX = "max"
 
 conf_file_path = os.path.join(os.path.expanduser("~"), ".mltester")
 conf = {}
@@ -74,7 +75,7 @@ def confSet(key, value, writeback = True):
     
 #--------------------------------------------------------------------#
          
-def confGet(key, default):
+def confGet(key, default = None):
     return conf.get(key, default)
     
 #--------------------------------------------------------------------#
@@ -1251,6 +1252,8 @@ class MLTester(QMainWindow):
     
     # Override:
     def closeEvent(self, evnt):
+        geometry = GEOMETRY_MAX if self.isMaximized() else "%u,%u,%u,%u" % (self.x(), self.y(), self.width(), self.height())
+        confSet(GEOMETRY, geometry)
         if not self._doc.close():
             evnt.ignore()
             return
@@ -1291,9 +1294,17 @@ def main():
         last_opened_file = confGet(LAST_OPENED_FILE, None)
         if last_opened_file is not None:
             prompt.loadFromXml(last_opened_file)
-#         prompt.setGeometry(200, 30, 1900, 800)
-        prompt.showMaximized()
-        prompt.show()
+        geometry = confGet(GEOMETRY)
+        if geometry == GEOMETRY_MAX:
+            prompt.showMaximized()
+        else:
+            try:
+                pair = geometry.split(",")
+                prompt.setGeometry(int(pair[0]), int(pair[1]), int(pair[2]), int(pair[3]))
+            except:
+                pass
+            prompt.show()
+        
         app.exec_()
 
 #--------------------------------------------------------------------#
