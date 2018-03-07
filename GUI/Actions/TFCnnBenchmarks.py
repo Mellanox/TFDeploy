@@ -429,6 +429,8 @@ class TFCnnBenchmarksStep(Step):
         # Env variables: #
         ##################
         tf_command += " LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda/lib64"
+        if self.server_protocol() == "grpc+ucx":
+            tf_command +=":/usr/local/gdrcopy"        
         tf_command += " TF_CPP_MIN_VLOG_LEVEL=%s" % self.log_level()
         tf_command += " RDMA_DEVICE=%s" % device_info.name
         tf_command += " RDMA_DEVICE_PORT=%u" % device_info.port
@@ -447,7 +449,10 @@ class TFCnnBenchmarksStep(Step):
         ##############  
         # UCX stuff: #
         ##############
-        # Ucx should be compiled ./contrib/configure-devel --enable-debug 
+        # Ucx should be compiled ./contrib/configure-devel --enable-debug
+        if self.server_protocol() == "grpc+ucx":
+            tf_command += " UCX_LOG_LEVEL=data"
+            tf_command += " UCX_TLS=rc_x,gdr_copy,cuda_copy"
         #export UCX_IB_ETH_PAUSE_ON=y
         #export UCX_LOG_LEVEL=trace 
 
