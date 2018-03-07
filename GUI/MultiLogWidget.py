@@ -172,7 +172,8 @@ class MultiLogWidget(QMdiArea):
         # print "Flusing at %s" % str(time.time())
         for log in self._logs.values():
             log.flush()
-        threading.Timer(self._flush_rate, self._flushAll).start()
+        if self.isVisible():            
+            threading.Timer(self._flush_rate, self._flushAll).start()
             
     #--------------------------------------------------------------------#
     
