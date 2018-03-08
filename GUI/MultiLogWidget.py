@@ -169,8 +169,7 @@ class NavigatorWidget(QListWidget):
     #--------------------------------------------------------------------#
     
     def remove(self, log):
-        item = QListWidgetItem(log.window().windowTitle())
-        index = self.row(item)
+        index = self._logs.index(log)
         self._logs.pop(index)
         self.takeItem(index)
         
