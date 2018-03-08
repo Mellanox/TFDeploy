@@ -3,7 +3,6 @@
 
 import argparse
 import os
-import sys
 from xml.dom import minidom
 from xml.etree import cElementTree as etree
 from Common.Log import LOG_LEVEL_INFO, LOG_LEVEL_ERROR, setLogOps,\
@@ -15,12 +14,10 @@ from EZRandomWidget import *
 from MultiLogWidget import MultiLogWidget
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
-from Actions.TFCompile import TFCompileStep
-from Actions.TFCnnBenchmarks import TFCnnBenchmarksStep
 from Actions.TestEnvironment import TestEnvironment
 from Actions.Step import Step
 import time
-from Common.Util import BasicProcess
+from Common.Util import BasicProcess, WorkerThread, NestedException
 from StepEditDialog import StepEditDialog
 import traceback
 from threading import Lock
@@ -77,23 +74,6 @@ def confSet(key, value, writeback = True):
          
 def confGet(key, default = None):
     return conf.get(key, default)
-    
-#--------------------------------------------------------------------#
-         
-# Using a QRunnable
-# http://qt-project.org/doc/latest/qthreadpool.html
-# Note that a QRunnable isn't a subclass of QObject and therefore does
-# not provide signals and slots.
-class RunTestSequenceThread(QThread):
-
-    def __init__(self, owner):
-        super(RunTestSequenceThread, self).__init__()
-        self._owner = owner
-    
-    #--------------------------------------------------------------------#
-    
-    def run(self):
-        self._owner._runSequence()
 
 #############################################################################
 
@@ -395,6 +375,7 @@ class MLTester(QMainWindow):
         self._current_step = None
         self._copied_steps = []
         self._error_processes = []
+        self._error_message = None
         self._error_lock = Lock()
         self._cell_being_edited = None
         self._is_running = False
@@ -588,11 +569,6 @@ class MLTester(QMainWindow):
     
     def emitCloseLog(self, process):
         self.close_log_signal.emit(process)
-
-    #--------------------------------------------------------------------#
-    
-    def _emitRunSequenceDone(self):
-        self.run_sequence_done_signal.emit()
                    
     # -------------------------------------------------------------------- #
     
@@ -608,6 +584,9 @@ class MLTester(QMainWindow):
     #--------------------------------------------------------------------#
     
     def _onProcessDone(self, process):
+        if process.exception is not None:
+            raise process.exception
+            
         if process.instance.returncode in [0, 143, -15]:
             self.emitCloseLog(process)
             return True
@@ -1036,27 +1015,35 @@ class MLTester(QMainWindow):
     #--------------------------------------------------------------------#
             
     def _runSequence(self):
-        self.emitOpenLog(getMainProcess())
-        self._all_passed = True
-        self._do_stop = False
-        self._reset()
-        for index in range(len(self._sequence)):
-            if not self._runStep(index):
-                break
-            if self._do_stop:
-                log("Stopped by user.", log_level=LOG_LEVEL_ERROR)
-                break
-        self._emitRunSequenceDone()
+        try:
+            self.emitOpenLog(getMainProcess())
+            self._all_passed = True
+            self._do_stop = False
+            self._reset()
+            for index in range(len(self._sequence)):
+                if not self._runStep(index):
+                    break
+                if self._do_stop:
+                    log("Stopped by user.", log_level=LOG_LEVEL_ERROR)
+                    break
+        except Exception as e:
+            message = "Exception occurred on _runSequence: %s" % e
+            print message
+            self.thread.exception = NestedException(message)
+        self.run_sequence_done_signal.emit()
         
     #--------------------------------------------------------------------#
             
     def _runSequenceInNewThread(self):
-        self.thread = RunTestSequenceThread(self)
+        self.thread = WorkerThread(target=self._runSequence)
         self.thread.start()
         
     #--------------------------------------------------------------------#
     
     def _runSequenceDone(self):
+        if self.thread.exception is not None:
+            raise self.thread.exception
+        
         log("Done.", log_level = LOG_LEVEL_NOTE)
         getMainProcess().closeLog()
         setMainProcess(None)
@@ -1241,12 +1228,32 @@ class MLTester(QMainWindow):
     #--------------------------------------------------------------------#
     
     def exceptionHook(self, etype, value, tb):
+        lines = []
+        lines.append("\n*************** Exception Occurred: *************\n")
+        lines.extend(traceback.format_exception(etype, value, tb))
+        i = 1
+        while etype.__name__ == "NestedException":
+            lines.append("\n*************** Inner Exception (%u): *************\n" % i)
+            etype = value.etype
+            tb = value.tb
+            value = value.value
+            lines.extend(traceback.format_exception(etype, value, tb))
+            i += 1
+            
+        title = "Internal Error"
+        trace = "".join(lines)
+        
+        #####################
+        # Only prompt once: #
+        #####################
         with self._error_lock:
-            lines = traceback.format_exception(etype, value, tb)
-            title = "Internal Error"
-            trace = "\n".join(lines)
+            if self._error_message is None:
+                self._error_message = value
+        
+        if self._error_message == value:
             QMessageBox.critical(self, title, trace)
-        sys.__excepthook__(etype, value, tb)
+        sys.stderr.write(trace)
+        #sys.__excepthook__(etype, value, tb)
          
     #--------------------------------------------------------------------#
     

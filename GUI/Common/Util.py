@@ -11,9 +11,36 @@ import re
 
 ###############################################################################
 
+class NestedException(Exception):
+    def __init__(self, message):
+        etype, value, tb = sys.exc_info()
+        super(NestedException, self).__init__(message)        
+        self.etype = etype
+        self.value = value
+        self.tb = tb
+
+###############################################################################
+
 def toFileName(val):
     return re.sub("[^0-9a-zA-Z]", "_", val)
 
+###############################################################################
+
+class WorkerThread(threading.Thread):
+    def __init__(self, group=None, target=None, name=None, args=(), kwargs=None, verbose=None):
+        threading.Thread.__init__(self, group, target, name, args, kwargs, verbose)
+        self.exception = None
+    
+    # -------------------------------------------------------------------- #
+    
+    def run(self):
+        try:
+            threading.Thread.run(self)
+        except Exception as e:
+            message = "Exception occurred on thread %s: %s" % (self, e) 
+            print message
+            self.exception = NestedException(message)
+            
 ###############################################################################
 
 class BasicProcess(object):
@@ -117,7 +144,8 @@ def waitForProcesses(processes,
         log("Waiting for processes: %s" % [process.instance.pid for process in processes])    
     threads = []
     for process in processes:
-        thread = threading.Thread(target=processCommunicateLive, args=(process,on_output,on_error))
+        process.exception = None
+        thread = WorkerThread(target=processCommunicateLive, args=(process,on_output,on_error))
         threads.append(thread)
         thread.start()
         if on_process_start is not None:
@@ -132,6 +160,9 @@ def waitForProcesses(processes,
             process = processes[i]
             thread = threads[i]
             if not thread.is_alive():
+                if thread.exception is not None:
+                    process.exception = thread.exception
+                    error("Process failed due to an internal error. See process.exception for more info.")
                 retcode = process.instance.returncode
                 pid = process.instance.pid
                 is_ok = on_process_done(process)
