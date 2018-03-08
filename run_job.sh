@@ -80,7 +80,7 @@ then
 fi
 echo -e "\033[0;0m"
 
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda/lib64/
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda/lib64/:/usr/local/gdrcopy
 if [[ $job_name == "ps" ]]
 then
 	export CUDA_VISIBLE_DEVICES=""
