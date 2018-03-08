@@ -9,35 +9,59 @@ from Common.Log import LOG_LEVEL_INFO, LogLevelNames
 import os
 import time
 from threading import Lock
-import sched
 import threading
-# import validators
 
 ###############################################################################
 
 LogColorsForLevel = ["purple", "red", "orange", "green", None, None, None]
- 
         
 ###############################################################################
 
-class LogWidget(QMdiSubWindow):
-    
-    flush_signal = pyqtSignal(object)
+class LogWindow(QMdiSubWindow):
+
+    flush_signal = pyqtSignal(str)
 
     #--------------------------------------------------------------------#
     
-    def __init__(self, owner, log_id, title = None, source = None):
-        super(LogWidget, self).__init__()
+    def __init__(self, title):
+        super(LogWindow, self).__init__()
+        self.flush_signal.connect(self.flush)
+        self._widget = QMdiSubWindow()
+        self._widget.setWindowTitle(title)
+        self._te_log = QTextBrowser()
+        self._te_log.setLineWrapMode(QTextBrowser.NoWrap)
+        #self._te_log.setMaximumBlockCount(100) 
+        #self._te_log.anchorClicked.connect(self._onAnchorClicked)
+        #self._te_log.setOpenLinks(False)
+        self._te_log.setStyleSheet("""
+            font-family: monospace;
+            white-space: pre;            
+        """)
+        self.layout().addWidget(self._te_log)
+        
+    #--------------------------------------------------------------------#
+    
+    def flush(self, html):
+        scrollbar = self._te_log.verticalScrollBar()
+        follow = scrollbar.value() == scrollbar.maximum()
+        self._te_log.append(html)
+        if follow:
+            scrollbar.setValue(scrollbar.maximum())        
+        
+    
+###############################################################################
+
+class LogItem(object):
+    
+    def __init__(self, owner, log_id, source = None):
+        super(LogItem, self).__init__()
         self._id = log_id
         self._owner = owner
         self._buffer = ""
         self._buffer_lock = Lock()
         self._last_flush_time = 0
         self._flush_rate = 0.1
-        self.flush_signal.connect(self._flush)
-        if title is None:
-            title = str(log_id)
-        self._initGui(title)
+        self._widget = None
 
     #--------------------------------------------------------------------#
     
@@ -52,61 +76,45 @@ class LogWidget(QMdiSubWindow):
         
     #--------------------------------------------------------------------#
     
-    def _initGui(self, title):
-        self.setWindowTitle(str(title))
-        self._te_log = QPlainTextEdit()
-        self._te_log.setLineWrapMode(QPlainTextEdit.NoWrap)
-        #self._te_log.setMaximumBlockCount(100) 
-        #self._te_log.anchorClicked.connect(self._onAnchorClicked)
-        #self._te_log.setOpenLinks(False)
-        self._te_log.setStyleSheet("""
-            font-family: monospace;
-            white-space: pre;            
-        """)        
+    def open(self, title):
+        title = "<Empty>" if title is None else str(title)        
+        if self._widget is None:
+            self._widget = LogWindow(title)
+        return self._widget
 
-        self.layout().addWidget(self._te_log)
+    #--------------------------------------------------------------------#
+    
+    def window(self):
+        return self._widget
     
     #--------------------------------------------------------------------#
     
-    def _highlightLinks(self, line):
-        words = line.split()
-        for word in words:
-            is_file = os.path.isfile(word)
-            is_log_file = is_file and (word.endswith(".log") or word.endswith(".txt") or word.endswith(".html"))
-            is_csv_file = is_file and (word.endswith(".csv"))
-            is_url = validators.url(word)
-            if is_log_file or is_url:
-                line = line.replace(word, "<a href='%s'>%s</a>" % (word, word))
-    
+#     def _highlightLinks(self, line):
+#         words = line.split()
+#         for word in words:
+#             is_file = os.path.isfile(word)
+#             is_log_file = is_file and (word.endswith(".log") or word.endswith(".txt") or word.endswith(".html"))
+#             is_csv_file = is_file and (word.endswith(".csv"))
+#             is_url = validators.url(word)
+#             if is_log_file or is_url:
+#                 line = line.replace(word, "<a href='%s'>%s</a>" % (word, word))
+        
     #--------------------------------------------------------------------#
     
-    def _flush(self, line):
-        if line is None:
-            with self._buffer_lock:
-                html = self._buffer
-                self._buffer = ""
-        else:
-            html = line
-
-        scrollbar = self._te_log.verticalScrollBar()
-        follow = scrollbar.value() == scrollbar.maximum()
-        self._te_log.appendHtml(html)
-        if follow:
-            scrollbar.setValue(scrollbar.maximum())
-            
-    #--------------------------------------------------------------------#
-    
-    def flush(self, line = None):
+    def flush(self):
         bps = len(self._buffer) / self._flush_rate
         now = time.time()
         if now - self._last_flush_time < self._flush_rate:
             return
          
         self._last_flush_time = now
-        if (line is None) and (len(self._buffer) == 0):
+        if len(self._buffer) == 0:
             return
-        
-        self.flush_signal.emit(line)
+
+        if self._widget is not None:
+            with self._buffer_lock:
+                self._widget.flush_signal.emit(self._buffer)
+            self._buffer = ""
                 
     #--------------------------------------------------------------------#
     
@@ -118,7 +126,7 @@ class LogWidget(QMdiSubWindow):
             
         color = LogColorsForLevel[log_level]
         if color is None:
-            line = "%s" % (line)
+            line = "<font>%s</font>" % (line)
         else:
             line = "<font family='monospace' color='%s'>%s</font>" % (color, line)
 
@@ -143,7 +151,7 @@ class MultiLogWidget(QMdiArea):
     GLOBAL_LOG = GlobalLog()
     SUB_WINDOW_DEFAULT_RATIO_X = 0.7
     SUB_WINDOW_DEFAULT_RATIO_Y = 0.7
-    CASCADE_SKIP_PIXELS_X = 10
+    CASCADE_SKIP_PIXELS_X = 22
     CASCADE_SKIP_PIXELS_Y = 22
     
     #--------------------------------------------------------------------#
@@ -152,7 +160,7 @@ class MultiLogWidget(QMdiArea):
         super(MultiLogWidget, self).__init__(parent)
         self._logs = {}
         self._logs_folder = logs_folder 
-        
+        self._logs_lock = Lock()
         self.cascade_x_id = 0
         self.cascade_y_id = 0
 
@@ -192,12 +200,13 @@ class MultiLogWidget(QMdiArea):
         
     #--------------------------------------------------------------------#
     
-    def _getOrCreateLog(self, log_id, title):
-        if log_id in self._logs:
-            return self._logs[log_id]
-        log_widget = LogWidget(self, log_id, title)
-        self._logs[log_id] = log_widget
-        return log_widget 
+    def _getOrCreateLog(self, log_id):
+        with self._logs_lock:
+            if log_id in self._logs:
+                return self._logs[log_id]
+            log = LogItem(self, log_id)
+            self._logs[log_id] = log
+            return log
     
     #--------------------------------------------------------------------#
     
@@ -214,34 +223,34 @@ class MultiLogWidget(QMdiArea):
     #--------------------------------------------------------------------#
     
     def open(self, log_id = GLOBAL_LOG, title = None, source_path = None):
-        if log_id in self._logs:
-            log = self._logs[log_id]
-        else:
-            log = LogWidget(self, log_id, title)
-            self._logs[log_id] = log
-            if source_path is not None:
-                with open(source_path, "r") as source:
-                    for line in source:
-                        log.append(line)
-            
+        log = self._getOrCreateLog(log_id)
+        if source_path is not None:
+            with open(source_path, "r") as source:
+                for line in source:
+                    log.append(line)
+        
+        
+        window = log.window()
+        if window is None:
             pos = self._getNextWindowPosition()
             size = QSize(self.width() * MultiLogWidget.SUB_WINDOW_DEFAULT_RATIO_X, 
                          self.height() * MultiLogWidget.SUB_WINDOW_DEFAULT_RATIO_Y)
-            self.addSubWindow(log)
-            log.resize(size)
-            log.move(pos)
-
-        if not log.isVisible():
-            log.show()
+            window = log.open(title)
+            self.addSubWindow(window)
+            window.resize(size)
+            window.move(pos)
+        
+        if not window.isVisible():
+            window.show()
         return log 
 
     #--------------------------------------------------------------------#
     
     def close(self, log_id = GLOBAL_LOG):
         log = self._removeLog(log_id)
-        if log is not None:
+        if (log is not None) and log.window():
             log.close()
-            self.removeSubWindow(log)
+            self.removeSubWindow(log.window())
         if self.cascade_x_id > 0:
             self.cascade_x_id -= 1
         if self.cascade_y_id > 0:
@@ -250,15 +259,12 @@ class MultiLogWidget(QMdiArea):
     #--------------------------------------------------------------------#
     
     def isOpen(self, log_id):
-        return log_id in self._logs
+        return (log_id in self._logs) and (self._logs[log_id].window())
         
     #--------------------------------------------------------------------#
     
     def log(self, line, log_id = GLOBAL_LOG, log_level = LOG_LEVEL_INFO):
-        if not log_id in self._logs:
-            return
-        
-        log = self._logs[log_id]
+        log = self._getOrCreateLog(log_id)
         log.append(line, log_level)
         
 ###############################################################################################################################################################
