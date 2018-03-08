@@ -693,7 +693,7 @@ class TFCnnBenchmarksStep(Step):
         # Cleanup: #
         ############
         title("Cleaning:", UniBorder.BORDER_STYLE_SINGLE)
-        processes = executeRemoteCommand(ips, "rm -rf %s" % work_dir)
+        processes = executeRemoteCommand(servers, "rm -rf %s" % work_dir)
         waitForProcesses(processes, wait_timeout=10)
         return True
 

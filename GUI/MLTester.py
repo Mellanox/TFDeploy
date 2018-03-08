@@ -480,7 +480,7 @@ class MLTester(QMainWindow):
         self.copyAction      = ActionWithButton(self.edit_menu, "images/copy.png",              "Copy",             "Ctrl+C",       self._copyActionHandler, enabled=False)
         self.pasteAction     = ActionWithButton(self.edit_menu, "images/paste.png",             "Paste",            "Ctrl+V",       self._pasteAfterActionHandler, enabled=False)
         self.pasteBeforeAction = ActionWithButton(self.edit_menu, "images/paste.png",           "Paste Before",     "Ctrl+Shift+V", self._pasteBeforeActionHandler, enabled=False)
-        self.removeAction    = ActionWithButton(self.edit_menu, "images/remove.jpg",            "Remove",           "Del",       self._removeActionHandler, enabled=False)
+        self.removeAction    = ActionWithButton(self.edit_menu, "images/remove.jpg",            "Remove",           "Del",          self._removeActionHandler, enabled=False)
         self.checkAction     = ActionWithButton(self.edit_menu, "images/check.jpg",             "Check/Uncheck",    "Ctrl+Space",   self._checkActionHandler, enabled=False)
         self.moveUpAction    = ActionWithButton(self.edit_menu, "images/move_up.jpg",           "MoveUp",           "Ctrl+Up",      self._moveUpActionHandler, enabled=False)
         self.moveDownAction  = ActionWithButton(self.edit_menu, "images/move_down.jpg",         "MoveDown",         "Ctrl+Down",    self._moveDownActionHandler, enabled=False)
@@ -488,10 +488,12 @@ class MLTester(QMainWindow):
         self.startAction     = ActionWithButton(self.run_menu,  "images/start.jpg",             "Start",            "Ctrl+F5",      self._runActionHandler)
         self.stopAction      = ActionWithButton(self.run_menu,  "images/stop.jpg",              "Stop",             "Ctrl+F11",     self._stopActionHandler, enabled=False)
         
+        self.closeWinsAction = ActionWithButton(self.window_menu,"images/close_windows.jpeg",   "&Close Windows",    "",            self._closeAllWindowsActionHandler)
+        self.closeWinsAction = ActionWithButton(self.window_menu,"images/cascade_windows.jpeg", "C&ascade Windows",  "",            self._cascadeWindowsActionHandler)
+        self.closeWinsAction = ActionWithButton(self.window_menu,"images/tile_windows.jpeg",    "&Tile Windows",     "",            self._tileWindowsActionHandler)
         self.editAction      = ActionWithButton(self.window_menu,"images/edit.jpg",             "Show &Edit Pane",  "Ctrl+E",       self._showEditPaneActionHandler, checkable=True, checked=True)
-        self.closeWinsAction = ActionWithButton(self.window_menu,"images/close_windows.jpeg",   "&Close Windows",   "",             self._closeAllWindowsActionHandler)
         self.showNaviAction  = ActionWithButton(self.window_menu,"images/show_navigator.jpeg",  "Show &Navigator",  "Ctrl+R",       self._showNavigatorActionHandler, checkable=True, checked=True)
-        self.showGraphsAction= ActionWithButton(self.window_menu,"images/graphs.jpeg",          "Show Graphs",      "Ctrl+G",       self._showGraphsActionHandler)
+        self.showGraphsAction= ActionWithButton(self.window_menu,"images/graphs.jpeg",          "Show Graphs",      "Ctrl+G",       self._showGraphsActionHandler, enabled=False)
         self.aboutAction     = ActionWithButton(self.help_menu,  "images/about.jpeg",           "&About",           "F1",           self._aboutActionHandler)
         
         #########
@@ -920,13 +922,15 @@ class MLTester(QMainWindow):
         item = self._sequence[index]
         self._setConfigurationPane(item.attributesWidget())
         selected_indexes = self._getSelectedIndexes()
-        enable_edit = not self._is_running and len(selected_indexes) > 0
+        something_selected = len(selected_indexes) > 0
+        enable_edit = not self._is_running and something_selected
         self.removeAction.setEnabled(enable_edit)
         self.checkAction.setEnabled(enable_edit)
         self.copyAction.setEnabled(enable_edit)
         self.cutAction.setEnabled(enable_edit)
         self.moveDownAction.setEnabled(enable_edit)
         self.moveUpAction.setEnabled(enable_edit)
+        self.showGraphsAction.setEnabled(something_selected)
         self._cell_being_edited = None
 
     #--------------------------------------------------------------------#
@@ -1131,6 +1135,16 @@ class MLTester(QMainWindow):
         for process in self._error_processes:
             self.emitCloseLog(process)
         self._log_widget.hideAllSubWindows()
+
+    #--------------------------------------------------------------------#
+    
+    def _cascadeWindowsActionHandler(self, checked):
+        self._log_widget.cascadeSubWindows()
+    
+    #--------------------------------------------------------------------#
+    
+    def _tileWindowsActionHandler(self, checked):
+        self._log_widget.tileSubWindows()
     
     #--------------------------------------------------------------------#
     

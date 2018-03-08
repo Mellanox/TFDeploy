@@ -276,6 +276,15 @@ class MultiLogWidget(QSplitter):
     
     def setLogsFolder(self, logs_folder):
         self._logs_folder = logs_folder
+    
+    #--------------------------------------------------------------------#
+    
+    def _cascade(self, window):
+        pos = self._getNextWindowPosition()
+        size = QSize(self._main_area.width() * MultiLogWidget.SUB_WINDOW_DEFAULT_RATIO_X, 
+                     self._main_area.height() * MultiLogWidget.SUB_WINDOW_DEFAULT_RATIO_Y)
+        window.resize(size)
+        window.move(pos)
         
     #--------------------------------------------------------------------#
     
@@ -288,14 +297,10 @@ class MultiLogWidget(QSplitter):
         
         window = log.window()
         if window is None:
-            pos = self._getNextWindowPosition()
-            size = QSize(self._main_area.width() * MultiLogWidget.SUB_WINDOW_DEFAULT_RATIO_X, 
-                         self._main_area.height() * MultiLogWidget.SUB_WINDOW_DEFAULT_RATIO_Y)
             window = log.open(title)
             self._main_area.addSubWindow(window)
             self._navigator.add(log)
-            window.resize(size)
-            window.move(pos)
+            self._cascade(window)
         
         window.show()
         window.setFocus()
@@ -329,7 +334,25 @@ class MultiLogWidget(QSplitter):
     
     def hideAllSubWindows(self):
         self._main_area.closeAllSubWindows()
-        
+    
+    #--------------------------------------------------------------------#
+    
+    def cascadeSubWindows(self):
+        self.cascade_x_id = 0
+        self.cascade_y_id = 0
+        for window in self._main_area.subWindowList():
+            self._cascade(window)
+    
+    #--------------------------------------------------------------------#
+    
+    def tileSubWindows(self):
+        self._main_area.tileSubWindows()
+    
+    #--------------------------------------------------------------------#
+    
+    def mainArea(self):
+        return self._main_area
+    
     #--------------------------------------------------------------------#
     
     def navigator(self):
