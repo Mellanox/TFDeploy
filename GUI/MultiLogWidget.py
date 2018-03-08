@@ -26,8 +26,7 @@ class LogWindow(QMdiSubWindow):
     def __init__(self, title):
         super(LogWindow, self).__init__()
         self.flush_signal.connect(self.flush)
-        self._widget = QMdiSubWindow()
-        self._widget.setWindowTitle(title)
+        self.setWindowTitle(title)
         self._te_log = QTextBrowser()
         self._te_log.setLineWrapMode(QTextBrowser.NoWrap)
         #self._te_log.setMaximumBlockCount(100) 
