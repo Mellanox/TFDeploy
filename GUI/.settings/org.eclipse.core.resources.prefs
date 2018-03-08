@@ -7,6 +7,7 @@ encoding//Actions/TestEnvironment.py=utf-8
 encoding//Common/FormattedTable.py=utf-8
 encoding//Common/Log.py=utf-8
 encoding//Common/Util.py=utf-8
+encoding//Common/colors_test.py=utf-8
 encoding/EZRandomWidget.py=utf-8
 encoding/MLGraphViewer.py=utf-8
 encoding/MLTester.py=utf-8
