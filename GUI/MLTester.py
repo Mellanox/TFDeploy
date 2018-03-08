@@ -299,10 +299,10 @@ class TestDataFolder(TestDataItem):
 #############################################################################
 
 class ActionWithButton(QAction):
-    def __init__(self, mnt, icon_path, text, shortcut, status_tip, handler, enabled=True, checkable=False, checked=False):
+    def __init__(self, mnt, icon_path, text, shortcut, handler, enabled=True, checkable=False, checked=False):
         super(ActionWithButton, self).__init__(QIcon(icon_path), text, mnt.menu)
         self.setShortcut(shortcut)
-        self.setStatusTip(status_tip)
+        #self.setStatusTip(text)
         self.triggered.connect(handler)
         self.setEnabled(enabled)
         self.setCheckable(checkable)
@@ -468,30 +468,31 @@ class MLTester(QMainWindow):
         self.window_menu = MenuWithToolbar(self, "&Window")
         self.help_menu   = MenuWithToolbar(self, "&Help")
                 
-        self.newAction       = ActionWithButton(self.file_menu, "images/new.jpeg",      "&New",          "Ctrl+N", "New test", self._newAction)
-        self.openAction      = ActionWithButton(self.file_menu, "images/open.jpeg",     "&Open...",      "Ctrl+O", "Open test...", self._openAction)
-        self.saveAction      = ActionWithButton(self.file_menu, "images/save.jpeg",     "&Save",         "Ctrl+S", "Save test", self._saveAction)
-        self.saveAsAction    = ActionWithButton(self.file_menu, "images/save_as.jpeg",  "Save &As...",   "",       "Save test as...", self._saveAction)
-        self.file_menu.menu.addSeparator()        
-        self.quitAction      = ActionWithButton(self.file_menu, "images/save_as.jpeg",  "E&xit",         "Alt+F4", "Exit application", qApp.quit)
+        self.newAction       = ActionWithButton(self.file_menu, "images/new.jpeg",              "&New",             "Ctrl+N",       self._newAction)
+        self.openAction      = ActionWithButton(self.file_menu, "images/open.jpeg",             "&Open...",         "Ctrl+O",       self._openAction)
+        self.saveAction      = ActionWithButton(self.file_menu, "images/save.jpeg",             "&Save",            "Ctrl+S",       self._saveAction)
+        self.saveAsAction    = ActionWithButton(self.file_menu, "images/save_as.jpeg",          "Save &As...",      "",             self._saveAction)
+        self.file_menu.menu.addSeparator()                                                                                          
+        self.quitAction      = ActionWithButton(self.file_menu, "images/save_as.jpeg",          "E&xit",            "Alt+F4",       qApp.quit)
+                                                                                                                                    
+        self.addAction       = ActionWithButton(self.edit_menu, "images/add.jpg",               "Add...",           "Ctrl++",       self._addActionHandler)
+        self.cutAction       = ActionWithButton(self.edit_menu, "images/cut.png",               "Cut",              "Ctrl+X",       self._cutActionHandler, enabled=False)
+        self.copyAction      = ActionWithButton(self.edit_menu, "images/copy.png",              "Copy",             "Ctrl+C",       self._copyActionHandler, enabled=False)
+        self.pasteAction     = ActionWithButton(self.edit_menu, "images/paste.png",             "Paste",            "Ctrl+V",       self._pasteAfterActionHandler, enabled=False)
+        self.pasteBeforeAction = ActionWithButton(self.edit_menu, "images/paste.png",           "Paste Before",     "Ctrl+Shift+V", self._pasteBeforeActionHandler, enabled=False)
+        self.removeAction    = ActionWithButton(self.edit_menu, "images/remove.jpg",            "Remove",           "Del",       self._removeActionHandler, enabled=False)
+        self.checkAction     = ActionWithButton(self.edit_menu, "images/check.jpg",             "Check/Uncheck",    "Ctrl+Space",   self._checkActionHandler, enabled=False)
+        self.moveUpAction    = ActionWithButton(self.edit_menu, "images/move_up.jpg",           "MoveUp",           "Ctrl+Up",      self._moveUpActionHandler, enabled=False)
+        self.moveDownAction  = ActionWithButton(self.edit_menu, "images/move_down.jpg",         "MoveDown",         "Ctrl+Down",    self._moveDownActionHandler, enabled=False)
         
-        self.addAction       = ActionWithButton(self.edit_menu, "images/add.jpg",       "Add",           "Ctrl++",       "Exit application", self._addActionHandler)
-        self.copyAction      = ActionWithButton(self.edit_menu, "images/copy.png",      "Copy",          "Ctrl+C",       "Exit application", self._copyActionHandler, enabled=False)
-        self.pasteAction     = ActionWithButton(self.edit_menu, "images/paste.png",     "Paste",         "Ctrl+V",       "Exit application", self._pasteAfterActionHandler, enabled=False)
-        self.pasteBeforeAction = ActionWithButton(self.edit_menu, "images/paste.png",   "Paste Before",  "Ctrl+Shift+V", "Exit application", self._pasteBeforeActionHandler, enabled=False)
-        self.removeAction    = ActionWithButton(self.edit_menu, "images/remove.jpg",    "Remove",        "Ctrl+-",       "Exit application", self._removeActionHandler, enabled=False)
-        self.checkAction     = ActionWithButton(self.edit_menu, "images/check.jpg",     "Check/Uncheck", "Ctrl+Space",   "Exit application", self._checkActionHandler, enabled=False)
-        self.moveUpAction    = ActionWithButton(self.edit_menu, "images/move_up.jpg",   "MoveUp",        "Ctrl+Up",      "Exit application", self._moveUpActionHandler, enabled=False)
-        self.moveDownAction  = ActionWithButton(self.edit_menu, "images/move_down.jpg", "MoveDown",      "Ctrl+Down",    "Exit application", self._moveDownActionHandler, enabled=False)
+        self.startAction     = ActionWithButton(self.run_menu,  "images/start.jpg",             "Start",            "Ctrl+F5",      self._runActionHandler)
+        self.stopAction      = ActionWithButton(self.run_menu,  "images/stop.jpg",              "Stop",             "Ctrl+F11",     self._stopActionHandler, enabled=False)
         
-        self.startAction     = ActionWithButton(self.run_menu,  "images/start.jpg",     "Start",         "Ctrl+F5",     "Exit application",  self._runActionHandler)
-        self.stopAction      = ActionWithButton(self.run_menu,  "images/stop.jpg",      "Stop",          "Ctrl+F11",    "Exit application", self._stopActionHandler, enabled=False)
-        
-        self.editAction      = ActionWithButton(self.window_menu,"images/edit.jpg",    "Show &Edit Pane", "Ctrl+E",      "Exit application", self._showEditPaneActionHandler, checkable=True, checked=True)
-        self.closeWinsAction = ActionWithButton(self.window_menu,"images/close_all_windows.jpeg","&Close Open Windows", "Ctrl+X", "Exit application", self._closeAllWindowsActionHandler)
-        self.showNaviAction  = ActionWithButton(self.window_menu,"images/show_navigator.jpeg","Show &Navigator", "Ctrl+R", "Show navigator", self._showNavigatorActionHandler, checkable=True, checked=True)
-        self.showGraphsAction= ActionWithButton(self.window_menu,"images/graphs.jpeg", "Show Graphs",    "Ctrl+G",      "Show graphs",      self._showGraphsActionHandler)
-        self.aboutAction     = ActionWithButton(self.help_menu,  "images/about.jpeg",  "&About",         "F1",          "Exit application", self._aboutActionHandler)
+        self.editAction      = ActionWithButton(self.window_menu,"images/edit.jpg",             "Show &Edit Pane",  "Ctrl+E",       self._showEditPaneActionHandler, checkable=True, checked=True)
+        self.closeWinsAction = ActionWithButton(self.window_menu,"images/close_windows.jpeg",   "&Close Windows",   "",             self._closeAllWindowsActionHandler)
+        self.showNaviAction  = ActionWithButton(self.window_menu,"images/show_navigator.jpeg",  "Show &Navigator",  "Ctrl+R",       self._showNavigatorActionHandler, checkable=True, checked=True)
+        self.showGraphsAction= ActionWithButton(self.window_menu,"images/graphs.jpeg",          "Show Graphs",      "Ctrl+G",       self._showGraphsActionHandler)
+        self.aboutAction     = ActionWithButton(self.help_menu,  "images/about.jpeg",           "&About",           "F1",           self._aboutActionHandler)
         
         #########
         # Panes:
@@ -531,6 +532,11 @@ class MLTester(QMainWindow):
         #central_widget.addWidget(self.edit_pane)
 
         self.setCentralWidget(central_widget)
+        
+        ###############
+        # Status Bar: #
+        ###############
+        #self.statusBar().addWidget(self.status_text, 1)
 
     #--------------------------------------------------------------------#
 
@@ -701,7 +707,7 @@ class MLTester(QMainWindow):
             self._addSequenceCell(index, 0, checkbox_handler=self._getStepEnabledHandler(index))
             self._addSequenceCell(index, 1, spinbox_handler=self._getStepRepeatHandler(index))
             self._addSequenceCell(index, 2)
-            self._addSequenceCell(index, 3, text = step.name() if step.name() is not None else step.className(), editable=True)
+            self._addSequenceCell(index, 3, text = step.name(), editable=True)
             self._addSequenceCell(index, 4)
             self._updateStepInSequence(index, step)
             new_indexes.append(index)
@@ -821,7 +827,7 @@ class MLTester(QMainWindow):
                 self._updateStepInSequence(index, self._sequence[index])
                 index += 1
             self.sequence_widget.removeRow(index)
-#         self.sequence_widget.clearSelection()
+        self.sequence_widget.clearSelection()
         self._setModified()
 
     #--------------------------------------------------------------------#
@@ -848,7 +854,6 @@ class MLTester(QMainWindow):
             pass
         else:
             self.sequence_widget.clearSelection()
-            print indexes
             for index in indexes:
                 self.sequence_widget.selectRow(index)
         self._setModified()        
@@ -863,6 +868,12 @@ class MLTester(QMainWindow):
             self.sequence_widget.setCurrentCell(indexes[0], 0)
             self._setModified()
 
+    #--------------------------------------------------------------------#
+    
+    def _cutActionHandler(self):
+        self._copyStepsToClipboard()
+        self._removeSelectedStepsFromSequence()
+        
     #--------------------------------------------------------------------#
     
     def _copyActionHandler(self):
@@ -913,6 +924,7 @@ class MLTester(QMainWindow):
         self.removeAction.setEnabled(enable_edit)
         self.checkAction.setEnabled(enable_edit)
         self.copyAction.setEnabled(enable_edit)
+        self.cutAction.setEnabled(enable_edit)
         self.moveDownAction.setEnabled(enable_edit)
         self.moveUpAction.setEnabled(enable_edit)
         self._cell_being_edited = None
@@ -1061,8 +1073,13 @@ class MLTester(QMainWindow):
 #             self.sequence_widget.setSelectionMode(QAbstractItemView.NoSelection)
 
         #self.sequence_widget.setEnabled(val)
+        selected_indexes = self._getSelectedIndexes()
         for action in self.edit_menu.menu.actions():
             action.setEnabled(val)
+        self.cutAction.setEnabled(val and (len(selected_indexes) > 0))
+        self.copyAction.setEnabled(val and (len(selected_indexes) > 0))
+        self.pasteAction.setEnabled(val and (len(self._copied_steps) > 0))
+        self.pasteBeforeAction.setEnabled(val and (len(self._copied_steps) > 0))
         self.startAction.setEnabled(val)
         self.stopAction.setEnabled(not val)
         

@@ -229,7 +229,11 @@ class Step(object):
 
     def clone(self):
         values = copy.deepcopy(self._values)
-        return type(self)(values)
+        res = type(self)(values)
+        res._name = self._name
+        res._repeat = self._repeat
+        res._is_enabled = self._is_enabled
+        return res
 
     # -------------------------------------------------------------------- #
     
