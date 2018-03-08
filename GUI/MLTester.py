@@ -749,10 +749,7 @@ class MLTester(QMainWindow):
         elif step.status() == Step.STATUS_FAILED:
             self.sequence_widget.item(index, 2).setText(QString.fromUtf8("✘"))
             self.sequence_widget.item(index, 2).setForeground(Qt.red)
-        name = step.name()
-        if name is None:
-            name = step.className() 
-        self.sequence_widget.item(index, 3).setText(name)
+        self.sequence_widget.item(index, 3).setText(step.name())
         self.sequence_widget.item(index, 4).setText(step.attributesRepr())
         self._setStepEnabled(index, step.isEnabled())
     

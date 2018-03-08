@@ -165,7 +165,7 @@ class Step(object):
     # -------------------------------------------------------------------- #
     
     def __init__(self, values = None):
-        self._name = None
+        self._name = self.className()
         attributes = type(self).ATTRIBUTES
         if values is None:
             values = [att.default_value for att in attributes]
@@ -341,17 +341,14 @@ class Step(object):
     # -------------------------------------------------------------------- #
     
     def __repr__(self):
-        if self._name is not None:
-            return self._name 
-        return self.className() # + "\n" + self.attributesRepr()
+        return self._name + ": " + self.attributesRepr()
         
     # -------------------------------------------------------------------- #
             
     def writeToXml(self, root_node):
         attributes = type(self).ATTRIBUTES
         step_node = etree.SubElement(root_node, "Step", Class = self.className())
-        if self.name() is not None:
-            etree.SubElement(step_node, "Name", Value = self.name())
+        etree.SubElement(step_node, "Name", Value = self.name())
         for i in range(len(attributes)):
             attr_name = attributes[i].name
             attr_value = self._values[i]
