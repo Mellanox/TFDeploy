@@ -191,7 +191,7 @@ class TFCnnBenchmarksStep(Step):
     def attributesRepr(self):
         return "%s, %s, %u GPUs, batch %u" % (self.model(),
                                               self.server_protocol(),
-                                              self.num_gpus(),
+                                              self.num_gpus() * len(self.workers()),
                                               self.batch_size()) 
 
     # -------------------------------------------------------------------- #
