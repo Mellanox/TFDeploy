@@ -23,9 +23,9 @@ import threading
 ###############################################################################
 
 class ServerInfo(object):
-    def __init__(self, ip):
+    def __init__(self, ip, hostname):
         self.ip = ip
-        self.hostname = TestEnvironment.Get().getServer(ip)
+        self.hostname = hostname
         self.processes = []
         self.monitor = None
 
@@ -254,20 +254,20 @@ class TFCnnBenchmarksStep(Step):
 
     # -------------------------------------------------------------------- #
     
-    def getOrCreateServer(self, ip):
+    def getOrCreateServer(self, hostname, ip):
         with self._servers_lock:
-            if ip in self._servers:
-                return self._servers[ip]
-            server = ServerInfo(ip)
-            self._servers[ip] = server
+            if hostname in self._servers:
+                return self._servers[hostname]
+            server = ServerInfo(ip, hostname)
+            self._servers[hostname] = server
             return server
 
     # -------------------------------------------------------------------- #
     
-    def _startServerMonitors(self, ip):
-        log("Server %s: Starting monitors." % ip)
-        server = self._servers[ip]
-        server.graphs_dir = os.path.join(self._logs_dir, "graphs", toFileName(ip))
+    def _startServerMonitors(self, hostname):
+        server = self._servers[hostname]
+        log("Server %s: Starting monitors." % server.ip)
+        server.graphs_dir = os.path.join(self._logs_dir, "graphs", toFileName(hostname))
         server.remote_graphs_dir = os.path.join(self._work_dir, "graphs")
         if not os.path.exists(server.graphs_dir):
             os.makedirs(server.graphs_dir)
@@ -281,7 +281,7 @@ class TFCnnBenchmarksStep(Step):
                                                                                                       monitored_nics,
                                                                                                       server.remote_graphs_dir)
         server.monitor_log_path = os.path.join(server.graphs_dir, "monitor.log") 
-        server.monitor = RemoteMonitor(ip, remote_monitor_bin, remote_monitor_flags, remote_monitor_title, server.monitor_log_path)
+        server.monitor = RemoteMonitor(hostname, remote_monitor_bin, remote_monitor_flags, remote_monitor_title, server.monitor_log_path)
         server.monitor.start()
         for process in server.processes:
             if process.job_name != "ps":
@@ -304,9 +304,9 @@ class TFCnnBenchmarksStep(Step):
 
     # -------------------------------------------------------------------- #
     
-    def _stopServerMonitors(self, ip):
-        server = self._servers[ip]
-        log("Server %s: stopping monitors..." % ip)
+    def _stopServerMonitors(self, hostname):
+        server = self._servers[hostname]
+        log("Server %s: stopping monitors..." % hostname)
         server.monitor.stop()
         server.perf = TFPerformanceMeasurements()
         #server.monitor.fillMeasurement(server.perf.cpu)
@@ -379,7 +379,7 @@ class TFCnnBenchmarksStep(Step):
                 process.remote_pid = remote_process_ids[process.name]
             else:
                 process.remote_pid = -1
-            log(" + [%s]: <a href='%s'>%s</a>:%*s %-5d %-5d %s" % (process.server, process.log_file_path, process.name, 10 - len(process.name), "", 
+            log(" + [%s]: <a href='%s'>%s</a>:%*s %-5d %-5d %s" % (process.ip, process.log_file_path, process.name, 10 - len(process.name), "", 
                                                                    process.instance.pid, process.remote_pid, process.command), log_level=LOG_LEVEL_NOTE)
 
     # -------------------------------------------------------------------- #
@@ -418,7 +418,8 @@ class TFCnnBenchmarksStep(Step):
     # -------------------------------------------------------------------- #
     
     def _runJob(self, work_dir, ip, job_name, task_id):
-        server = self.getOrCreateServer(ip)
+        hostname = TestEnvironment.Get().getServer(ip)
+        server = self.getOrCreateServer(hostname, ip)
         device_info = self._devices[server.hostname]
         #####################
         # Build TF command: #
@@ -428,7 +429,7 @@ class TFCnnBenchmarksStep(Step):
         ##################
         # Env variables: #
         ##################
-        tf_command += " LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda/lib64:/usr/local/gdrcopy"        
+        tf_command += " LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda/lib64:/usr/local/gdrcopy"
         tf_command += " TF_CPP_MIN_VLOG_LEVEL=%s" % self.log_level()
         tf_command += " RDMA_DEVICE=%s" % device_info.name
         tf_command += " RDMA_DEVICE_PORT=%u" % device_info.port
@@ -500,6 +501,7 @@ class TFCnnBenchmarksStep(Step):
         process.task_id = task_id
         process.is_worker = job_name == "worker"
         process.rdma_device = device_info
+        process.ip = ip
         process.command = tf_command
         self._processes.append(process)
         server.processes.append(process)
