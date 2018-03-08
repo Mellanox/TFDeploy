@@ -487,8 +487,9 @@ class MLTester(QMainWindow):
         self.startAction     = ActionWithButton(self.run_menu,  "images/start.jpg",     "Start",         "Ctrl+F5",     "Exit application",  self._runActionHandler)
         self.stopAction      = ActionWithButton(self.run_menu,  "images/stop.jpg",      "Stop",          "Ctrl+F11",    "Exit application", self._stopActionHandler, enabled=False)
         
-        self.editAction      = ActionWithButton(self.window_menu,"images/edit.jpg",    "Show Edit Pane", "Ctrl+E",      "Exit application", self._showEditPaneActionHandler, checkable=True, checked=True)
+        self.editAction      = ActionWithButton(self.window_menu,"images/edit.jpg",    "Show &Edit Pane", "Ctrl+E",      "Exit application", self._showEditPaneActionHandler, checkable=True, checked=True)
         self.closeWinsAction = ActionWithButton(self.window_menu,"images/close_all_windows.jpeg","&Close Open Windows", "Ctrl+X", "Exit application", self._closeAllWindowsActionHandler)
+        self.showNaviAction  = ActionWithButton(self.window_menu,"images/show_navigator.jpeg","Show &Navigator", "Ctrl+R", "Show navigator", self._showNavigatorActionHandler, checkable=True, checked=True)
         self.showGraphsAction= ActionWithButton(self.window_menu,"images/graphs.jpeg", "Show Graphs",    "Ctrl+G",      "Show graphs",      self._showGraphsActionHandler)
         self.aboutAction     = ActionWithButton(self.help_menu,  "images/about.jpeg",  "&About",         "F1",          "Exit application", self._aboutActionHandler)
         
@@ -1112,8 +1113,13 @@ class MLTester(QMainWindow):
     def _closeAllWindowsActionHandler(self, checked):
         for process in self._error_processes:
             self.emitCloseLog(process)
-        self._log_widget.closeAllSubWindows()
+        self._log_widget.hideAllSubWindows()
     
+    #--------------------------------------------------------------------#
+    
+    def _showNavigatorActionHandler(self, checked):
+        self._log_widget.navigator().setVisible(checked)
+        
     #--------------------------------------------------------------------#
     
     def _showGraphsActionHandler(self, checked):

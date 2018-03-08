@@ -4,7 +4,7 @@
 from random import randint
 from PyQt4.QtCore import QPoint,QString,QSize, pyqtSignal
 from PyQt4.QtGui import QMdiArea,QMdiSubWindow,QPlainTextEdit,QVBoxLayout,QPushButton,QApplication,QWidget,\
-    QTextBrowser
+    QTextBrowser, QListWidget, QListWidgetItem, QSplitter, QHBoxLayout
 from Common.Log import LOG_LEVEL_INFO, LogLevelNames
 import os
 import time
@@ -23,15 +23,26 @@ class LogWindow(QMdiSubWindow):
 
     #--------------------------------------------------------------------#
     
-    def __init__(self, title):
+    def _onAnchorClicked(self, url):
+        path = url.toString()
+        if url.isLocalFile() or os.path.isfile(path):
+            path = os.path.abspath(str(path))
+            self._owner.open(path, source_path=path)
+        else:
+            print "External link: %s" % path
+            
+    #--------------------------------------------------------------------#
+    
+    def __init__(self, owner, title):
         super(LogWindow, self).__init__()
+        self._owner = owner
         self.flush_signal.connect(self.flush)
         self.setWindowTitle(title)
         self._te_log = QTextBrowser()
         self._te_log.setLineWrapMode(QTextBrowser.NoWrap)
         #self._te_log.setMaximumBlockCount(100) 
-        #self._te_log.anchorClicked.connect(self._onAnchorClicked)
-        #self._te_log.setOpenLinks(False)
+        self._te_log.anchorClicked.connect(self._onAnchorClicked)
+        self._te_log.setOpenLinks(False)
         self._te_log.setStyleSheet("""
             font-family: monospace;
             white-space: pre;            
@@ -63,22 +74,16 @@ class LogItem(object):
         self._widget = None
 
     #--------------------------------------------------------------------#
-    
-    def _onAnchorClicked(self, url):
-        path = url.toString()
-        if url.isLocalFile() or os.path.isfile(path):
-            path = os.path.abspath(str(path))
-            log = self._owner.open(path, source_path=path)
-            log.setFocus()
-        else:
-            print "External link: %s" % path
+
+    def id(self):
+        return self._id
         
     #--------------------------------------------------------------------#
     
     def open(self, title):
         title = "<Empty>" if title is None else str(title)        
         if self._widget is None:
-            self._widget = LogWindow(title)
+            self._widget = LogWindow(self._owner, title)
         return self._widget
 
     #--------------------------------------------------------------------#
@@ -138,10 +143,47 @@ class LogItem(object):
     
     def close(self):
         pass
+
+###############################################################################
+
+class NavigatorWidget(QListWidget):
+
+    flush_signal = pyqtSignal(str)
+
+    #--------------------------------------------------------------------#
+    
+    def __init__(self, owner, parent = None):
+        super(NavigatorWidget, self).__init__(parent)
+        self._owner = owner
+        self.setWindowTitle("Navigator")
+        self.itemDoubleClicked.connect(self._onItemDoubleClicked)
+        self._logs = []
+        
+    #--------------------------------------------------------------------#
+    
+    def add(self, log):
+        item = QListWidgetItem(log.window().windowTitle())
+        self._logs.append(log)
+        self.addItem(item)
+        
+    #--------------------------------------------------------------------#
+    
+    def remove(self, log):
+        item = QListWidgetItem(log.window().windowTitle())
+        index = self.row(item)
+        self._logs.pop(index)
+        self.takeItem(index)
+        
+    #--------------------------------------------------------------------#
+    
+    def _onItemDoubleClicked(self, item):
+        index = self.row(item)
+        log = self._logs[index]
+        self._owner.open(log.id())
         
 ###############################################################################
 
-class MultiLogWidget(QMdiArea):
+class MultiLogWidget(QSplitter):
     
     class GlobalLog(object):
         def __repr__(self):
@@ -171,7 +213,24 @@ class MultiLogWidget(QMdiArea):
     #--------------------------------------------------------------------#
     
     def _initGui(self):
-        pass
+        self._main_area = QMdiArea()
+        self._navigator = NavigatorWidget(self)
+        self.setLayout(QHBoxLayout())
+#         self.layout().setMargin(0)
+#         self.layout().setSpacing(0)
+#         self.layout().setContentsMargins(0, 0, 0, 0)
+        self.layout().addWidget(self._main_area, 5)
+        self.layout().addWidget(self._navigator, 1)
+        
+#         self._navigator.setStyleSheet("""
+#             show-decoration-selected: 0;
+#             background: qlineargradient(x1: 0, y1: 0, x2: 1, y2: 0,
+#                                     stop: 0 #797979, stop: 0.2 #CCCCCC,
+#                                     stop: 1.0 #FFFFFF);
+#             alternate-background-color: #333333;
+#             background-image: url(:/metal_scratched);
+#             outline: 0; /* removes focus rectangle*/
+#             """)      
 
     #--------------------------------------------------------------------#
 
@@ -187,10 +246,10 @@ class MultiLogWidget(QMdiArea):
     def _getNextWindowPosition(self):
         x = self.cascade_x_id * MultiLogWidget.CASCADE_SKIP_PIXELS_X
         y = self.cascade_y_id * MultiLogWidget.CASCADE_SKIP_PIXELS_Y
-        if y > (1 - MultiLogWidget.SUB_WINDOW_DEFAULT_RATIO_X) * self.height():
+        if y > (1 - MultiLogWidget.SUB_WINDOW_DEFAULT_RATIO_X) * self._main_area.height():
             y = 0
             self.cascade_y_id = 0
-        if x > (1 - MultiLogWidget.SUB_WINDOW_DEFAULT_RATIO_Y) * self.width():
+        if x > (1 - MultiLogWidget.SUB_WINDOW_DEFAULT_RATIO_Y) * self._main_area.width():
             x = 0
             self.cascade_x_id = 0
         self.cascade_x_id += 1
@@ -228,19 +287,19 @@ class MultiLogWidget(QMdiArea):
                 for line in source:
                     log.append(line)
         
-        
         window = log.window()
         if window is None:
             pos = self._getNextWindowPosition()
-            size = QSize(self.width() * MultiLogWidget.SUB_WINDOW_DEFAULT_RATIO_X, 
-                         self.height() * MultiLogWidget.SUB_WINDOW_DEFAULT_RATIO_Y)
+            size = QSize(self._main_area.width() * MultiLogWidget.SUB_WINDOW_DEFAULT_RATIO_X, 
+                         self._main_area.height() * MultiLogWidget.SUB_WINDOW_DEFAULT_RATIO_Y)
             window = log.open(title)
-            self.addSubWindow(window)
+            self._main_area.addSubWindow(window)
+            self._navigator.add(log)
             window.resize(size)
             window.move(pos)
         
-        if not window.isVisible():
-            window.show()
+        window.show()
+        window.setFocus()
         return log 
 
     #--------------------------------------------------------------------#
@@ -249,7 +308,8 @@ class MultiLogWidget(QMdiArea):
         log = self._removeLog(log_id)
         if (log is not None) and log.window():
             log.close()
-            self.removeSubWindow(log.window())
+            self._main_area.removeSubWindow(log.window())
+            self._navigator.remove(log)
         if self.cascade_x_id > 0:
             self.cascade_x_id -= 1
         if self.cascade_y_id > 0:
@@ -265,6 +325,16 @@ class MultiLogWidget(QMdiArea):
     def log(self, line, log_id = GLOBAL_LOG, log_level = LOG_LEVEL_INFO):
         log = self._getOrCreateLog(log_id)
         log.append(line, log_level)
+    
+    #--------------------------------------------------------------------#
+    
+    def hideAllSubWindows(self):
+        self._main_area.closeAllSubWindows()
+        
+    #--------------------------------------------------------------------#
+    
+    def navigator(self):
+        return self._navigator
         
 ###############################################################################################################################################################
 #
