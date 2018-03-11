@@ -7,7 +7,6 @@ import sys
 from PyQt4.QtGui import QWidget, QGridLayout, QLineEdit, QLabel, QComboBox
 from xml.dom import minidom
 from xml.etree import cElementTree as etree
-import re
 import os
 
 from TestEnvironment import TestEnvironment

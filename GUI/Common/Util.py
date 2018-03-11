@@ -8,16 +8,26 @@ import sys
 from Log import log,error,title,UniBorder,LOG_LEVEL_NOTE
 import os
 import re
+import traceback
 
 ###############################################################################
 
 class NestedException(Exception):
     def __init__(self, message):
         etype, value, tb = sys.exc_info()
-        super(NestedException, self).__init__(message)        
+        super(NestedException, self).__init__(message)
         self.etype = etype
         self.value = value
         self.tb = tb
+        
+    def __str__(self):
+        return Exception.__str__(self) + "\n************** Inner Exception: ************\n" + self.formatInnerException()
+    
+    def __repr__(self):
+        return str(self)
+    
+    def formatInnerException(self):
+        return "".join(traceback.format_exception(self.etype, self.value, self.tb))
 
 ###############################################################################
 
@@ -29,6 +39,7 @@ def toFileName(val):
 class WorkerThread(threading.Thread):
     def __init__(self, group=None, target=None, name=None, args=(), kwargs=None, verbose=None):
         threading.Thread.__init__(self, group, target, name, args, kwargs, verbose)
+        self._target = target
         self.exception = None
     
     # -------------------------------------------------------------------- #
@@ -37,7 +48,7 @@ class WorkerThread(threading.Thread):
         try:
             threading.Thread.run(self)
         except Exception as e:
-            message = "Exception occurred on thread %s: %s" % (self, e) 
+            message = "Exception occurred on thread %s" % self 
             print message
             self.exception = NestedException(message)
             

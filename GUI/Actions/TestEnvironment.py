@@ -11,6 +11,8 @@ def _onNewProcess(process):
 
 def _onProcessDone(process):    
     process.closeLog()
+    if process.exception is not None:
+        raise process.exception    
     return process.instance.returncode in [0, 143, -15]    
 
 ###############################################################################

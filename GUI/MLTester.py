@@ -1041,7 +1041,7 @@ class MLTester(QMainWindow):
                     log("Stopped by user.", log_level=LOG_LEVEL_ERROR)
                     break
         except Exception as e:
-            message = "Exception occurred on _runSequence: %s" % e
+            message = "Exception occurred on _runSequence()"
             print message
             self.thread.exception = NestedException(message)
         self.run_sequence_done_signal.emit()
@@ -1262,20 +1262,8 @@ class MLTester(QMainWindow):
     #--------------------------------------------------------------------#
     
     def exceptionHook(self, etype, value, tb):
-        lines = []
-        lines.append("\n*************** Exception Occurred: *************\n")
-        lines.extend(traceback.format_exception(etype, value, tb))
-        i = 1
-        while etype.__name__ == "NestedException":
-            lines.append("\n*************** Inner Exception (%u): *************\n" % i)
-            etype = value.etype
-            tb = value.tb
-            value = value.value
-            lines.extend(traceback.format_exception(etype, value, tb))
-            i += 1
-            
         title = "Internal Error"
-        trace = "".join(lines)
+        trace = "".join(traceback.format_exception(etype, value, tb))
         
         #####################
         # Only prompt once: #
@@ -1284,8 +1272,11 @@ class MLTester(QMainWindow):
             if self._error_message is None:
                 self._error_message = value
         
-        if self._error_message == value:
-            QMessageBox.critical(self, title, trace)
+        if self.isVisible() and (self._error_message == value):
+            QMessageBox.critical(self, title, "An exception had occurred. See stderr for details.")
+            #msg = QLabel(trace, parent=self)
+            #msg.setStyleSheet("QLabel{max-width: 500px; height: 500px; min-height: 500px; max-height: 500px;}")
+            #msg.show()
         sys.stderr.write(trace)
         #sys.__excepthook__(etype, value, tb)
          
