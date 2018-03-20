@@ -4,7 +4,8 @@
 import copy
 
 import sys
-from PyQt4.QtGui import QWidget, QGridLayout, QLineEdit, QLabel, QComboBox
+from PyQt4.QtGui import QWidget, QGridLayout, QLineEdit, QLabel, QComboBox,\
+    QTabWidget
 from xml.dom import minidom
 from xml.etree import cElementTree as etree
 import os
@@ -18,14 +19,15 @@ from PyQt4.Qt import QString
 ###############################################################################
 
 class StepAttribute():
-    def __init__(self, name, default_value, possible_values = None):
+    def __init__(self, name, default_value, possible_values = None, category = "Basic"):
         self.name = name
         self.default_value = default_value
         self.possible_values = possible_values
+        self.category = category
 
 ###############################################################################
 
-class DefaultAttributesWidget(QWidget):
+class DefaultAttributesWidget(QTabWidget):
     
     def __init__(self, attributes, parent = None):
         super(DefaultAttributesWidget, self).__init__(parent)
@@ -34,14 +36,26 @@ class DefaultAttributesWidget(QWidget):
         self._field_labels = []
         self._values = None
         self._on_field_changed = []
+        self._tabs = {}
         self._initGui()
 
     # -------------------------------------------------------------------- #
+
+    def _getOrCreateTab(self, category):
+        tab = self._tabs.get(category, None)
+        if tab is None:
+            tab = QWidget()
+            tab.setLayout(QGridLayout())
+            self._tabs[category] = tab
+            self.addTab(tab, category)
+        return tab
+        
+    # -------------------------------------------------------------------- #
     
     def _initGui(self):
-        self.setLayout(QGridLayout())
         for field_index in range(len(self._attributes)):
             attribute = self._attributes[field_index]
+            tab = self._getOrCreateTab(attribute.category) 
             l = QLabel(attribute.name)
             self._field_labels.append(l)
             if attribute.possible_values is None:
@@ -51,8 +65,8 @@ class DefaultAttributesWidget(QWidget):
                 w.addItems(attribute.possible_values)
             self._field_widgets.append(w)
             self._bindField(field_index)
-            self.layout().addWidget(l, field_index, 0)
-            self.layout().addWidget(w, field_index, 1)
+            tab.layout().addWidget(l, field_index, 0)
+            tab.layout().addWidget(w, field_index, 1)
 
     # -------------------------------------------------------------------- #
     

@@ -84,16 +84,18 @@ class TFCnnBenchmarksStep(Step):
     ATTRIBUTES = [StepAttribute("Mode", MODE_NAMES[0], MODE_NAMES),
                   StepAttribute("All-Reduce Spec", ALL_REDUCE_SPECS[0], ALL_REDUCE_SPECS),
                   StepAttribute("Controller", "12.12.12.25"),
-                  StepAttribute("PS", "12.12.12.25"),
-                  StepAttribute("Workers", "12.12.12.25,12.12.12.26"),
-                  StepAttribute("Base Port", "5000"),
+                  StepAttribute("PS", ""),
+                  StepAttribute("Workers", "12.12.12.25"),
+                  StepAttribute("Base Port", "5000", category="Advanced"),
                   StepAttribute("Script", "~/benchmarks/scripts/tf_cnn_benchmarks/"),
                   StepAttribute("Model", "vgg16", MODELS),
                   StepAttribute("Batch Size", "32"),
                   StepAttribute("Num GPUs", "2"),
                   StepAttribute("Server Protocol", "grpc+verbs", PROTOCOLS),
                   StepAttribute("Data Dir", "/data/imagenet_data/"),
-                  StepAttribute("Log Level", "0")]
+                  StepAttribute("Log Level", "0", category="Advanced")]
+                  
+                  
 
     # -------------------------------------------------------------------- #
 
