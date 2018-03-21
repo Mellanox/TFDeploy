@@ -89,8 +89,8 @@ class TFCnnBenchmarksStep(Step):
     ATTRIBUTES = [StepAttribute("Mode", MODE_NAMES[0], MODE_NAMES),
                   StepAttribute("All-Reduce Spec", ALL_REDUCE_SPECS[0], ALL_REDUCE_SPECS),
                   StepAttribute("Controller", "12.12.12.25"),
-                  StepAttribute("PS", ""),
-                  StepAttribute("Workers", "12.12.12.25"),
+                  StepAttribute("PS", "12.12.12.25"),
+                  StepAttribute("Workers", "12.12.12.25,12.12.12.26"),
                   StepAttribute("Base Port", "5000", category="Advanced"),
                   StepAttribute("Script", "~/benchmarks/scripts/tf_cnn_benchmarks/"),
                   StepAttribute("Model", "vgg16", MODELS),
@@ -99,8 +99,8 @@ class TFCnnBenchmarksStep(Step):
                   StepAttribute("Server Protocol", "grpc+verbs", PROTOCOLS),
                   StepAttribute("Data Dir", "/data/imagenet_data/"),
                   StepAttribute("Log Level", "0", category="Advanced"),
-                  StepAttribute("Trace File", "", category="Advanced"),
-                  StepAttribute("Graph File", "", category="Advanced"),
+                  StepAttribute("Trace File", "False", ["True", "False"], category="Advanced"),
+                  StepAttribute("Graph File", "False", ["True", "False"], category="Advanced"),
                   StepAttribute("Forward Only", "False", ["True", "False"], category="Advanced")]
                   
 
@@ -192,13 +192,13 @@ class TFCnnBenchmarksStep(Step):
         return self._values[TFCnnBenchmarksStep.ATTRIBUTE_ID_LOG_LEVEL]
     
     def trace_file(self):
-        return self._values[TFCnnBenchmarksStep.ATTRIBUTE_ID_TRACE_FILE]
+        return self._values[TFCnnBenchmarksStep.ATTRIBUTE_ID_TRACE_FILE] == "True"
     
     def model_graph_file(self):
-        return self._values[TFCnnBenchmarksStep.ATTRIBUTE_ID_GRAPH_FILE]
+        return self._values[TFCnnBenchmarksStep.ATTRIBUTE_ID_GRAPH_FILE] == "True"
     
     def forward_only(self):
-        return bool(self._values[TFCnnBenchmarksStep.ATTRIBUTE_ID_FORWARD_ONLY])
+        return self._values[TFCnnBenchmarksStep.ATTRIBUTE_ID_FORWARD_ONLY] == "True"
     
     # -------------------------------------------------------------------- #
     
@@ -377,14 +377,14 @@ class TFCnnBenchmarksStep(Step):
        
         res = True
         num_attempts = 0
-        max_num_attempts = 2
+        max_num_attempts = 3
         while len(remote_process_ids) < len(processes):
             find_processes = []
             for process in processes:
                 if process.name in remote_process_ids:
                     continue
                 find_process = executeRemoteCommand([process.server], 
-                                                    "ps --no-headers -o\"pid,args\" | grep -e '^[0-9]\+ \+%s$'" % process.tf_command,
+                                                    "ps --no-headers -o\"pid,args\" | grep -e '^ *[0-9]\+ %s$'" % process.tf_command,
                                                     verbose=True)[0]
                 find_process.name = process.name
                 find_processes.append(find_process)
@@ -397,15 +397,21 @@ class TFCnnBenchmarksStep(Step):
                 res = False
                 break
 
+        table = FormattedTable()
+        table.addColumn(FormattedTable.Column("IP"))
+        table.addColumn(FormattedTable.Column("Job"))
+        table.addColumn(FormattedTable.Column("#"))
+        table.addColumn(FormattedTable.Column("PID"))
+        table.addColumn(FormattedTable.Column("RPID"))
+        table.addColumn(FormattedTable.Column("Flags"))
+        table.addColumn(FormattedTable.Column("Command"))
         for process in processes:
             if process.name in remote_process_ids:
                 process.remote_pid = remote_process_ids[process.name]
             else:
                 process.remote_pid = -1
-            log(" + [%s]: <a href='%s'>%s</a>:%*s %-5d %-5d <font color=blue>%s</font> <font color=purple>%s</font>" % (process.server_info.ip, process.log_file_path, process.name, 10 - len(process.name), "", 
-                                                                                                                        process.instance.pid, process.remote_pid, 
-                                                                                                                        process.tf_flags,
-                                                                                                                        process.tf_command), log_level=LOG_LEVEL_NOTE)
+            table.addRow([process.server_info.ip, process.job_name, process.task_id, process.instance.pid, process.remote_pid, process.tf_flags, process.tf_command])
+        table.printFormatted(LogWriter(None, LOG_LEVEL_NOTE))
         return res
     
     # -------------------------------------------------------------------- #
@@ -519,7 +525,13 @@ class TFCnnBenchmarksStep(Step):
             tf_command += " --server_protocol=%s" % self.server_protocol()        
         if self.forward_only():
             tf_command += " --forward_only"
-
+        
+        if job_name == "worker":
+            if self.model_graph_file() and (task_id == 0):
+                tf_command += " --graph_file=%s" % os.path.join(self._work_dir, "graph.txt")
+            if self.trace_file():
+                tf_command += " --trace_file=%s" % os.path.join(self._work_dir, "trace_%s_%u.json" % (job_name, task_id))
+            
         command = tf_flags + " " + tf_command
 
         title = "[%s] %s - %u" % (ip, job_name, task_id)
@@ -542,11 +554,7 @@ class TFCnnBenchmarksStep(Step):
     # -------------------------------------------------------------------- #
     
     def _onOut(self, line, process):
-        if "RDMA device: " in line:
-            process.rdma_device = line.split("RDMA device: ")[1]
-        elif "RDMA port: " in line:
-            process.rdma_port = int(line.split("RDMA port: ")[1])
-        elif "Running warm up" in line:
+        if "Running warm up" in line:
             self._startServerMonitors(process.server)
             self._initProcessReport(process)
         elif "images/sec" in line:
@@ -745,6 +753,10 @@ class TFCnnBenchmarksStep(Step):
         # Cleanup: #
         ############
         title("Cleaning:", UniBorder.BORDER_STYLE_SINGLE)
+        sources = ["%s:%s %s:%s" % (server, os.path.join(self._work_dir, "graph.txt"), server, os.path.join(self._work_dir, "*.json")) for server in servers]
+        dst = self._logs_dir
+        cmd = "scp %s %s >& /dev/null" % (" ".join(sources), dst)
+        self.runInline(cmd, verbose = False)
         processes = executeRemoteCommand(servers, "rm -rf %s" % work_dir)
         waitForProcesses(processes, wait_timeout=10)
         return True
