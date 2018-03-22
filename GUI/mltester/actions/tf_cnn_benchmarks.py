@@ -3,22 +3,16 @@
 
 from getpass import getuser
 import tempfile
-from Step import Step
 import sys
 import re
-from Monitor import Measurement, CommonPerformanceMeasurements
-from RemoteMonitor import RemoteMonitor
 import os
 import time
+import threading
 
-from TestEnvironment import TestEnvironment
-from Common.FormattedTable import FormattedTable
-from Common.Log import LogWriter, LOG_LEVEL_NOTE, LOG_LEVEL_INFO, log, title,\
-    error, UniBorder
-from Common.Util import BasicProcess, executeRemoteCommand, waitForProcesses,\
-    toFileName
-from Actions.Step import StepAttribute, DefaultAttributesWidget
-from threading import Lock
+from mltester.actions import Step, StepAttribute, DefaultAttributesWidget, TestEnvironment
+from commonpylib.log import LogWriter, LOG_LEVEL_NOTE, LOG_LEVEL_INFO, log, title, error, UniBorder, FormattedTable
+from commonpylib.monitors import Measurement, CommonPerformanceMeasurements, RemoteMonitor
+from commonpylib.util import BasicProcess, executeRemoteCommand, waitForProcesses, toFileName
 
 ###############################################################################
 
@@ -28,7 +22,7 @@ class ServerInfo(object):
         self.hostname = hostname
         self.processes = []
         self.monitor = None
-        self.monitor_lock = Lock()
+        self.monitor_lock = threading.Lock()
 
 ###############################################################################
 
@@ -767,19 +761,3 @@ class TFCnnBenchmarksStep(Step):
         Step.stop(self)
         self._stopping = True
         self._stopAll()
-        
-###############################################################################################################################################################
-#
-#                                                                         DEMO
-#
-###############################################################################################################################################################
-
-import shutil
-
-if __name__ == '__main__':
-    if os.path.isdir("/tmp/test_logs"):
-        shutil.rmtree("/tmp/test_logs")        
-    TestEnvironment.Get().setTestLogsDir("/tmp/test_logs")
-    step = TFCnnBenchmarksStep()
-    step.perform(0)
-

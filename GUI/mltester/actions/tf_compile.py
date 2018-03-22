@@ -5,11 +5,9 @@ import tempfile
 import re
 import os
 
-from Common.Log import UniBorder, title
-from Common.Util import executeRemoteCommand, waitForProcesses
-from TestEnvironment import TestEnvironment
-from Step import Step
-from Actions.Step import StepAttribute
+from commonpylib.log import UniBorder, title
+from commonpylib.util import executeRemoteCommand, waitForProcesses
+from mltester.actions import Step, StepAttribute, TestEnvironment
 
 ###############################################################################
 

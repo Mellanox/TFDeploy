@@ -2,19 +2,15 @@
 # -*- coding: utf-8 -*-
 
 import copy
-
+import os
 import sys
-from PyQt4.QtGui import QWidget, QGridLayout, QLineEdit, QLabel, QComboBox,\
-    QTabWidget
 from xml.dom import minidom
 from xml.etree import cElementTree as etree
-import os
 
-from TestEnvironment import TestEnvironment
-from Common.Util import executeCommand, executeRemoteCommand, checkRetCode,\
-    copyToRemote, waitForProcesses, BasicProcess, toFileName
-from Common.Log import log, error, UniBorder, title
-from PyQt4.Qt import QString
+from test_environment import TestEnvironment
+from commonpylib.util import executeCommand, executeRemoteCommand, checkRetCode, copyToRemote, waitForProcesses, BasicProcess, toFileName
+from commonpylib.log import log, error, UniBorder, title
+from PyQt4.Qt import QWidget, QGridLayout, QLineEdit, QLabel, QComboBox, QTabWidget, QString
 
 ###############################################################################
 
