@@ -751,8 +751,8 @@ class TFCnnBenchmarksStep(Step):
         title("Cleaning:", UniBorder.BORDER_STYLE_SINGLE)
         sources = ["%s:%s %s:%s" % (server, os.path.join(self._work_dir, "graph.txt"), server, os.path.join(self._work_dir, "*.json")) for server in servers]
         dst = self._logs_dir
-        cmd = "scp %s %s >& /dev/null" % (" ".join(sources), dst)
-        self.runInline(cmd, verbose = False)
+        cmd = "scp %s %s" % (" ".join(sources), dst)
+        self.runInline(cmd)
         processes = executeRemoteCommand(servers, "rm -rf %s" % work_dir)
         waitForProcesses(processes, wait_timeout=10)
         return True
