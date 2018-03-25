@@ -728,6 +728,7 @@ class TFCnnBenchmarksStep(Step):
                 process = self._runJob(work_dir, ip, "worker", i)
                 processes.append(process)
         
+        time.sleep(0.5)
         res = self._findRemoteProcessIDs(processes)
         if not res or self._stop:
             return False
