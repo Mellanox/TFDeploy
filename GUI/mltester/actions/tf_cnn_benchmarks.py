@@ -392,6 +392,7 @@ class TFCnnBenchmarksStep(Step):
                 break
 
         table = FormattedTable()
+        table.border_style = UniBorder.BORDER_STYLE_SINGLE
         table.addColumn(FormattedTable.Column("IP"))
         table.addColumn(FormattedTable.Column("Job"))
         table.addColumn(FormattedTable.Column("#"))
