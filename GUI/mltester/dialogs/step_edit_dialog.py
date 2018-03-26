@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-from PyQt4.Qt import QApplication, QDialog, QVBoxLayout, QComboBox, QDialogButtonBox, QString
+from PyQt4.Qt import QApplication, QDialog, QVBoxLayout, QComboBox, QDialogButtonBox, QString, Qt
 from mltester.actions import Step
 
 #############################################################################
