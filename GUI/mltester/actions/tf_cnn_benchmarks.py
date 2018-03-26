@@ -140,7 +140,6 @@ class TFCnnBenchmarksStep(Step):
         Step.__init__(self, values)
         self._stopping = False
         self._processes = []
-        self._servers = {}
         self._perf = TFPerformanceMeasurements()
 
     # -------------------------------------------------------------------- #
@@ -266,7 +265,7 @@ class TFCnnBenchmarksStep(Step):
 
     # -------------------------------------------------------------------- #
     
-    def getOrCreateServer(self, hostname, ip):
+    def _getOrCreateServer(self, hostname, ip):
         if hostname in self._servers:
             return self._servers[hostname]
         server = ServerInfo(ip, hostname)
@@ -275,20 +274,13 @@ class TFCnnBenchmarksStep(Step):
 
     # -------------------------------------------------------------------- #
     
-    def _startServerMonitors(self, hostname):
-        server = self._servers[hostname]
-        with server.monitor_lock:
-            if server.monitor is not None:
-                return
-            server.monitor = object() 
-        
-        log("Server %s: Starting monitors." % server.ip)
-        server.graphs_dir = os.path.join(self._logs_dir, "graphs", toFileName(hostname))
+    def _initServerMonitors(self, server):
+        server.graphs_dir = os.path.join(self._logs_dir, "graphs", toFileName(server.hostname))
         server.remote_graphs_dir = os.path.join(self._work_dir, "graphs")
         if not os.path.exists(server.graphs_dir):
             os.makedirs(server.graphs_dir)
         remote_monitor_title = lambda process: "Monitor [%s]" % process.server 
-        remote_monitor_bin = os.path.join(self._work_dir, "Monitor.py")
+        remote_monitor_bin = "ml_monitor"
         
         monitored_pids = ",".join(["%u" % p.remote_pid for p in server.processes])
         monitored_nics = ",".join(["%s:%u" % (p.rdma_device.name, p.rdma_device.port) for p in server.processes])
@@ -298,18 +290,26 @@ class TFCnnBenchmarksStep(Step):
                                                                                                       server.remote_graphs_dir)
         server.monitor_log_path = os.path.join(server.graphs_dir, "monitor.log") 
         server.monitor = RemoteMonitor(server.hostname, remote_monitor_bin, remote_monitor_flags, remote_monitor_title, server.monitor_log_path)
-        server.monitor.start()
+        return True
+
+    # -------------------------------------------------------------------- #
+    
+    def _startServerMonitors(self, hostname):
+        server = self._servers[hostname]
+        log("Server %s: Starting monitor." % server.ip)
+        return server.monitor.start()
 
     # -------------------------------------------------------------------- #
     
     def _stopServerMonitors(self, server_info):
-        log("Server %s: stopping monitors..." % server_info.ip)
-        if server_info.monitor is not None:
-            server_info.monitor.stop()
-            server_info.perf = TFPerformanceMeasurements()
-            server_info.monitor.close()
-            self.runInline("scp %s:%s/* %s" % (server_info.hostname, server_info.remote_graphs_dir, server_info.graphs_dir))            
-        log("Server %s: monitors stopped." % server_info.ip)
+        log("Server %s: Stopping monitor." % server_info.ip)
+        if server_info.monitor is None:
+            return
+        res = server_info.monitor.stop()
+        server_info.perf = TFPerformanceMeasurements()
+        server_info.monitor.close()
+        self.runInline("scp %s:%s/* %s" % (server_info.hostname, server_info.remote_graphs_dir, server_info.graphs_dir))
+        return res            
     
     # -------------------------------------------------------------------- #
     
@@ -377,9 +377,7 @@ class TFCnnBenchmarksStep(Step):
             for process in processes:
                 if process.name in remote_process_ids:
                     continue
-                find_process = executeRemoteCommand([process.server], 
-                                                    "ps --no-headers -o\"pid,args\" | grep -e '^ *[0-9]\+ %s$'" % process.tf_command,
-                                                    verbose=True)[0]
+                find_process = executeRemoteCommand([process.server],  "ps --no-headers -o\"pid,args\" | grep -e '^ *[0-9]\+ %s$'" % process.tf_command)[0]
                 find_process.name = process.name
                 find_processes.append(find_process)
                 
@@ -446,7 +444,7 @@ class TFCnnBenchmarksStep(Step):
     
     def _runJob(self, work_dir, ip, job_name, task_id):
         hostname = TestEnvironment.Get().getServer(ip)
-        server_info = self.getOrCreateServer(hostname, ip)
+        server_info = self._getOrCreateServer(hostname, ip)
         device_info = self._devices[server_info.hostname]
         #####################
         # Build TF command: #
@@ -550,8 +548,11 @@ class TFCnnBenchmarksStep(Step):
     
     def _onOut(self, line, process):
         if "Running warm up" in line:
-            self._startServerMonitors(process.server)
-            self._initProcessReport(process)
+            self._initProcessReport(process)            
+            if not self._startServerMonitors(process.server):
+                error("Failed to start monitor for server %s.\n" % process.server)
+                self.stop()
+                return
         elif "images/sec" in line:
             if "total " in line:
                 log(line, process)
@@ -639,7 +640,7 @@ class TFCnnBenchmarksStep(Step):
     # -------------------------------------------------------------------- #
 
     def _stopAll(self):
-        log("Stopping processes...")
+        log("Stopping processes:")
         for process in self._processes:
             if process.remote_pid and process.isAlive():
                 log("   + [%s] %s: %u" % (process.server, process.name, process.instance.pid))
@@ -653,6 +654,7 @@ class TFCnnBenchmarksStep(Step):
         Step.perform(self, index)
         log("<img src='images/tensorflow.jpg' width=600 style='border:1px solid black'/>") #https://www.skylinelabs.in/blog/images/tensorflow.jpg?width=500'/>")
         self._stopping = False
+        self._servers = {}
         work_dir_name = "tmp." + next(tempfile._get_candidate_names()) + next(tempfile._get_candidate_names())
         work_dir = os.path.join(tempfile._get_default_tempdir(), work_dir_name)
         script_dir = os.path.dirname(self._values[TFCnnBenchmarksStep.ATTRIBUTE_ID_SCRIPT])
@@ -666,7 +668,7 @@ class TFCnnBenchmarksStep(Step):
         #########################
         # Kill other instances: #
         #########################
-        apps_to_kill = ["tf_cnn_benchmarks.py", "Monitor.py"]
+        apps_to_kill = ["tf_cnn_benchmarks.py", "ml_monitor"]
         for app in apps_to_kill:
             kill_cmd = "ps -f | grep %s | grep -v grep | grep -v %s | sed -e 's@%s *\\([0-9]\\+\\) .*@\\1@g' | xargs kill -9" % (app, work_dir, user)
             res = self.runInline(kill_cmd, servers, wait_timeout = 5)
@@ -693,9 +695,6 @@ class TFCnnBenchmarksStep(Step):
         #########
         title("Copying scripts:", UniBorder.BORDER_STYLE_SINGLE)    
         if not self.runSCP(servers, [script_dir], work_dir, wait_timeout = 10): # Also create it
-            return False
-        if not self.runSCP(servers, [os.path.join(current_dir, "..", "Monitor.py"),
-                                     os.path.join(current_dir, "..", "Common")], work_dir, wait_timeout = 10):
             return False
         if self._stop:
             return False
@@ -733,16 +732,22 @@ class TFCnnBenchmarksStep(Step):
         if not res or self._stop:
             return False
         
+        for server in self._servers.values():
+            if not self._initServerMonitors(server):
+                return False
+
         res = waitForProcesses(processes, 
                                wait_timeout=600,
                                on_output=self._onOut,
                                on_process_start=self._onJobStart,
                                on_process_done=self._onJobDone)
+
+        for server in self._servers.values():
+            res = res and self._stopServerMonitors(server)
+        
         if not res or self._stop:
             return False
 
-        for server in self._servers.values():
-            self._stopServerMonitors(server)
         self._appendToPerformanceFile()
         
         ############
