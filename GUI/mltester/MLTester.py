@@ -30,7 +30,8 @@ LAST_OPENED_FILE = "LAST_OPENED_FILE"
 GEOMETRY = "GEOMETRY"
 GEOMETRY_MAX = "max"
 
-conf_file_path = os.path.join(os.path.expanduser("~"), ".mltester")
+home_dir = os.path.expanduser("~")
+conf_file_path = os.path.join(home_dir, ".mltester")
 conf = {}
 
 #--------------------------------------------------------------------#
@@ -362,7 +363,7 @@ class MLTester(QMainWindow):
         self._doc = DocumentControl(self, "ML tester", "Xml file (*.xml);;Any File (*.*);;", ".")
         self._sequence = []
         self._selected_step = None
-        self._base_logs_dir = "logs"
+        self._base_logs_dir = os.path.join(home_dir, "mltester_logs")
         self._test_logs_dir = None
         self._step_logs_dir = None
         self._current_step = None
