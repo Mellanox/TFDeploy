@@ -1,12 +1,11 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-import sys, os, random
+import sys, os
 from PyQt4.QtGui import QVBoxLayout, QMainWindow, QTreeWidgetItem, QIcon,\
     QMessageBox, QFileDialog, QWidget, QSplitter, QTreeWidget, QPushButton,\
     QLabel, QAction, QApplication, QHBoxLayout, QCheckBox, QLineEdit, QComboBox,\
     QBrush, QColor
 
-import matplotlib
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
@@ -52,7 +51,7 @@ class Graph(object):
 
     # -------------------------------------------------------------------- #
         
-    def __init__(self, label, csv_path, graph_type, ymax=None):
+    def __init__(self, label, csv_path, graph_type, ymax = 1):
         self._label = label
         self._csv_path = csv_path
         self._type = graph_type
@@ -61,11 +60,15 @@ class Graph(object):
         self._ax = None
         self._x = []
         self._y = []
+        self._is_visible = False
         self._readData()
     
     # -------------------------------------------------------------------- #
         
     def _readData(self):
+        self._x = []
+        self._y = []
+        
         ####################################
         # Get start time from timeline.csv #
         ####################################
@@ -93,8 +96,8 @@ class Graph(object):
                         continue
                     val = float(parts[1])
                 except:
-                    print "Error on graph: %s: %u \"%s\." % (os.path.basename(self._csv_path), i, line)
-                    raise
+                    print "Error in graph: %s: %u \"%s\." % (os.path.basename(self._csv_path), i, line)
+                    continue
                 i += 1
 
                 if self._type == Graph.TYPE_NORMAL:
@@ -103,8 +106,8 @@ class Graph(object):
                 elif self._type == Graph.TYPE_RATE:                
                     rate = 0 if last_val is None else (val - last_val) / (timestamp - last_timestamp)
                     if rate > 1000000:
-                        print "Error on graph: %s: %u \"%s\." % (os.path.basename(self._csv_path), i, line)
-                        sys.exit(1)
+                        print "Error in graph: %s: %u \"%s\." % (os.path.basename(self._csv_path), i, line)
+                        continue
                         
                     last_timestamp = timestamp
                     last_val = val
@@ -119,14 +122,10 @@ class Graph(object):
                     self._y.append(0)    
 
     # -------------------------------------------------------------------- #
-    
-    def _createAx(self, fig, host):
-        self._ax = host.twinx()
-        #self._ax.set_ylabel(self._label, color=self._color)
-        self._ax.tick_params('y', colors=self._color)
-        #self._ax.axes.get_yaxis().set_ticklabels([])        
-        return host
 
+    def csvPath(self):
+        return self._csv_path
+    
     # -------------------------------------------------------------------- #
     
     def color(self):
@@ -136,31 +135,91 @@ class Graph(object):
     
     def setColor(self, val):
         self._color = val
+    
+    # -------------------------------------------------------------------- #
+        
+    def isVisible(self):
+        return self._is_visible
+    
+    # -------------------------------------------------------------------- #
+    
+    def min_x_val(self):
+        return 0 if len(self._x) == 0 else self._x[0]
+
+    # -------------------------------------------------------------------- #
+    
+    def max_x_val(self):
+        return 0 if len(self._x) == 0 else self._x[len(self._x) - 1]
+    
+    # -------------------------------------------------------------------- #
+    
+    def isInVisibleRectX(self, host):
+        host_xmin, host_xmax = host.get_xlim() # Visible rectangle
+        return (self.min_x_val() < host_xmax) and (self.max_x_val() > host_xmin) 
         
     # -------------------------------------------------------------------- #
     
-    def plot(self, fig, host, pos):
-        if self._ax is None:
-            host = self._createAx(fig, host)
-        
-        if pos > 1.01:
-            self._ax.spines["right"].set_position(("axes", pos))
-            
-        if self._ymax is not None:
-            self._ax.set_ylim(0, self._ymax)
+    def plot(self, fig, host):
+        #print "PLOTTING %s" % self._csv_path
+        first_time = self._ax is None
+        host_ymin, host_ymax = host.get_ylim() # Visible rectangle
+        if first_time:
+            self._ax = host.twinx()
+            #self._ax.set_ylabel(self._label, color=self._color)
+            #self._ax.axes.get_yaxis().set_ticklabels([])        
+            #xmin = self.min_x_val() if host_xmin == 0.0 else min(host_xmin, self.min_x_val())
+            #xmax = self.max_x_val() if host_xmax == 0.0 else max(host_xmax, self.max_x_val())
+            #xdelta = xmax - xmin 
+            #if xmin != host_xmin:
+            #    xmin -= xdelta * 0.02
+            #if xmax != host_xmax:
+            #    xmax += xdelta * 0.02 
+            #self._ax.set_xlim(xmin, xmax)
+            #print "CREATED GRAPH %s" % self._csv_path
         else:
-            self._ax.set_ylim(0)
-                        
+            pass
+
+        ymin = self._ymax * host_ymin # (0-1)
+        ymax = self._ymax * host_ymax # (0-1)
+        autoscale_x = False #first_time #(host_xmin == 0.0) and (host_xmax == 1.0) # Only if not zoomed yet
+        autoscale_y = False
+        self._ax.set_autoscalex_on(autoscale_x)
+        self._ax.set_autoscaley_on(autoscale_y)
+            
         self._ax.plot(self._x, self._y, self._color)
+        self._ax.set_ylim(ymin, ymax)
+        self._ax.tick_params('y', colors = self._color)
+        self._ax.spines['top'].set_visible(True)
+        self._ax.spines['right'].set_visible(True)
+        self._ax.spines['bottom'].set_visible(True)
+        self._ax.spines['left'].set_visible(True)
         self._ax.axes.get_yaxis().set_visible(True)
-        return fig, host
+        self._ax.axes.get_xaxis().set_visible(True)
+        self._is_visible = True
+        return fig, host, first_time
     
     # -------------------------------------------------------------------- #
     
     def clear(self):
+        #print "CLEARING %s" % self._csv_path
+        self._ax.spines['top'].set_visible(False)
+        self._ax.spines['right'].set_visible(False)
+        self._ax.spines['bottom'].set_visible(False)
+        self._ax.spines['left'].set_visible(False)
         self._ax.axes.get_yaxis().set_visible(False)
+        self._ax.axes.get_xaxis().set_visible(False)
         self._ax.clear()
-        
+        self._is_visible = False
+    
+    # -------------------------------------------------------------------- #
+    
+    def refresh(self, fig, host):
+        if not self._is_visible:
+            return
+
+        self._readData()        
+        self.plot(fig, host)
+    
     # -------------------------------------------------------------------- #
     
     def scaleTo(self, host):
@@ -209,20 +268,6 @@ class MLGraphViewer(QMainWindow):
     COLOR_MAP = dict((c, True) for c in COLORS)
 
     # -------------------------------------------------------------------- #
-
-    def _onXlimsChange(self, axes):
-        print "updated xlims: ", axes.get_xlim()
-    
-    # -------------------------------------------------------------------- #
-    
-    def _onYlimsChange(self, axes):
-        print "updated ylims: ", axes.get_ylim()
-        for graph in self._graphs.values():
-            graph.scaleTo(axes)
-        self.fig.tight_layout(pad=0)
-        
-   
-    # -------------------------------------------------------------------- #
         
     def __init__(self, dirs, parent=None):
         QMainWindow.__init__(self, parent)
@@ -236,6 +281,37 @@ class MLGraphViewer(QMainWindow):
         self.create_menu()
         self.create_main_frame()
         self.create_status_bar()
+
+    # -------------------------------------------------------------------- #
+
+    def _scaleXToFit(self):
+        active_graphs = [graph for graph in self._graphs.values() if graph.isVisible()]
+        if len(active_graphs) == 0:
+            return
+        
+        x_min = min([graph.min_x_val() for graph in active_graphs])
+        x_max = max([graph.max_x_val() for graph in active_graphs])
+        if ((x_min, x_max) == (0.0, 1.0)) or (x_min >= x_max):
+            return
+
+        x_delta = x_max - x_min
+        x_min -= 0.02 * x_delta
+        x_max += 0.02 * x_delta
+        self.host.set_xlim(x_min, x_max)
+            
+    # -------------------------------------------------------------------- #
+
+    def _onXlimsChange(self, axes):
+        #print "updated xlims: ", axes.get_xlim()
+        if axes.get_xlim() == (0.0, 1.0):
+            # print "Reset"
+            self._resetZoom()
+    
+    # -------------------------------------------------------------------- #
+    
+    def _onYlimsChange(self, axes):
+        #print "updated ylims: ", axes.get_ylim()
+        pass
 
     # -------------------------------------------------------------------- #
     
@@ -257,44 +333,92 @@ class MLGraphViewer(QMainWindow):
             graph = Graph(label, csv_path, desc.graph_type, desc.ymax)
             self._graphs[csv_path] = graph
         return graph
+    
+    # -------------------------------------------------------------------- #
+    
+    def _plotGraph(self, graph, tree_item):
+        ###################
+        # Allocate color: #
+        ###################
+        color = self._getNextColor()
+        graph.setColor(color)
+        MLGraphViewer.COLOR_MAP[graph.color()] = False
+        
+        self.fig, self.host, first_time = graph.plot(self.fig, self.host)
+        if not graph.isInVisibleRectX(self.host):
+            self._scaleXToFit()
+        tree_item.setBackground(0, QBrush(QColor(graph.color())))
+        tree_item.setCheckState(0, Qt.Checked)
             
+    # -------------------------------------------------------------------- #
+    
+    def _unplotGraph(self, graph, tree_item):
+        ###############
+        # Free color: #
+        ###############
+        if graph.color() is not None:
+            MLGraphViewer.COLOR_MAP[graph.color()] = True
+        
+        graph.clear()
+        tree_item.setBackground(0, QBrush())
+        tree_item.setCheckState(0, Qt.Unchecked)
+        
     # -------------------------------------------------------------------- #
 
     def _onTreeItemChanged(self, item):
         if not self._handleChanges:
             return 
         
-        self._handleChanges = False
         csv_path = item.data(0, Qt.UserRole).toString()
         graph = self._getOrCreateGraph(csv_path)
-        if item.checkState(0) == Qt.Checked:
-            ###################
-            # Allocate color: #
-            ###################
-            color = self._getNextColor()
-            graph.setColor(color)
-            MLGraphViewer.COLOR_MAP[graph.color()] = False
-            
-            self.fig, self.host = graph.plot(self.fig, self.host, 1.0)#self.pos)
-            self.pos += 0.08
-            self.num_plots += 1
-            item.setBackground(0, QBrush(QColor(graph.color())))
-        else:
-            ###############
-            # Free color: #
-            ###############
-            if graph.color() is not None:
-                MLGraphViewer.COLOR_MAP[graph.color()] = True
-            
-            graph.clear()
-            self.pos -= 0.08
-            self.num_plots -= 1
-            item.setBackground(0, QBrush())
 
-        self.fig.tight_layout(pad=0)
-        self.canvas.draw()
+        self._handleChanges = False
+        if item.checkState(0) == Qt.Checked:
+            self._plotGraph(graph, item)
+        else:
+            self._unplotGraph(graph, item)
         self._handleChanges = True
+        self.canvas.draw()
     
+    # -------------------------------------------------------------------- #
+    
+    def _findItem(self, graph):
+        csv_path = graph.csvPath()
+        csv_name = os.path.basename(csv_path)
+        tree_items = self._tree.findItems(csv_name, Qt.MatchRecursive)
+        for item in tree_items:
+            if item.data(0, Qt.UserRole) == csv_path:
+                return item
+        return None
+
+    # -------------------------------------------------------------------- #
+    
+    def _resetHost(self):
+        self.host.axis('off')
+        #self.host.axes.get_yaxis().set_visible(False)
+        #self.host.axes.get_xaxis().set_visible(True)
+        #self.host.spines['top'].set_visible(False)
+        #self.host.spines['right'].set_visible(False)
+        #self.host.spines['bottom'].set_visible(True)
+        #self.host.spines['left'].set_visible(False)
+        #self.host.spines["right"].set_position(("axes", 1.0))
+        self.host.set_autoscale_on(False)        
+    
+    # -------------------------------------------------------------------- #
+    
+    def _repaintCanvas(self):
+        self.canvas.draw()
+    
+    # -------------------------------------------------------------------- #
+    
+    def _resetZoom(self):
+        self.host.set_ylim(0.0, 1.0)
+        for graph in self._graphs.values():
+            if graph.isVisible():
+                graph.plot(self.fig, self.host)
+        self._scaleXToFit()
+        self._repaintCanvas()
+        
     # -------------------------------------------------------------------- #
     
     def _refresh(self):
@@ -303,7 +427,40 @@ class MLGraphViewer(QMainWindow):
         for dir in self._dirs:
             name = os.path.basename(os.path.normpath(dir))
             top_level_item = QTreeWidgetItem(self._tree, [name])
+            top_level_item.setExpanded(True)
             self._loadDir(dir, top_level_item)
+            
+        dead_graphs = []
+        for graph in self._graphs.values():
+            tree_item = self._findItem(graph)
+            if tree_item is None:
+                dead_graphs.append(graph)
+            else:
+                if graph.isVisible():
+                    tree_item.setBackground(0, QBrush(QColor(graph.color())))
+                    tree_item.setCheckState(0, Qt.Checked)
+                    while tree_item is not None:
+                        tree_item.setExpanded(True)
+                        tree_item = tree_item.parent()                        
+
+        ######################
+        # Close dead graphs: #
+        ######################
+        for graph in dead_graphs:
+            csv_path = graph.csvPath()
+            print "Warning: Graph %s no longer exists." % csv_path
+            if graph.isVisible():
+                graph.clear()
+            del self._graphs[csv_path]
+
+        ###################
+        # Refresh graphs: #
+        ################### 
+        for graph in self._graphs.values():
+            if graph.isVisible():            
+                graph.refresh(self.fig, self.host)
+        self._repaintCanvas()
+        
         self._handleChanges = True
     
     # -------------------------------------------------------------------- #
@@ -391,16 +548,17 @@ class MLGraphViewer(QMainWindow):
         #
         #self.dpi = 100
         self.fig = Figure() #(5.0, 4.0), dpi=self.dpi)
+        #self.fig.patch.set_visible(False)
         self.host = self.fig.add_subplot(1, 1, 1)
-        self.host.axes.get_yaxis().set_visible(False)
-        self.pos = 0.9
-        self.num_plots = 0
+        self._resetHost()
         self.canvas = FigureCanvas(self.fig)
         self.canvas.setParent(self.main_frame)
         self.fig.tight_layout(pad=0)
+        self.fig.subplots_adjust(left = 0.01, right = 0.92, top = 0.98, bottom = 0.09)
 
-        #self.host.callbacks.connect('xlim_changed', self._onXlimsChange)
-        #self.host.callbacks.connect('ylim_changed', self._onYlimsChange)        
+        
+        self.host.callbacks.connect('xlim_changed', self._onXlimsChange)
+        self.host.callbacks.connect('ylim_changed', self._onYlimsChange)        
         
         # Bind the 'pick' event for clicking on one of the bars
         #
