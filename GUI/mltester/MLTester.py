@@ -16,9 +16,9 @@ from PyQt4.Qt import QWidget, QAction, QIcon, QPushButton, QSize, QToolBar,\
     QMessageBox, qApp, QString, Qt, QDialog, QApplication, QStyleFactory,\
     QGridLayout, QLineEdit, QTabWidget, QHBoxLayout, QLabel
 
-from commonpylib.gui import DocumentControl, MultiLogWidget, EZRandomWidget
+from commonpylib.gui import DocumentControl, MultiLogWidget, DefaultAttributesWidget
 from commonpylib.log import LOG_LEVEL_INFO, LOG_LEVEL_ERROR, LOG_LEVEL_ALL, LOG_LEVEL_NOTE, setLogOps, setMainProcess, getMainProcess, log, setLogLevel, title, UniBorder
-from commonpylib.util import BasicProcess, WorkerThread, NestedException
+from commonpylib.util import BasicProcess, WorkerThread, NestedException, PathAttribute
 from actions import TestEnvironment, Step
 from dialogs import StepEditDialog
 
@@ -31,6 +31,7 @@ GEOMETRY = "GEOMETRY"
 GEOMETRY_MAX = "max"
 
 home_dir = os.path.expanduser("~")
+default_logs_dir = os.path.join(home_dir, "mltester_logs")
 conf_file_path = os.path.join(home_dir, ".mltester")
 conf = {}
 
@@ -349,6 +350,10 @@ class MenuWithToolbar(object):
 
 class MLTester(QMainWindow):
     
+    ATTRIBUTE_ID_LOGS_FOLDER = 0  
+    
+    #--------------------------------------------------------------------#
+    
     log_signal = pyqtSignal(str, object, int)
     open_log_signal = pyqtSignal(object)
     close_log_signal = pyqtSignal(object)
@@ -363,7 +368,6 @@ class MLTester(QMainWindow):
         self._doc = DocumentControl(self, "ML tester", "Xml file (*.xml);;Any File (*.*);;", ".")
         self._sequence = []
         self._selected_step = None
-        self._base_logs_dir = os.path.join(home_dir, "mltester_logs")
         self._test_logs_dir = None
         self._step_logs_dir = None
         self._current_step = None
@@ -394,6 +398,7 @@ class MLTester(QMainWindow):
 #         self.sequence_widget = QListWidget()
         self.sequence_widget = QTableWidget()
         self.sequence_widget.setColumnCount(5)
+        self.sequence_widget.verticalHeader().setVisible(False)
         self.sequence_widget.setHorizontalHeaderLabels(["", "#", "", "Name", "Attributes"])
         self.sequence_widget.horizontalHeader().setResizeMode(0, QHeaderView.ResizeToContents)
         self.sequence_widget.horizontalHeader().setResizeMode(1, QHeaderView.ResizeToContents)
@@ -456,11 +461,11 @@ class MLTester(QMainWindow):
         # Menus:
         #########
                           
-        self.file_menu   = MenuWithToolbar(self, "&File")      
-        self.edit_menu   = MenuWithToolbar(self, "&Edit")
-        self.run_menu    = MenuWithToolbar(self, "&Run")
-        self.window_menu = MenuWithToolbar(self, "&Window")
-        self.help_menu   = MenuWithToolbar(self, "&Help")
+        self.file_menu       = MenuWithToolbar(self, "&File")      
+        self.edit_menu       = MenuWithToolbar(self, "&Edit")
+        self.run_menu        = MenuWithToolbar(self, "&Run")
+        self.window_menu     = MenuWithToolbar(self, "&Window")
+        self.help_menu       = MenuWithToolbar(self, "&Help")
                 
         self.newAction       = ActionWithButton(self.file_menu, "images/new.jpeg",              "&New",             "Ctrl+N",       self._newAction)
         self.openAction      = ActionWithButton(self.file_menu, "images/open.jpeg",             "&Open...",         "Ctrl+O",       self._openAction)
@@ -488,6 +493,10 @@ class MLTester(QMainWindow):
         self.editAction      = ActionWithButton(self.window_menu,"images/edit.jpg",             "Show &Edit Pane",  "Ctrl+E",       self._showEditPaneActionHandler, checkable=True, checked=True)
         self.showNaviAction  = ActionWithButton(self.window_menu,"images/show_navigator.jpeg",  "Show &Navigator",  "Ctrl+R",       self._showNavigatorActionHandler, checkable=True, checked=True)
         self.showGraphsAction= ActionWithButton(self.window_menu,"images/graphs.jpeg",          "Show Graphs",      "Ctrl+G",       self._showGraphsActionHandler, enabled=False)
+        #self.window_menu.menu.addSeparator()
+        #self.moveDownAction  = ActionWithButton(self.window_menu,"images/preferences.png",      "Preferences",      "",             self._preferencesActionHandler)        
+
+        
         self.aboutAction     = ActionWithButton(self.help_menu,  "images/about.jpeg",           "&About",           "F1",           self._aboutActionHandler)
         
         #########
@@ -498,17 +507,11 @@ class MLTester(QMainWindow):
         sequence_pane.setLayout(QVBoxLayout())
         sequence_pane.layout().addWidget(self.sequence_widget, 2)
         sequence_pane.layout().addWidget(self.configuration_box, 1)
-        sequence_pane.resize(500, sequence_pane.height())
-
-        configurations_folder_widget = self.configurations_folder.createWidget()
-        configurations_folder_widget.layout().setMargin(0)
-
-        steps_select_pane = QWidget()
-        steps_select_pane.setLayout(QVBoxLayout())
-        steps_select_pane.layout().setMargin(0)
-        steps_select_pane.layout().addWidget(configurations_folder_widget)
-        self._log_widget = MultiLogWidget()
         
+        settings_pane = DefaultAttributesWidget([PathAttribute("base_log_dir", "Logs Folder", default_logs_dir)])
+        self._settings = settings_pane.attributes()
+
+        self._log_widget = MultiLogWidget()        
         logs_pane = QWidget()
         logs_pane.setLayout(QVBoxLayout())
         logs_pane.layout().addWidget(self._log_widget)
@@ -516,14 +519,14 @@ class MLTester(QMainWindow):
 #         configurations_folder_widget.setObjectName("HighLevelWidget")
 #         configurations_folder_widget.setStyleSheet("QWidget#HighLevelWidget { border:1px solid black; }")        
 
-#         self.edit_pane = QWidget()
-#         self.edit_pane.setLayout(QVBoxLayout())
-#         self.edit_pane.layout().addWidget(steps_select_pane, 1)
-#         self.edit_pane.layout().addWidget(QLabel("Properties:"))
+        edit_pane = QTabWidget()
+        edit_pane.addTab(sequence_pane, "Test Sequence")
+        edit_pane.addTab(settings_pane, "Test Settings")
+        edit_pane.resize(500, edit_pane.height())
         #self.edit_pane.layout().addWidget(self.configuration_pane, 1)
 
         central_widget = QSplitter()
-        central_widget.addWidget(sequence_pane)
+        central_widget.addWidget(edit_pane)
         central_widget.addWidget(logs_pane)
         #central_widget.addWidget(self.edit_pane)
 
@@ -962,9 +965,9 @@ class MLTester(QMainWindow):
     #--------------------------------------------------------------------#
     
     def _onAttributeChanged(self, attribute_index, value):
-        self._attributes_widget._values[attribute_index] = value 
         step_index = self.sequence_widget.currentRow()
-        self._refreshItem(step_index)
+        step = self._sequence[step_index]
+        step.attributes()[attribute_index].val = value
         self._setModified()
     
     #--------------------------------------------------------------------#
@@ -995,7 +998,7 @@ class MLTester(QMainWindow):
     def _setTestLogsDir(self):
         test_name = re.sub("[^0-9a-zA-Z]", "_", os.path.basename(self._doc.filePath()))
         time_prefix = time.strftime("%Y_%m_%d_%H_%M_%S")
-        self._test_logs_dir = os.path.join(self._base_logs_dir, time_prefix + "_" + test_name)
+        self._test_logs_dir = os.path.join(self._settings.base_log_dir, time_prefix + "_" + test_name)
         TestEnvironment.Get().setTestLogsDir(self._test_logs_dir)
         
     #--------------------------------------------------------------------#
@@ -1161,6 +1164,15 @@ class MLTester(QMainWindow):
             dialog = MLGraphViewer(dirs, parent = self)
             dialog.show()
         
+    #--------------------------------------------------------------------#
+    
+    def _preferencesActionHandler(self):
+        pass
+        #prompt = PreferencesDialog(self)
+        #res = prompt.exec_()
+        #if res == QDialog.Accepted:
+        #    self._setModified()
+    
     #--------------------------------------------------------------------#
     
     def _aboutActionHandler(self):

@@ -1,148 +1,16 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-import copy
 import os
 import sys
 from xml.dom import minidom
 from xml.etree import cElementTree as etree
 
 from test_environment import TestEnvironment
-from commonpylib.util import executeCommand, executeRemoteCommand, checkRetCode, copyToRemote, waitForProcesses, BasicProcess, toFileName
+from commonpylib.gui import DefaultAttributesWidget
 from commonpylib.log import log, error, UniBorder, title
-from PyQt4.Qt import QWidget, QGridLayout, QLineEdit, QLabel, QComboBox, QTabWidget, QString
-
-###############################################################################
-
-class StepAttribute():
-    def __init__(self, name, default_value, possible_values = None, category = "Basic"):
-        self.name = name
-        self.default_value = default_value
-        self.possible_values = possible_values
-        self.category = category
-
-###############################################################################
-
-class DefaultAttributesWidget(QTabWidget):
-    
-    def __init__(self, attributes, parent = None):
-        super(DefaultAttributesWidget, self).__init__(parent)
-        self._attributes = attributes
-        self._field_widgets = []
-        self._field_labels = []
-        self._values = None
-        self._on_field_changed = []
-        self._tabs = {}
-        self._initGui()
-
-    # -------------------------------------------------------------------- #
-
-    def _getOrCreateTab(self, category):
-        tab = self._tabs.get(category, None)
-        if tab is None:
-            tab = QWidget()
-            tab.setLayout(QGridLayout())
-            self._tabs[category] = tab
-            self.addTab(tab, category)
-        return tab
-        
-    # -------------------------------------------------------------------- #
-    
-    def _initGui(self):
-        for field_index in range(len(self._attributes)):
-            attribute = self._attributes[field_index]
-            tab = self._getOrCreateTab(attribute.category) 
-            l = QLabel(attribute.name)
-            self._field_labels.append(l)
-            if attribute.possible_values is None:
-                w = QLineEdit()
-            else:
-                w = QComboBox()
-                w.addItems(attribute.possible_values)
-            self._field_widgets.append(w)
-            self._bindField(field_index)
-            tab.layout().addWidget(l, field_index, 0)
-            tab.layout().addWidget(w, field_index, 1)
-
-    # -------------------------------------------------------------------- #
-    
-    def _showField(self, field_index, val):
-        if val:
-            self._field_labels[field_index].show()
-            self._field_widgets[field_index].show()
-        else:
-            self._field_labels[field_index].hide()
-            self._field_widgets[field_index].hide()
-
-    # -------------------------------------------------------------------- #
-    
-    def _setFieldValue(self, field_index, val):
-        w = self._field_widgets[field_index]
-        if isinstance(w, QLineEdit):
-            w.setText(val)
-        elif isinstance(w, QComboBox):
-            index = w.findText(QString(str(val)))
-            w.setCurrentIndex(index)
-            
-    # -------------------------------------------------------------------- #
-    
-    def _getFieldValue(self, field_index):
-        w = self._field_widgets[field_index]
-        if isinstance(w, QLineEdit):
-            return str(w.text())
-        elif isinstance(w, QComboBox):
-            return str(w.currentText())
-        return None
-        
-    # -------------------------------------------------------------------- #
-
-    def _onFieldChanged(self, field_index, val):
-#         print "ON FIELD CHANGED " + str(field_index) + " " + str(val)
-        for handler in self._on_field_changed:
-            handler(field_index, val)
-
-    # -------------------------------------------------------------------- #
-    
-    def _bindField(self, field_index):
-        w = self._field_widgets[field_index]
-        op = lambda _: self._onFieldChanged(field_index, self._getFieldValue(field_index))
-        if isinstance(w, QLineEdit):
-            w.textChanged.connect(op)
-        elif isinstance(w, QComboBox):
-            w.currentIndexChanged.connect(op)
-
-    # -------------------------------------------------------------------- #
-    
-    def addFieldChangedHandler(self, handler):
-        self._on_field_changed.append(handler)
-    
-    # -------------------------------------------------------------------- #
-    
-    def values(self):
-        return self._values
-    
-    # -------------------------------------------------------------------- #
-
-    def load(self, values):
-        self._values = values 
-        for field_index in range(len(self._field_widgets)):
-            attr_value = self._values[field_index]
-            w = self._field_widgets[field_index]
-            if isinstance(w, QLineEdit): 
-                w.setText(str(attr_value))
-            elif isinstance(w, QComboBox):
-                index = w.findText(QString(str(attr_value)))
-                w.setCurrentIndex(index)
-        
-    # -------------------------------------------------------------------- #
-                    
-    def save(self):
-        if self._values == None:
-            return
-        
-        for row in range(len(self._line_edits)):
-            self._values[row] = str(self._line_edits[row].text())
-
+from commonpylib.util import executeCommand, executeRemoteCommand, checkRetCode, copyToRemote, waitForProcesses, BasicProcess, toFileName, \
+                             Attribute, AttributesList
 
 ###############################################################################
     
@@ -175,10 +43,11 @@ class Step(object):
     
     def __init__(self, values = None):
         self._name = self.className()
-        attributes = type(self).ATTRIBUTES
-        if values is None:
-            values = [att.default_value for att in attributes]
-        self._values = values   # The attribute values of individual step
+        self._attributes = AttributesList(type(self).ATTRIBUTES)
+        if values is not None:
+            for i in range(len(values)):
+                self._attributes[i].val = values[i]
+                
         self._status = Step.STATUS_IDLE
         self._widget = None
         self._logs_dir = None
@@ -186,6 +55,11 @@ class Step(object):
         self._is_enabled = True
         self._stop = False
     
+    # -------------------------------------------------------------------- #
+        
+    def __getattr__(self, name):
+        return self._attributes.__getattr__(name)
+
     # -------------------------------------------------------------------- #
     
     def setLogsDir(self, index):
@@ -228,20 +102,20 @@ class Step(object):
         
     def className(self):
         return type(self).NAME
-    
+
     # -------------------------------------------------------------------- #
     
-    def values(self):
-        return self._values
-
+    def attributes(self):
+        return self._attributes
+    
     # -------------------------------------------------------------------- #
 
     def clone(self):
-        values = copy.deepcopy(self._values)
-        res = type(self)(values)
+        res = type(self)()
         res._name = self._name
         res._repeat = self._repeat
         res._is_enabled = self._is_enabled
+        res._attributes = self._attributes.clone()
         return res
 
     # -------------------------------------------------------------------- #
@@ -249,7 +123,7 @@ class Step(object):
     def attributesWidget(self, parent = None):
         if self._widget is None:
             self._widget = type(self).GET_WIDGET()
-            self._widget.load(self._values)
+        self._widget.load(self._attributes)
         return self._widget
 
     # -------------------------------------------------------------------- #
@@ -359,15 +233,12 @@ class Step(object):
     # -------------------------------------------------------------------- #
             
     def writeToXml(self, root_node):
-        attributes = type(self).ATTRIBUTES
         step_node = etree.SubElement(root_node, "Step", Class = self.className())
         etree.SubElement(step_node, "Name", Value = self.name())
-        for i in range(len(attributes)):
-            attr_name = attributes[i].name
-            attr_value = self._values[i]
-            attr_node = etree.SubElement(step_node, "Attribute", Name = attr_name, Value = str(attr_value))
         etree.SubElement(step_node, "Enabled", Value = str(self.isEnabled()))
         etree.SubElement(step_node, "Repeat", Value = str(self.repeat()))
+        attributes_node = etree.SubElement(step_node, "Attributes")
+        self._attributes.writeToXml(attributes_node)
         return step_node
 
     # -------------------------------------------------------------------- #
@@ -381,16 +252,10 @@ class Step(object):
             raise
         
         step_class = Step.REGISTERED_STEPS[step_class_name]
-        attribute_names = [attr.name for attr in step_class.ATTRIBUTES]
         step = step_class() 
         for attr_node in step_node.getchildren():
             if attr_node.tag == "Name":
                 step.setName(attr_node.attrib["Value"])
-            elif attr_node.tag == "Attribute":
-                attribute_name = attr_node.attrib["Name"]
-                attribute_value = attr_node.attrib["Value"]
-                pos = attribute_names.index(attribute_name)
-                step.values()[pos] = attribute_value
             elif attr_node.tag == "Enabled":
                 attribute_value = attr_node.attrib["Value"] 
                 if attribute_value == "True":
@@ -400,57 +265,7 @@ class Step(object):
                 # else do nothing
             elif attr_node.tag == "Repeat":
                 step.setRepeat(int(attr_node.attrib["Value"]))
+            elif attr_node.tag == "Attributes":
+                step._attributes.loadFromXml(attr_node)
                 
         return step
-            
-###############################################################################################################################################################
-#
-#                                                                         DEMO
-#
-###############################################################################################################################################################
-
-if __name__ == '__main__':
-    @Step.REGISTER()
-    class DemoStep1(Step):
-        NAME = "Demo Step 1"
-        ATTRIBUTES = [StepAttribute("ATTR1", ""), 
-                      StepAttribute("ATTR2", ""),
-                      StepAttribute("ATTR3", "")]
-    
-    @Step.REGISTER()
-    class DemoStep2(Step):
-        NAME = "Demo Step 2"
-        ATTRIBUTES = [StepAttribute("TEST1", ""), 
-                      StepAttribute("TEST2", ""),
-                      StepAttribute("TEST3", "")]
-            
-    title("Demo", UniBorder.BORDER_STYLE_STRONG)
-    xml = etree.Element("root")
-
-    step1 = DemoStep1(values=[1, 2, 3])
-    step2 = DemoStep1(values=[4, 5, 6])
-    step3 = DemoStep2(values=[1, 2, 3])
-    step4 = DemoStep2(values=[4, 5, 6])
-    
-    step1.setEnabled(False)
-    step1.setRepeat(20)
-    step1.setName("A test step #1")
-    
-    step1.writeToXml(xml)
-    step2.writeToXml(xml)
-    step3.writeToXml(xml)
-    step4.writeToXml(xml)            
-
-    content = minidom.parseString(etree.tostring(xml)).toprettyxml()
-    print content
-    
-    title("Load:", UniBorder.BORDER_STYLE_SINGLE)
-    root_node = etree.fromstring(content)
-        
-    sequence_node = None
-    for step_node in root_node.getchildren():
-        step = Step.loadFromXml(step_node)
-        print step
-        print step.name()
-        print step.isEnabled()
-        print step.repeat()

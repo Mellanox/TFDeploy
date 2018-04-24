@@ -9,10 +9,11 @@ import os
 import time
 import threading
 
-from mltester.actions import Step, StepAttribute, DefaultAttributesWidget, TestEnvironment
+from mltester.actions import Step, DefaultAttributesWidget, TestEnvironment
 from commonpylib.log import LogWriter, LOG_LEVEL_NOTE, LOG_LEVEL_INFO, log, title, error, UniBorder, FormattedTable
 from commonpylib.monitors import Measurement, CommonPerformanceMeasurements, RemoteMonitor
-from commonpylib.util import BasicProcess, executeRemoteCommand, waitForProcesses, toFileName
+from commonpylib.util import BasicProcess, executeRemoteCommand, waitForProcesses, toFileName, ListAttribute, \
+                             EnumAttribute, IntAttribute, PathAttribute, StrAttribute, BoolAttribute, tryExp
 
 ###############################################################################
 
@@ -53,23 +54,6 @@ class TFCnnBenchmarksStep(Step):
     
     NAME = "TF CNN Benchmarks"
     
-    ATTRIBUTE_ID_MODE = 0
-    ATTRIBUTE_ID_ALL_REDUCE_SPECS = 1
-    ATTRIBUTE_ID_CONTROLLER = 2
-    ATTRIBUTE_ID_PS = 3
-    ATTRIBUTE_ID_WORKERS = 4
-    ATTRIBUTE_ID_BASE_PORT = 5
-    ATTRIBUTE_ID_SCRIPT = 6
-    ATTRIBUTE_ID_MODEL = 7
-    ATTRIBUTE_ID_BATCH_SIZE = 8
-    ATTRIBUTE_ID_NUM_GPUS = 9
-    ATTRIBUTE_ID_SERVER_PROTOCOL = 10
-    ATTRIBUTE_ID_DATA_DIR = 11
-    ATTRIBUTE_ID_LOG_LEVEL = 12
-    ATTRIBUTE_ID_TRACE_FILE = 13
-    ATTRIBUTE_ID_GRAPH_FILE = 14
-    ATTRIBUTE_ID_FORWARD_ONLY = 15
-    
     MODE_PARAMETER_SERVER = 0
     MODE_DISTRIBUTED_ALL_REDUCE = 1
     MODE_LOCAL = 2
@@ -80,23 +64,29 @@ class TFCnnBenchmarksStep(Step):
     PROTOCOLS = ["grpc", "grpc+verbs", "grpc+ucx"]
     OPERATION_MODES = ["Training", "Inception"]
     
-    ATTRIBUTES = [StepAttribute("Mode", MODE_NAMES[0], MODE_NAMES),
-                  StepAttribute("All-Reduce Spec", ALL_REDUCE_SPECS[0], ALL_REDUCE_SPECS),
-                  StepAttribute("Controller", "12.12.12.25"),
-                  StepAttribute("PS", "12.12.12.25"),
-                  StepAttribute("Workers", "12.12.12.25,12.12.12.26"),
-                  StepAttribute("Base Port", "5000", category="Advanced"),
-                  StepAttribute("Script", "~/benchmarks/scripts/tf_cnn_benchmarks/"),
-                  StepAttribute("Model", "vgg16", MODELS),
-                  StepAttribute("Batch Size", "32"),
-                  StepAttribute("Num GPUs", "2"),
-                  StepAttribute("Server Protocol", "grpc+verbs", PROTOCOLS),
-                  StepAttribute("Data Dir", "/data/imagenet_data/"),
-                  StepAttribute("Log Level", "0", category="Advanced"),
-                  StepAttribute("Trace File", "False", ["True", "False"], category="Advanced"),
-                  StepAttribute("Graph File", "False", ["True", "False"], category="Advanced"),
-                  StepAttribute("Forward Only", "False", ["True", "False"], category="Advanced")]
-                  
+    ATTRIBUTE_ID_MODE = 0
+    ATTRIBUTE_ID_ALL_REDUCE_SPECS = 1
+    ATTRIBUTE_ID_CONTROLLER = 2
+    ATTRIBUTE_ID_PS = 3
+    ATTRIBUTE_ID_WORKERS = 4
+    ATTRIBUTE_ID_SERVER_PROTOCOL = 9
+    
+    ATTRIBUTES = [EnumAttribute("mode"            , "Mode", MODE_NAMES[0], MODE_NAMES),
+                  EnumAttribute("all_reduce_spec" , "All-Reduce Spec", ALL_REDUCE_SPECS[0], ALL_REDUCE_SPECS),
+                  ListAttribute("controller"      , "Controller", "12.12.12.25"),
+                  ListAttribute("ps"              , "PS", "12.12.12.25"),
+                  ListAttribute("workers"         , "Workers", "12.12.12.25,12.12.12.26"),
+                  PathAttribute("script"          , "Script", os.path.join(tryExp(["$TF_BENCHMARKS_HOME", "~/benchmarks"]), "scripts", "tf_cnn_benchmarks", "tf_cnn_benchmarks.py")),
+                  StrAttribute ("model"           , "Model", "vgg16", MODELS),
+                  IntAttribute ("batch_size"      , "Batch Size", "32"),
+                  IntAttribute ("num_gpus"        , "Num GPUs", "2"),
+                  StrAttribute ("server_protocol" , "Server Protocol", "grpc+verbs", PROTOCOLS),
+                  PathAttribute("data_dir"        , "Data Dir", "/data/imagenet_data/"),
+                  IntAttribute ("base_port"       , "Base Port", "5000", category="Advanced"),
+                  IntAttribute ("log_level"       , "Log Level", "0", category="Advanced"),
+                  BoolAttribute("trace_file"      , "Trace File", "False", category="Advanced"),
+                  BoolAttribute("model_graph_file", "Graph File", "False", category="Advanced"),
+                  BoolAttribute("forward_only"    , "Forward Only", "False", category="Advanced")]
 
     # -------------------------------------------------------------------- #
 
@@ -143,63 +133,12 @@ class TFCnnBenchmarksStep(Step):
         self._perf = TFPerformanceMeasurements()
 
     # -------------------------------------------------------------------- #
-
-    def mode(self):
-        mode_name = os.path.expandvars(self._values[TFCnnBenchmarksStep.ATTRIBUTE_ID_MODE])
-        return TFCnnBenchmarksStep.MODE_NAMES.index(mode_name)
-    
-    def all_reduce_spec(self):
-        return os.path.expandvars(self._values[TFCnnBenchmarksStep.ATTRIBUTE_ID_ALL_REDUCE_SPECS])
-
-    def controller(self):
-        return os.path.expandvars(self._values[TFCnnBenchmarksStep.ATTRIBUTE_ID_CONTROLLER])
-    
-    def ps(self):
-        return os.path.expandvars(self._values[TFCnnBenchmarksStep.ATTRIBUTE_ID_PS]).split(",")
-    
-    def workers(self):
-        return os.path.expandvars(self._values[TFCnnBenchmarksStep.ATTRIBUTE_ID_WORKERS]).split(",")
-    
-    def base_port(self):
-        return int(self._values[TFCnnBenchmarksStep.ATTRIBUTE_ID_BASE_PORT])
-    
-    def script(self):
-        return self._values[TFCnnBenchmarksStep.ATTRIBUTE_ID_SCRIPT]
-    
-    def model(self):
-        return self._values[TFCnnBenchmarksStep.ATTRIBUTE_ID_MODEL]
-    
-    def batch_size(self):
-        return int(self._values[TFCnnBenchmarksStep.ATTRIBUTE_ID_BATCH_SIZE])
-    
-    def num_gpus(self):
-        return int(self._values[TFCnnBenchmarksStep.ATTRIBUTE_ID_NUM_GPUS])
-    
-    def server_protocol(self):
-        return self._values[TFCnnBenchmarksStep.ATTRIBUTE_ID_SERVER_PROTOCOL]
-
-    def data_dir(self):
-        return self._values[TFCnnBenchmarksStep.ATTRIBUTE_ID_DATA_DIR]
-    
-    def log_level(self):
-        return self._values[TFCnnBenchmarksStep.ATTRIBUTE_ID_LOG_LEVEL]
-    
-    def trace_file(self):
-        return self._values[TFCnnBenchmarksStep.ATTRIBUTE_ID_TRACE_FILE] == "True"
-    
-    def model_graph_file(self):
-        return self._values[TFCnnBenchmarksStep.ATTRIBUTE_ID_GRAPH_FILE] == "True"
-    
-    def forward_only(self):
-        return self._values[TFCnnBenchmarksStep.ATTRIBUTE_ID_FORWARD_ONLY] == "True"
-    
-    # -------------------------------------------------------------------- #
     
     def attributesRepr(self):
-        return "%s, %s, %u GPUs, batch %u" % (self.model(),
-                                              self.server_protocol(),
-                                              self.num_gpus() * len(self.workers()),
-                                              self.batch_size()) 
+        return "%s, %s, %u GPUs, batch %u" % (self.model,
+                                              self.server_protocol,
+                                              self.num_gpus * len(self.workers),
+                                              self.batch_size) 
 
     # -------------------------------------------------------------------- #
     
@@ -240,12 +179,12 @@ class TFCnnBenchmarksStep(Step):
         log("Appending to results file: %s" % self._performance_file.name) 
         row = [time.strftime("%Y-%m-%d %H:%M:%S"),
                "TF cnn benchmarks",
-               self.model(),
-               self.batch_size(),
-               self.server_protocol(),
-               self.num_gpus(),
-               len(self.workers()),
-               len(self.ps()),
+               self.model,
+               self.batch_size,
+               self.server_protocol,
+               self.num_gpus,
+               len(self.workers),
+               len(self.ps),
                "%.2lf" % self._perf.images_sec.avg,               
                "%.2lf" % self._perf.cpu.avg,
                "%.2lf" % self._perf.mem.avg,
@@ -456,7 +395,7 @@ class TFCnnBenchmarksStep(Step):
         # Env variables: #
         ##################
         tf_flags += "LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda/lib64:/usr/local/gdrcopy"
-        tf_flags += " TF_CPP_MIN_VLOG_LEVEL=%s" % self.log_level()
+        tf_flags += " TF_CPP_MIN_VLOG_LEVEL=%s" % self.log_level
         tf_flags += " RDMA_DEVICE=%s" % device_info.name
         tf_flags += " RDMA_DEVICE_PORT=%u" % device_info.port
         tf_flags += " RDMA_GID_INDEX=3"
@@ -468,14 +407,14 @@ class TFCnnBenchmarksStep(Step):
         tf_flags += " RDMA_MTU=512"
         tf_flags += " RDMA_TRAFFIC_CLASS=8"
         tf_flags += " UCX_NET_DEVICES=%s:%u" % (device_info.name, device_info.port)
-        if (job_name in ["ps", "controller"]) or (self.num_gpus() == 0):
+        if (job_name in ["ps", "controller"]) or (self.num_gpus == 0):
             tf_flags += " CUDA_VISIBLE_DEVICES="
 
         ##############  
         # UCX stuff: #
         ##############
         # Ucx should be compiled ./contrib/configure-devel --enable-debug
-        if self.server_protocol() == "grpc+ucx":
+        if self.server_protocol == "grpc+ucx":
             tf_flags += " UCX_LOG_LEVEL=data"
             tf_flags += " UCX_TLS=rc_x,gdr_copy,cuda_copy"
         #export UCX_IB_ETH_PAUSE_ON=y
@@ -494,35 +433,33 @@ class TFCnnBenchmarksStep(Step):
         ##############
         # tf_command += " gdb --args"
         tf_command += "python -u %s/tf_cnn_benchmarks.py" % self._work_dir
-        if self.mode() != TFCnnBenchmarksStep.MODE_LOCAL:
+        if self.mode != TFCnnBenchmarksStep.MODE_LOCAL:
             tf_command += " --job_name=%s" % job_name
             tf_command += " --task_index=%u" % task_id
             tf_command += " --worker_hosts=%s" % ",".join(self._cluster_workers)
-        if self.mode() == TFCnnBenchmarksStep.MODE_PARAMETER_SERVER:
+        if self.mode == TFCnnBenchmarksStep.MODE_PARAMETER_SERVER:
             tf_command += " --ps_hosts=%s" % ",".join(self._cluster_ps)
-        elif self.mode() == TFCnnBenchmarksStep.MODE_DISTRIBUTED_ALL_REDUCE:
+        elif self.mode == TFCnnBenchmarksStep.MODE_DISTRIBUTED_ALL_REDUCE:
             tf_command += " --variable_update=distributed_all_reduce"
-            tf_command += " --all_reduce_spec=%s" % self.all_reduce_spec()
+            tf_command += " --all_reduce_spec=%s" % self.all_reduce_spec
         if job_name in ["worker", "controller"]:
-            tf_command += " --model=%s" % self.model()
-            tf_command += " --batch_size=%s" % self.batch_size()
-            if self.data_dir() != "":
-                tf_command += " --data_dir=%s" % self.data_dir()
-            
-            tf_command += " --data_dir=%s" % self.data_dir()
-            if self.num_gpus() > 0:
-                tf_command += " --num_gpus=%s --local_parameter_device=gpu" % self.num_gpus()
-            if self.trace_file():
+            tf_command += " --model=%s" % self.model
+            tf_command += " --batch_size=%s" % self.batch_size
+            if self.data_dir != "":
+                tf_command += " --data_dir=%s" % self.data_dir
+            if self.num_gpus > 0:
+                tf_command += " --num_gpus=%s --local_parameter_device=gpu" % self.num_gpus
+            if self.trace_file:
                 tf_command += "--trace_file=trace_%s_%u.json" % (job_name, task_id)
-        if self.mode() != TFCnnBenchmarksStep.MODE_LOCAL:
-            tf_command += " --server_protocol=%s" % self.server_protocol()        
-        if self.forward_only():
+        if self.mode != TFCnnBenchmarksStep.MODE_LOCAL:
+            tf_command += " --server_protocol=%s" % self.server_protocol
+        if self.forward_only:
             tf_command += " --forward_only"
         
         if job_name == "worker":
-            if self.model_graph_file() and (task_id == 0):
+            if self.model_graph_file and (task_id == 0):
                 tf_command += " --graph_file=%s" % os.path.join(self._work_dir, "graph.txt")
-            if self.trace_file():
+            if self.trace_file:
                 tf_command += " --trace_file=%s" % os.path.join(self._work_dir, "trace_%s_%u.json" % (job_name, task_id))
             
         command = tf_flags + " " + tf_command
@@ -530,7 +467,7 @@ class TFCnnBenchmarksStep(Step):
         title = "[%s] %s - %u" % (ip, job_name, task_id)
         log_file_path = os.path.join(self._logs_dir, "%s_%u.log" % (job_name, task_id))
         factory = BasicProcess.getFactory(title, log_file_path)
-        process = executeRemoteCommand([server_info.hostname], command, factory = factory, verbose=False)[0]
+        process = executeRemoteCommand([server_info.hostname], command, factory = factory, verbose=True)[0]
         process.name = "%s_%u" % (job_name, task_id)
         process.job_name = job_name 
         process.task_id = task_id
@@ -632,7 +569,7 @@ class TFCnnBenchmarksStep(Step):
         if not self._stopping:
             self._stopping = True            
             log("Stopping remaining processes...")
-            wait_time_for_workers_to_exit_gracefully = len(self.workers()) - 1
+            wait_time_for_workers_to_exit_gracefully = len(self.workers) - 1
             time.sleep(wait_time_for_workers_to_exit_gracefully)
             self._stopAll()
         return process.instance.returncode in [0, 143, -15]
@@ -653,16 +590,17 @@ class TFCnnBenchmarksStep(Step):
     def perform(self, index):
         Step.perform(self, index)
         log("<img src='images/tensorflow.jpg' width=600 style='border:1px solid black'/>") #https://www.skylinelabs.in/blog/images/tensorflow.jpg?width=500'/>")
+        for attr in self._attributes:
+            print " + %s: %s" % (attr.desc.display_name, str(attr.val))
         self._stopping = False
         self._servers = {}
         work_dir_name = "tmp." + next(tempfile._get_candidate_names()) + next(tempfile._get_candidate_names())
         work_dir = os.path.join(tempfile._get_default_tempdir(), work_dir_name)
-        script_dir = os.path.dirname(self._values[TFCnnBenchmarksStep.ATTRIBUTE_ID_SCRIPT])
-        current_dir = os.path.dirname(os.path.realpath(__file__))
+        script_dir = os.path.dirname(self.script)
         
         user = getuser()
         self._work_dir = work_dir
-        ips = list(set(self.ps() + self.workers()))
+        ips = list(set(self.ps + self.workers))
         servers = TestEnvironment.Get().getServers(ips)
             
         #########################
@@ -680,13 +618,13 @@ class TFCnnBenchmarksStep(Step):
         ##################
         # Build cluster: #
         ##################
-        port = self.base_port()
+        port = self.base_port
         self._cluster_ps = []
         self._cluster_workers = []
-        for ip in self.ps():
+        for ip in self.ps:
             self._cluster_ps.append("%s:%u" % (ip, port))
             port += 1
-        for ip in self.workers():
+        for ip in self.workers:
             self._cluster_workers.append("%s:%u" % (ip, port))
             port += 1        
     
@@ -707,23 +645,23 @@ class TFCnnBenchmarksStep(Step):
         
         title("Running:", UniBorder.BORDER_STYLE_SINGLE)
         processes = []
-        if self.mode() == TFCnnBenchmarksStep.MODE_PARAMETER_SERVER:
-            for i in range(len(self.ps())):
-                ip = self.ps()[i]
+        if self.mode == TFCnnBenchmarksStep.MODE_PARAMETER_SERVER:
+            for i in range(len(self.ps)):
+                ip = self.ps[i]
                 process = self._runJob(work_dir, ip, "ps", i)
                 processes.append(process)
-        elif self.mode() == TFCnnBenchmarksStep.MODE_DISTRIBUTED_ALL_REDUCE:
+        elif self.mode == TFCnnBenchmarksStep.MODE_DISTRIBUTED_ALL_REDUCE:
             process = self._runJob(work_dir, ip, "controller", 0)
             processes.append(process) 
         ################
         # Run workers: #
         ################
-        if self.mode() == TFCnnBenchmarksStep.MODE_LOCAL:
-            process = self._runJob(work_dir, self.workers()[0], "worker", 0)
+        if self.mode == TFCnnBenchmarksStep.MODE_LOCAL:
+            process = self._runJob(work_dir, self.workers[0], "worker", 0)
             processes.append(process)
         else:
-            for i in range(len(self.workers())):
-                ip = self.workers()[i]
+            for i in range(len(self.workers)):
+                ip = self.workers[i]
                 process = self._runJob(work_dir, ip, "worker", i)
                 processes.append(process)
         

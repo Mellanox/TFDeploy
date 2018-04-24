@@ -6,8 +6,8 @@ import re
 import os
 
 from commonpylib.log import UniBorder, title
-from commonpylib.util import executeRemoteCommand, waitForProcesses
-from mltester.actions import Step, StepAttribute, TestEnvironment
+from commonpylib.util import executeRemoteCommand, waitForProcesses, BoolAttribute, PathAttribute, StrAttribute, ListAttribute, AttributesList, tryExp
+from mltester.actions import Step, TestEnvironment
 
 ###############################################################################
 
@@ -21,32 +21,21 @@ class TFCompileStep(Step):
     ATTRIBUTE_ID_ADDITIONAL_FLAGS = 2
     ATTRIBUTE_ID_INSTALL_SERVERS = 3
     
-    ATTRIBUTES = [StepAttribute("TensorFlow home", "~/tensorflow"),
-                  StepAttribute("CUDA", "True", ["True", "False"]),
-                  StepAttribute("Additional build flags", ""),
-                  StepAttribute("Install on servers", "12.12.12.25,12.12.12.26")]
+    ATTRIBUTES = [PathAttribute("tensorflow_home",  "TensorFlow home", tryExp(["$TENSORFLOW_HOME", "~/tensorflow"])),
+                  BoolAttribute("config_cuda",      "Use Cuda", "True", ["True", "False"]),
+                  ListAttribute("additional_flags", "Additional build flags"),
+                  ListAttribute("install_servers",  "Install on servers", "12.12.12.25,12.12.12.26")]
 
     # -------------------------------------------------------------------- #
     
-    def __init__(self, values = None):
-        Step.__init__(self, values)
+    def __init__(self):
+        Step.__init__(self)
         self._stopping = False
-
-    # -------------------------------------------------------------------- #
-
-    def tensorflow_home(self):
-        return self._values[TFCompileStep.ATTRIBUTE_ID_TENSORFLOW_HOME]
-    def config_cuda(self):
-        return bool(self._values[TFCompileStep.ATTRIBUTE_ID_CONFIG_CUDA])
-    def additional_flags(self):
-        return self._values[TFCompileStep.ATTRIBUTE_ID_ADDITIONAL_FLAGS].split(",")
-    def install_servers(self):
-        return self._values[TFCompileStep.ATTRIBUTE_ID_INSTALL_SERVERS].split(",")
     
     # -------------------------------------------------------------------- #
     
     def attributesRepr(self):
-        return self.tensorflow_home()
+        return self.tensorflow_home
          
     # -------------------------------------------------------------------- #
 
@@ -57,22 +46,22 @@ class TFCompileStep(Step):
         # Build: #
         ##########
         title("Building:", UniBorder.BORDER_STYLE_SINGLE)
-        config_cuda="--config=cuda" if self.config_cuda() else ""
-        if self.additional_flags() == [""]:
+        config_cuda="--config=cuda" if self.config_cuda else ""
+        if self.additional_flags == [""]:
             additional_flags = ""
         else:
-            additional_flags = "--copt \"%s\"" % " ".join(self.additional_flags())
-        cmd = "cd %s; rm -rf tensorflow_pkg; bazel build -c opt %s %s //tensorflow/tools/pip_package:build_pip_package" % (self.tensorflow_home(),
+            additional_flags = "--copt \"%s\"" % " ".join(self.additional_flags)
+        cmd = "cd %s; rm -rf tensorflow_pkg; bazel build -c opt %s %s //tensorflow/tools/pip_package:build_pip_package" % (self.tensorflow_home,
                                                                                                                            config_cuda,
                                                                                                                            additional_flags)
         res = self.runSeperate(cmd, 
-                               title = "Build %s" % self.tensorflow_home(), 
+                               title = "Build %s" % self.tensorflow_home, 
                                log_file_path = os.path.join(self._logs_dir, "build.log"),
                                wait_timeout = 3600)
         if not res:
             return False
     
-        cmd = "cd %s; bazel-bin/tensorflow/tools/pip_package/build_pip_package tensorflow_pkg" % (self.tensorflow_home())
+        cmd = "cd %s; bazel-bin/tensorflow/tools/pip_package/build_pip_package tensorflow_pkg" % (self.tensorflow_home)
         res = self.runInline(cmd, wait_timeout=60)
         if not res:
             return False
@@ -80,9 +69,9 @@ class TFCompileStep(Step):
         ############
         # Install: #
         ############
-        servers = TestEnvironment.Get().getServers(self.install_servers())
+        servers = TestEnvironment.Get().getServers(self.install_servers)
         title("Installing:", UniBorder.BORDER_STYLE_SINGLE)
-        src_dir = os.path.join(self.tensorflow_home(), "tensorflow_pkg")
+        src_dir = os.path.join(self.tensorflow_home, "tensorflow_pkg")
         temp_dir_name = "tmp." + next(tempfile._get_candidate_names()) + next(tempfile._get_candidate_names())
         temp_dir = os.path.join(tempfile._get_default_tempdir(), temp_dir_name)
         res = self.runSCP(servers, [src_dir], temp_dir, wait_timeout=10)
