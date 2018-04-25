@@ -268,4 +268,7 @@ class Step(object):
             elif attr_node.tag == "Attributes":
                 step._attributes.loadFromXml(attr_node)
                 
+        # Compatibility mode:
+        step._attributes.loadFromXml(step_node)
+        
         return step
