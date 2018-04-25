@@ -1152,7 +1152,7 @@ class MLTester(QMainWindow):
     #--------------------------------------------------------------------#
     
     def _showGraphsActionHandler(self, checked):
-        from MLGraphViewer import MLGraphViewer
+        from mltester import ml_graph_viewer
         selected_indexes = self._getSelectedIndexes()
         dirs = []
         for index in selected_indexes:
@@ -1162,7 +1162,7 @@ class MLTester(QMainWindow):
                 dirs.append(logs_dir)
                 
         if len(dirs) > 0:
-            dialog = MLGraphViewer(dirs, parent = self)
+            dialog = ml_graph_viewer(dirs, parent = self)
             dialog.show()
         
     #--------------------------------------------------------------------#

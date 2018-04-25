@@ -1,10 +1,10 @@
 eclipse.preferences.version=1
-encoding//mltester/MLGraphViewer.py=utf-8
-encoding//mltester/MLTester.py=utf-8
 encoding//mltester/actions/step.py=utf-8
 encoding//mltester/actions/test_environment.py=utf-8
 encoding//mltester/actions/tf_cnn_benchmarks.py=utf-8
 encoding//mltester/actions/tf_compile.py=utf-8
 encoding//mltester/dialogs/preferences_dialog.py=utf-8
 encoding//mltester/dialogs/step_edit_dialog.py=utf-8
+encoding//mltester/ml_graph_viewer.py=utf-8
+encoding//mltester/ml_tester.py=utf-8
 encoding//tests/tf_cnn_benchmarks_test.py=utf-8
