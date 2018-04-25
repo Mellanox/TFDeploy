@@ -204,21 +204,21 @@ class Step(object):
         return self._runCommand(cmd, 
                                 servers, 
                                 wait_timeout,
-                                log,
-                                TestEnvironment.onNewProcess(), 
-                                TestEnvironment.onProcessDone(),
+                                on_output = log,
+                                on_process_start = TestEnvironment.onNewProcess(), 
+                                on_process_done = TestEnvironment.onProcessDone(),
                                 factory = factory,
                                 verbose = verbose)
                 
     # -------------------------------------------------------------------- #
     
-    def runSCP(self, servers, sources, remote_dir, wait_timeout=None):
+    def runSCP(self, servers, sources, remote_dir, wait_timeout = None, verbose = True):
         ''' Run SCP. Always inline. '''
         processes = copyToRemote(servers, sources, remote_dir)
         return waitForProcesses(processes, 
-                                wait_timeout=wait_timeout, 
-                                on_output=log, 
-                                on_error=error)
+                                wait_timeout = wait_timeout,
+                                on_output = Step.logToMainProcess,
+                                verbose = verbose)
     
     # -------------------------------------------------------------------- #
     
