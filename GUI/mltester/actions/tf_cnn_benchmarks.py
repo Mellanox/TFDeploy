@@ -591,7 +591,7 @@ class TFCnnBenchmarksStep(Step):
         Step.perform(self, index)
         log("<img src='images/tensorflow.jpg' width=600 style='border:1px solid black'/>") #https://www.skylinelabs.in/blog/images/tensorflow.jpg?width=500'/>")
         for attr in self._attributes:
-            print " + %s: %s" % (attr.desc.display_name, str(attr.val))
+            log(" + %s: %s" % (attr.desc.display_name, str(attr.val)))
         self._stopping = False
         self._servers = {}
         work_dir_name = "tmp." + next(tempfile._get_candidate_names()) + next(tempfile._get_candidate_names())
