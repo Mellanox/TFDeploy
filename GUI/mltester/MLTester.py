@@ -968,6 +968,7 @@ class MLTester(QMainWindow):
         step_index = self.sequence_widget.currentRow()
         step = self._sequence[step_index]
         step.attributes()[attribute_index].val = value
+        self._refreshItem(step_index)
         self._setModified()
     
     #--------------------------------------------------------------------#
