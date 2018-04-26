@@ -234,16 +234,17 @@ class TFCnnBenchmarksStep(Step):
     # -------------------------------------------------------------------- #
     
     def _startServerMonitors(self, hostname):
-        server = self._servers[hostname]
-        log("Server %s: Starting monitor." % server.ip)
-        return server.monitor.start()
+        server_info = self._servers[hostname]
+        log("Server %s: Starting monitor." % server_info.ip)
+        return server_info.monitor.start()
 
     # -------------------------------------------------------------------- #
     
     def _stopServerMonitors(self, server_info):
         log("Server %s: Stopping monitor." % server_info.ip)
         if server_info.monitor is None:
-            return
+            return True
+        
         res = server_info.monitor.stop()
         server_info.perf = TFPerformanceMeasurements()
         server_info.monitor.close()
@@ -272,18 +273,19 @@ class TFCnnBenchmarksStep(Step):
     # -------------------------------------------------------------------- #
     
     def _finishProcessReport(self, process):
-#         process.server_info.monitor.fillMeasurement(process.perf.cpu)
-#         process.server_info.monitor.fillMeasurement(process.perf.mem)
-#         process.server_info.monitor.fillMeasurement(process.perf.rx)
-#         process.server_info.monitor.fillMeasurement(process.perf.tx)
-#         process.server_info.monitor.fillMeasurement(process.perf.net_erros.excessive_buffer_overrun_errors)
-#         process.server_info.monitor.fillMeasurement(process.perf.net_erros.port_xmit_discards)
-#         process.server_info.monitor.fillMeasurement(process.perf.net_erros.port_rcv_errors)
-#         process.server_info.monitor.fillMeasurement(process.perf.net_erros.port_rcv_constraint_errors)
-        for gpu_id in process.server_info.monitor.search("GPU"):
-            gpu = Measurement(gpu_id)
-            process.server_info.monitor.fillMeasurement(gpu)
-            process.perf.gpu.reduce(gpu)
+        if process.server_info.monitor is not None:
+    #         process.server_info.monitor.fillMeasurement(process.perf.cpu)
+    #         process.server_info.monitor.fillMeasurement(process.perf.mem)
+    #         process.server_info.monitor.fillMeasurement(process.perf.rx)
+    #         process.server_info.monitor.fillMeasurement(process.perf.tx)
+    #         process.server_info.monitor.fillMeasurement(process.perf.net_erros.excessive_buffer_overrun_errors)
+    #         process.server_info.monitor.fillMeasurement(process.perf.net_erros.port_xmit_discards)
+    #         process.server_info.monitor.fillMeasurement(process.perf.net_erros.port_rcv_errors)
+    #         process.server_info.monitor.fillMeasurement(process.perf.net_erros.port_rcv_constraint_errors)
+            for gpu_id in process.server_info.monitor.search("GPU"):
+                gpu = Measurement(gpu_id)
+                process.server_info.monitor.fillMeasurement(gpu)
+                process.perf.gpu.reduce(gpu)
         
         row = ["---",
                "%.2lf" % process.perf.cpu.avg, 
@@ -487,9 +489,10 @@ class TFCnnBenchmarksStep(Step):
         if "Running warm up" in line:
             self._initProcessReport(process)            
             if not self._startServerMonitors(process.server):
-                error("Failed to start monitor for server %s.\n" % process.server)
-                self.stop()
-                return
+                error("Warning: Failed to start monitor for server %s.\n" % process.server)
+                process.server_info.monitor = None 
+                #self.stop()
+                #return
         elif "images/sec" in line:
             if "total " in line:
                 log(line, process)
@@ -518,9 +521,12 @@ class TFCnnBenchmarksStep(Step):
                 deviation = float(m.group(3))
                 jitter = float(m.group(4))
                 loss = float(m.group(5))
-                #perf = process.server_info.monitor.get(["CPU.avg", "MEM.val", "RDTA.rate.avg", "RDTA.rate.max", "TDTA.rate.avg", "TDTA.rate.max"])
-                gpu_perf = process.server_info.monitor.get(["%s.avg" % gpu for gpu in process.server_info.monitor.search("GPU")])
-                #cpu_perf = process.server_info.monitor.get(["%s.avg" % gpu for gpu in process.server_info.monitor.search("GPU")])
+                if process.server_info.monitor is not None:
+                    #perf = process.server_info.monitor.get(["CPU.avg", "MEM.val", "RDTA.rate.avg", "RDTA.rate.max", "TDTA.rate.avg", "TDTA.rate.max"])
+                    gpu_perf = process.server_info.monitor.get(["%s.avg" % gpu for gpu in process.server_info.monitor.search("GPU")])
+                    #cpu_perf = process.server_info.monitor.get(["%s.avg" % gpu for gpu in process.server_info.monitor.search("GPU")])
+                else:
+                    gpu_perf = [0.0]
                 process.perf.images_sec.update(images_sec)
 
                 try:
