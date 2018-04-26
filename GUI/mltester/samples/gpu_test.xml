@@ -9,26 +9,26 @@
 				<Attribute Name="tensorflow_home" Value="$TENSORFLOW_HOME"/>
 				<Attribute Name="config_cuda" Value="True"/>
 				<Attribute Name="additional_flags" Value=""/>
-				<Attribute Name="install_servers" Value="12.12.12.25,12.12.12.26,12.12.12.41,12.12.12.42"/>
+				<Attribute Name="install_servers" Value="12.12.12.41,12.12.12.42,12.12.12.43,12.12.12.44,12.12.12.45,12.12.12.46,12.12.12.47,12.12.12.48"/>
 			</Attributes>
 		</Step>
 		<Step Class="TF CNN Benchmarks">
 			<Name Value="TF CNN Benchmarks"/>
-			<Enabled Value="False"/>
+			<Enabled Value="True"/>
 			<Repeat Value="1"/>
 			<Attributes>
 				<Attribute Name="mode" Value="Parameter Server"/>
 				<Attribute Name="all_reduce_spec" Value="xring"/>
 				<Attribute Name="controller" Value="12.12.12.25"/>
-				<Attribute Name="ps" Value="12.12.12.25,12.12.12.26"/>
-				<Attribute Name="workers" Value="12.12.12.25,12.12.12.26"/>
+				<Attribute Name="ps" Value="12.12.12.41"/>
+				<Attribute Name="workers" Value="12.12.12.41"/>
 				<Attribute Name="script" Value="$TF_BENCHMARKS_HOME/scripts/tf_cnn_benchmarks/"/>
 				<Attribute Name="model" Value="resnet152"/>
 				<Attribute Name="batch_size" Value="32"/>
 				<Attribute Name="num_gpus" Value="1"/>
 				<Attribute Name="server_protocol" Value="grpc+verbs"/>
 				<Attribute Name="data_dir" Value="/data/imagenet_data/"/>
-				<Attribute Name="base_port" Value="5000"/>
+				<Attribute Name="base_port" Value="12345"/>
 				<Attribute Name="log_level" Value="0"/>
 				<Attribute Name="trace_file" Value=""/>
 				<Attribute Name="model_graph_file" Value=""/>
@@ -37,21 +37,67 @@
 		</Step>
 		<Step Class="TF CNN Benchmarks">
 			<Name Value="TF CNN Benchmarks"/>
-			<Enabled Value="False"/>
+			<Enabled Value="True"/>
 			<Repeat Value="1"/>
 			<Attributes>
 				<Attribute Name="mode" Value="Parameter Server"/>
 				<Attribute Name="all_reduce_spec" Value="xring"/>
 				<Attribute Name="controller" Value="12.12.12.25"/>
-				<Attribute Name="ps" Value="12.12.12.25,12.12.12.26"/>
-				<Attribute Name="workers" Value="12.12.12.25,12.12.12.26"/>
+				<Attribute Name="ps" Value="12.12.12.41"/>
+				<Attribute Name="workers" Value="12.12.12.41"/>
 				<Attribute Name="script" Value="$TF_BENCHMARKS_HOME/scripts/tf_cnn_benchmarks/"/>
 				<Attribute Name="model" Value="resnet152"/>
 				<Attribute Name="batch_size" Value="32"/>
 				<Attribute Name="num_gpus" Value="2"/>
 				<Attribute Name="server_protocol" Value="grpc+verbs"/>
 				<Attribute Name="data_dir" Value="/data/imagenet_data/"/>
-				<Attribute Name="base_port" Value="5000"/>
+				<Attribute Name="base_port" Value="12345"/>
+				<Attribute Name="log_level" Value="0"/>
+				<Attribute Name="trace_file" Value=""/>
+				<Attribute Name="model_graph_file" Value=""/>
+				<Attribute Name="forward_only" Value="False"/>
+			</Attributes>
+		</Step>
+		<Step Class="TF CNN Benchmarks">
+			<Name Value="TF CNN Benchmarks"/>
+			<Enabled Value="True"/>
+			<Repeat Value="1"/>
+			<Attributes>
+				<Attribute Name="mode" Value="Parameter Server"/>
+				<Attribute Name="all_reduce_spec" Value="xring"/>
+				<Attribute Name="controller" Value="12.12.12.25"/>
+				<Attribute Name="ps" Value="12.12.12.41"/>
+				<Attribute Name="workers" Value="12.12.12.41"/>
+				<Attribute Name="script" Value="$TF_BENCHMARKS_HOME/scripts/tf_cnn_benchmarks/"/>
+				<Attribute Name="model" Value="resnet152"/>
+				<Attribute Name="batch_size" Value="32"/>
+				<Attribute Name="num_gpus" Value="3"/>
+				<Attribute Name="server_protocol" Value="grpc+verbs"/>
+				<Attribute Name="data_dir" Value="/data/imagenet_data/"/>
+				<Attribute Name="base_port" Value="12345"/>
+				<Attribute Name="log_level" Value="0"/>
+				<Attribute Name="trace_file" Value=""/>
+				<Attribute Name="model_graph_file" Value=""/>
+				<Attribute Name="forward_only" Value="False"/>
+			</Attributes>
+		</Step>
+		<Step Class="TF CNN Benchmarks">
+			<Name Value="TF CNN Benchmarks"/>
+			<Enabled Value="True"/>
+			<Repeat Value="1"/>
+			<Attributes>
+				<Attribute Name="mode" Value="Parameter Server"/>
+				<Attribute Name="all_reduce_spec" Value="xring"/>
+				<Attribute Name="controller" Value="12.12.12.25"/>
+				<Attribute Name="ps" Value="12.12.12.41"/>
+				<Attribute Name="workers" Value="12.12.12.41"/>
+				<Attribute Name="script" Value="$TF_BENCHMARKS_HOME/scripts/tf_cnn_benchmarks/"/>
+				<Attribute Name="model" Value="resnet152"/>
+				<Attribute Name="batch_size" Value="32"/>
+				<Attribute Name="num_gpus" Value="4"/>
+				<Attribute Name="server_protocol" Value="grpc+verbs"/>
+				<Attribute Name="data_dir" Value="/data/imagenet_data/"/>
+				<Attribute Name="base_port" Value="12345"/>
 				<Attribute Name="log_level" Value="0"/>
 				<Attribute Name="trace_file" Value=""/>
 				<Attribute Name="model_graph_file" Value=""/>
@@ -74,7 +120,7 @@
 				<Attribute Name="num_gpus" Value="1"/>
 				<Attribute Name="server_protocol" Value="grpc+verbs"/>
 				<Attribute Name="data_dir" Value="/data/imagenet_data/"/>
-				<Attribute Name="base_port" Value="5000"/>
+				<Attribute Name="base_port" Value="12345"/>
 				<Attribute Name="log_level" Value="0"/>
 				<Attribute Name="trace_file" Value=""/>
 				<Attribute Name="model_graph_file" Value=""/>
@@ -97,7 +143,30 @@
 				<Attribute Name="num_gpus" Value="2"/>
 				<Attribute Name="server_protocol" Value="grpc+verbs"/>
 				<Attribute Name="data_dir" Value="/data/imagenet_data/"/>
-				<Attribute Name="base_port" Value="5000"/>
+				<Attribute Name="base_port" Value="12345"/>
+				<Attribute Name="log_level" Value="0"/>
+				<Attribute Name="trace_file" Value=""/>
+				<Attribute Name="model_graph_file" Value=""/>
+				<Attribute Name="forward_only" Value="False"/>
+			</Attributes>
+		</Step>
+		<Step Class="TF CNN Benchmarks">
+			<Name Value="TF CNN Benchmarks"/>
+			<Enabled Value="True"/>
+			<Repeat Value="1"/>
+			<Attributes>
+				<Attribute Name="mode" Value="Parameter Server"/>
+				<Attribute Name="all_reduce_spec" Value="xring"/>
+				<Attribute Name="controller" Value="12.12.12.25"/>
+				<Attribute Name="ps" Value="12.12.12.41,12.12.12.42"/>
+				<Attribute Name="workers" Value="12.12.12.41,12.12.12.42"/>
+				<Attribute Name="script" Value="$TF_BENCHMARKS_HOME/scripts/tf_cnn_benchmarks/"/>
+				<Attribute Name="model" Value="resnet152"/>
+				<Attribute Name="batch_size" Value="32"/>
+				<Attribute Name="num_gpus" Value="3"/>
+				<Attribute Name="server_protocol" Value="grpc+verbs"/>
+				<Attribute Name="data_dir" Value="/data/imagenet_data/"/>
+				<Attribute Name="base_port" Value="12345"/>
 				<Attribute Name="log_level" Value="0"/>
 				<Attribute Name="trace_file" Value=""/>
 				<Attribute Name="model_graph_file" Value=""/>
@@ -120,7 +189,559 @@
 				<Attribute Name="num_gpus" Value="4"/>
 				<Attribute Name="server_protocol" Value="grpc+verbs"/>
 				<Attribute Name="data_dir" Value="/data/imagenet_data/"/>
-				<Attribute Name="base_port" Value="5000"/>
+				<Attribute Name="base_port" Value="12345"/>
+				<Attribute Name="log_level" Value="0"/>
+				<Attribute Name="trace_file" Value=""/>
+				<Attribute Name="model_graph_file" Value=""/>
+				<Attribute Name="forward_only" Value="False"/>
+			</Attributes>
+		</Step>
+		<Step Class="TF CNN Benchmarks">
+			<Name Value="TF CNN Benchmarks"/>
+			<Enabled Value="True"/>
+			<Repeat Value="1"/>
+			<Attributes>
+				<Attribute Name="mode" Value="Parameter Server"/>
+				<Attribute Name="all_reduce_spec" Value="xring"/>
+				<Attribute Name="controller" Value="12.12.12.25"/>
+				<Attribute Name="ps" Value="12.12.12.41,12.12.12.42,12.12.12.43"/>
+				<Attribute Name="workers" Value="12.12.12.41,12.12.12.42,12.12.12.43"/>
+				<Attribute Name="script" Value="$TF_BENCHMARKS_HOME/scripts/tf_cnn_benchmarks/"/>
+				<Attribute Name="model" Value="resnet152"/>
+				<Attribute Name="batch_size" Value="32"/>
+				<Attribute Name="num_gpus" Value="1"/>
+				<Attribute Name="server_protocol" Value="grpc+verbs"/>
+				<Attribute Name="data_dir" Value="/data/imagenet_data/"/>
+				<Attribute Name="base_port" Value="12345"/>
+				<Attribute Name="log_level" Value="0"/>
+				<Attribute Name="trace_file" Value=""/>
+				<Attribute Name="model_graph_file" Value=""/>
+				<Attribute Name="forward_only" Value="False"/>
+			</Attributes>
+		</Step>
+		<Step Class="TF CNN Benchmarks">
+			<Name Value="TF CNN Benchmarks"/>
+			<Enabled Value="True"/>
+			<Repeat Value="1"/>
+			<Attributes>
+				<Attribute Name="mode" Value="Parameter Server"/>
+				<Attribute Name="all_reduce_spec" Value="xring"/>
+				<Attribute Name="controller" Value="12.12.12.25"/>
+				<Attribute Name="ps" Value="12.12.12.41,12.12.12.42,12.12.12.43"/>
+				<Attribute Name="workers" Value="12.12.12.41,12.12.12.42,12.12.12.43"/>
+				<Attribute Name="script" Value="$TF_BENCHMARKS_HOME/scripts/tf_cnn_benchmarks/"/>
+				<Attribute Name="model" Value="resnet152"/>
+				<Attribute Name="batch_size" Value="32"/>
+				<Attribute Name="num_gpus" Value="2"/>
+				<Attribute Name="server_protocol" Value="grpc+verbs"/>
+				<Attribute Name="data_dir" Value="/data/imagenet_data/"/>
+				<Attribute Name="base_port" Value="12345"/>
+				<Attribute Name="log_level" Value="0"/>
+				<Attribute Name="trace_file" Value=""/>
+				<Attribute Name="model_graph_file" Value=""/>
+				<Attribute Name="forward_only" Value="False"/>
+			</Attributes>
+		</Step>
+		<Step Class="TF CNN Benchmarks">
+			<Name Value="TF CNN Benchmarks"/>
+			<Enabled Value="True"/>
+			<Repeat Value="1"/>
+			<Attributes>
+				<Attribute Name="mode" Value="Parameter Server"/>
+				<Attribute Name="all_reduce_spec" Value="xring"/>
+				<Attribute Name="controller" Value="12.12.12.25"/>
+				<Attribute Name="ps" Value="12.12.12.41,12.12.12.42,12.12.12.43"/>
+				<Attribute Name="workers" Value="12.12.12.41,12.12.12.42,12.12.12.43"/>
+				<Attribute Name="script" Value="$TF_BENCHMARKS_HOME/scripts/tf_cnn_benchmarks/"/>
+				<Attribute Name="model" Value="resnet152"/>
+				<Attribute Name="batch_size" Value="32"/>
+				<Attribute Name="num_gpus" Value="3"/>
+				<Attribute Name="server_protocol" Value="grpc+verbs"/>
+				<Attribute Name="data_dir" Value="/data/imagenet_data/"/>
+				<Attribute Name="base_port" Value="12345"/>
+				<Attribute Name="log_level" Value="0"/>
+				<Attribute Name="trace_file" Value=""/>
+				<Attribute Name="model_graph_file" Value=""/>
+				<Attribute Name="forward_only" Value="False"/>
+			</Attributes>
+		</Step>
+		<Step Class="TF CNN Benchmarks">
+			<Name Value="TF CNN Benchmarks"/>
+			<Enabled Value="True"/>
+			<Repeat Value="1"/>
+			<Attributes>
+				<Attribute Name="mode" Value="Parameter Server"/>
+				<Attribute Name="all_reduce_spec" Value="xring"/>
+				<Attribute Name="controller" Value="12.12.12.25"/>
+				<Attribute Name="ps" Value="12.12.12.41,12.12.12.42,12.12.12.43"/>
+				<Attribute Name="workers" Value="12.12.12.41,12.12.12.42,12.12.12.43"/>
+				<Attribute Name="script" Value="$TF_BENCHMARKS_HOME/scripts/tf_cnn_benchmarks/"/>
+				<Attribute Name="model" Value="resnet152"/>
+				<Attribute Name="batch_size" Value="32"/>
+				<Attribute Name="num_gpus" Value="4"/>
+				<Attribute Name="server_protocol" Value="grpc+verbs"/>
+				<Attribute Name="data_dir" Value="/data/imagenet_data/"/>
+				<Attribute Name="base_port" Value="12345"/>
+				<Attribute Name="log_level" Value="0"/>
+				<Attribute Name="trace_file" Value=""/>
+				<Attribute Name="model_graph_file" Value=""/>
+				<Attribute Name="forward_only" Value="False"/>
+			</Attributes>
+		</Step>
+		<Step Class="TF CNN Benchmarks">
+			<Name Value="TF CNN Benchmarks"/>
+			<Enabled Value="True"/>
+			<Repeat Value="1"/>
+			<Attributes>
+				<Attribute Name="mode" Value="Parameter Server"/>
+				<Attribute Name="all_reduce_spec" Value="xring"/>
+				<Attribute Name="controller" Value="12.12.12.25"/>
+				<Attribute Name="ps" Value="12.12.12.41,12.12.12.42,12.12.12.43,12.12.12.44"/>
+				<Attribute Name="workers" Value="12.12.12.41,12.12.12.42,12.12.12.43,12.12.12.44"/>
+				<Attribute Name="script" Value="$TF_BENCHMARKS_HOME/scripts/tf_cnn_benchmarks/"/>
+				<Attribute Name="model" Value="resnet152"/>
+				<Attribute Name="batch_size" Value="32"/>
+				<Attribute Name="num_gpus" Value="1"/>
+				<Attribute Name="server_protocol" Value="grpc+verbs"/>
+				<Attribute Name="data_dir" Value="/data/imagenet_data/"/>
+				<Attribute Name="base_port" Value="12345"/>
+				<Attribute Name="log_level" Value="0"/>
+				<Attribute Name="trace_file" Value=""/>
+				<Attribute Name="model_graph_file" Value=""/>
+				<Attribute Name="forward_only" Value="False"/>
+			</Attributes>
+		</Step>
+		<Step Class="TF CNN Benchmarks">
+			<Name Value="TF CNN Benchmarks"/>
+			<Enabled Value="True"/>
+			<Repeat Value="1"/>
+			<Attributes>
+				<Attribute Name="mode" Value="Parameter Server"/>
+				<Attribute Name="all_reduce_spec" Value="xring"/>
+				<Attribute Name="controller" Value="12.12.12.25"/>
+				<Attribute Name="ps" Value="12.12.12.41,12.12.12.42,12.12.12.43,12.12.12.44"/>
+				<Attribute Name="workers" Value="12.12.12.41,12.12.12.42,12.12.12.43,12.12.12.44"/>
+				<Attribute Name="script" Value="$TF_BENCHMARKS_HOME/scripts/tf_cnn_benchmarks/"/>
+				<Attribute Name="model" Value="resnet152"/>
+				<Attribute Name="batch_size" Value="32"/>
+				<Attribute Name="num_gpus" Value="2"/>
+				<Attribute Name="server_protocol" Value="grpc+verbs"/>
+				<Attribute Name="data_dir" Value="/data/imagenet_data/"/>
+				<Attribute Name="base_port" Value="12345"/>
+				<Attribute Name="log_level" Value="0"/>
+				<Attribute Name="trace_file" Value=""/>
+				<Attribute Name="model_graph_file" Value=""/>
+				<Attribute Name="forward_only" Value="False"/>
+			</Attributes>
+		</Step>
+		<Step Class="TF CNN Benchmarks">
+			<Name Value="TF CNN Benchmarks"/>
+			<Enabled Value="True"/>
+			<Repeat Value="1"/>
+			<Attributes>
+				<Attribute Name="mode" Value="Parameter Server"/>
+				<Attribute Name="all_reduce_spec" Value="xring"/>
+				<Attribute Name="controller" Value="12.12.12.25"/>
+				<Attribute Name="ps" Value="12.12.12.41,12.12.12.42,12.12.12.43,12.12.12.44"/>
+				<Attribute Name="workers" Value="12.12.12.41,12.12.12.42,12.12.12.43,12.12.12.44"/>
+				<Attribute Name="script" Value="$TF_BENCHMARKS_HOME/scripts/tf_cnn_benchmarks/"/>
+				<Attribute Name="model" Value="resnet152"/>
+				<Attribute Name="batch_size" Value="32"/>
+				<Attribute Name="num_gpus" Value="3"/>
+				<Attribute Name="server_protocol" Value="grpc+verbs"/>
+				<Attribute Name="data_dir" Value="/data/imagenet_data/"/>
+				<Attribute Name="base_port" Value="12345"/>
+				<Attribute Name="log_level" Value="0"/>
+				<Attribute Name="trace_file" Value=""/>
+				<Attribute Name="model_graph_file" Value=""/>
+				<Attribute Name="forward_only" Value="False"/>
+			</Attributes>
+		</Step>
+		<Step Class="TF CNN Benchmarks">
+			<Name Value="TF CNN Benchmarks"/>
+			<Enabled Value="True"/>
+			<Repeat Value="1"/>
+			<Attributes>
+				<Attribute Name="mode" Value="Parameter Server"/>
+				<Attribute Name="all_reduce_spec" Value="xring"/>
+				<Attribute Name="controller" Value="12.12.12.25"/>
+				<Attribute Name="ps" Value="12.12.12.41,12.12.12.42,12.12.12.43,12.12.12.44"/>
+				<Attribute Name="workers" Value="12.12.12.41,12.12.12.42,12.12.12.43,12.12.12.44"/>
+				<Attribute Name="script" Value="$TF_BENCHMARKS_HOME/scripts/tf_cnn_benchmarks/"/>
+				<Attribute Name="model" Value="resnet152"/>
+				<Attribute Name="batch_size" Value="32"/>
+				<Attribute Name="num_gpus" Value="4"/>
+				<Attribute Name="server_protocol" Value="grpc+verbs"/>
+				<Attribute Name="data_dir" Value="/data/imagenet_data/"/>
+				<Attribute Name="base_port" Value="12345"/>
+				<Attribute Name="log_level" Value="0"/>
+				<Attribute Name="trace_file" Value=""/>
+				<Attribute Name="model_graph_file" Value=""/>
+				<Attribute Name="forward_only" Value="False"/>
+			</Attributes>
+		</Step>
+		<Step Class="TF CNN Benchmarks">
+			<Name Value="TF CNN Benchmarks"/>
+			<Enabled Value="True"/>
+			<Repeat Value="1"/>
+			<Attributes>
+				<Attribute Name="mode" Value="Parameter Server"/>
+				<Attribute Name="all_reduce_spec" Value="xring"/>
+				<Attribute Name="controller" Value="12.12.12.25"/>
+				<Attribute Name="ps" Value="12.12.12.41,12.12.12.42,12.12.12.43,12.12.12.44,12.12.12.45"/>
+				<Attribute Name="workers" Value="12.12.12.41,12.12.12.42,12.12.12.43,12.12.12.44,12.12.12.45"/>
+				<Attribute Name="script" Value="$TF_BENCHMARKS_HOME/scripts/tf_cnn_benchmarks/"/>
+				<Attribute Name="model" Value="resnet152"/>
+				<Attribute Name="batch_size" Value="32"/>
+				<Attribute Name="num_gpus" Value="1"/>
+				<Attribute Name="server_protocol" Value="grpc+verbs"/>
+				<Attribute Name="data_dir" Value="/data/imagenet_data/"/>
+				<Attribute Name="base_port" Value="12345"/>
+				<Attribute Name="log_level" Value="0"/>
+				<Attribute Name="trace_file" Value=""/>
+				<Attribute Name="model_graph_file" Value=""/>
+				<Attribute Name="forward_only" Value="False"/>
+			</Attributes>
+		</Step>
+		<Step Class="TF CNN Benchmarks">
+			<Name Value="TF CNN Benchmarks"/>
+			<Enabled Value="True"/>
+			<Repeat Value="1"/>
+			<Attributes>
+				<Attribute Name="mode" Value="Parameter Server"/>
+				<Attribute Name="all_reduce_spec" Value="xring"/>
+				<Attribute Name="controller" Value="12.12.12.25"/>
+				<Attribute Name="ps" Value="12.12.12.41,12.12.12.42,12.12.12.43,12.12.12.44,12.12.12.45"/>
+				<Attribute Name="workers" Value="12.12.12.41,12.12.12.42,12.12.12.43,12.12.12.44,12.12.12.45"/>
+				<Attribute Name="script" Value="$TF_BENCHMARKS_HOME/scripts/tf_cnn_benchmarks/"/>
+				<Attribute Name="model" Value="resnet152"/>
+				<Attribute Name="batch_size" Value="32"/>
+				<Attribute Name="num_gpus" Value="2"/>
+				<Attribute Name="server_protocol" Value="grpc+verbs"/>
+				<Attribute Name="data_dir" Value="/data/imagenet_data/"/>
+				<Attribute Name="base_port" Value="12345"/>
+				<Attribute Name="log_level" Value="0"/>
+				<Attribute Name="trace_file" Value=""/>
+				<Attribute Name="model_graph_file" Value=""/>
+				<Attribute Name="forward_only" Value="False"/>
+			</Attributes>
+		</Step>
+		<Step Class="TF CNN Benchmarks">
+			<Name Value="TF CNN Benchmarks"/>
+			<Enabled Value="True"/>
+			<Repeat Value="1"/>
+			<Attributes>
+				<Attribute Name="mode" Value="Parameter Server"/>
+				<Attribute Name="all_reduce_spec" Value="xring"/>
+				<Attribute Name="controller" Value="12.12.12.25"/>
+				<Attribute Name="ps" Value="12.12.12.41,12.12.12.42,12.12.12.43,12.12.12.44,12.12.12.45"/>
+				<Attribute Name="workers" Value="12.12.12.41,12.12.12.42,12.12.12.43,12.12.12.44,12.12.12.45"/>
+				<Attribute Name="script" Value="$TF_BENCHMARKS_HOME/scripts/tf_cnn_benchmarks/"/>
+				<Attribute Name="model" Value="resnet152"/>
+				<Attribute Name="batch_size" Value="32"/>
+				<Attribute Name="num_gpus" Value="3"/>
+				<Attribute Name="server_protocol" Value="grpc+verbs"/>
+				<Attribute Name="data_dir" Value="/data/imagenet_data/"/>
+				<Attribute Name="base_port" Value="12345"/>
+				<Attribute Name="log_level" Value="0"/>
+				<Attribute Name="trace_file" Value=""/>
+				<Attribute Name="model_graph_file" Value=""/>
+				<Attribute Name="forward_only" Value="False"/>
+			</Attributes>
+		</Step>
+		<Step Class="TF CNN Benchmarks">
+			<Name Value="TF CNN Benchmarks"/>
+			<Enabled Value="True"/>
+			<Repeat Value="1"/>
+			<Attributes>
+				<Attribute Name="mode" Value="Parameter Server"/>
+				<Attribute Name="all_reduce_spec" Value="xring"/>
+				<Attribute Name="controller" Value="12.12.12.25"/>
+				<Attribute Name="ps" Value="12.12.12.41,12.12.12.42,12.12.12.43,12.12.12.44,12.12.12.45"/>
+				<Attribute Name="workers" Value="12.12.12.41,12.12.12.42,12.12.12.43,12.12.12.44,12.12.12.45"/>
+				<Attribute Name="script" Value="$TF_BENCHMARKS_HOME/scripts/tf_cnn_benchmarks/"/>
+				<Attribute Name="model" Value="resnet152"/>
+				<Attribute Name="batch_size" Value="32"/>
+				<Attribute Name="num_gpus" Value="4"/>
+				<Attribute Name="server_protocol" Value="grpc+verbs"/>
+				<Attribute Name="data_dir" Value="/data/imagenet_data/"/>
+				<Attribute Name="base_port" Value="12345"/>
+				<Attribute Name="log_level" Value="0"/>
+				<Attribute Name="trace_file" Value=""/>
+				<Attribute Name="model_graph_file" Value=""/>
+				<Attribute Name="forward_only" Value="False"/>
+			</Attributes>
+		</Step>
+		<Step Class="TF CNN Benchmarks">
+			<Name Value="TF CNN Benchmarks"/>
+			<Enabled Value="True"/>
+			<Repeat Value="1"/>
+			<Attributes>
+				<Attribute Name="mode" Value="Parameter Server"/>
+				<Attribute Name="all_reduce_spec" Value="xring"/>
+				<Attribute Name="controller" Value="12.12.12.25"/>
+				<Attribute Name="ps" Value="12.12.12.41,12.12.12.42,12.12.12.43,12.12.12.44,12.12.12.45,12.12.12.46"/>
+				<Attribute Name="workers" Value="12.12.12.41,12.12.12.42,12.12.12.43,12.12.12.44,12.12.12.45,12.12.12.46"/>
+				<Attribute Name="script" Value="$TF_BENCHMARKS_HOME/scripts/tf_cnn_benchmarks/"/>
+				<Attribute Name="model" Value="resnet152"/>
+				<Attribute Name="batch_size" Value="32"/>
+				<Attribute Name="num_gpus" Value="1"/>
+				<Attribute Name="server_protocol" Value="grpc+verbs"/>
+				<Attribute Name="data_dir" Value="/data/imagenet_data/"/>
+				<Attribute Name="base_port" Value="12345"/>
+				<Attribute Name="log_level" Value="0"/>
+				<Attribute Name="trace_file" Value=""/>
+				<Attribute Name="model_graph_file" Value=""/>
+				<Attribute Name="forward_only" Value="False"/>
+			</Attributes>
+		</Step>
+		<Step Class="TF CNN Benchmarks">
+			<Name Value="TF CNN Benchmarks"/>
+			<Enabled Value="True"/>
+			<Repeat Value="1"/>
+			<Attributes>
+				<Attribute Name="mode" Value="Parameter Server"/>
+				<Attribute Name="all_reduce_spec" Value="xring"/>
+				<Attribute Name="controller" Value="12.12.12.25"/>
+				<Attribute Name="ps" Value="12.12.12.41,12.12.12.42,12.12.12.43,12.12.12.44,12.12.12.45,12.12.12.46"/>
+				<Attribute Name="workers" Value="12.12.12.41,12.12.12.42,12.12.12.43,12.12.12.44,12.12.12.45,12.12.12.46"/>
+				<Attribute Name="script" Value="$TF_BENCHMARKS_HOME/scripts/tf_cnn_benchmarks/"/>
+				<Attribute Name="model" Value="resnet152"/>
+				<Attribute Name="batch_size" Value="32"/>
+				<Attribute Name="num_gpus" Value="2"/>
+				<Attribute Name="server_protocol" Value="grpc+verbs"/>
+				<Attribute Name="data_dir" Value="/data/imagenet_data/"/>
+				<Attribute Name="base_port" Value="12345"/>
+				<Attribute Name="log_level" Value="0"/>
+				<Attribute Name="trace_file" Value=""/>
+				<Attribute Name="model_graph_file" Value=""/>
+				<Attribute Name="forward_only" Value="False"/>
+			</Attributes>
+		</Step>
+		<Step Class="TF CNN Benchmarks">
+			<Name Value="TF CNN Benchmarks"/>
+			<Enabled Value="True"/>
+			<Repeat Value="1"/>
+			<Attributes>
+				<Attribute Name="mode" Value="Parameter Server"/>
+				<Attribute Name="all_reduce_spec" Value="xring"/>
+				<Attribute Name="controller" Value="12.12.12.25"/>
+				<Attribute Name="ps" Value="12.12.12.41,12.12.12.42,12.12.12.43,12.12.12.44,12.12.12.45,12.12.12.46"/>
+				<Attribute Name="workers" Value="12.12.12.41,12.12.12.42,12.12.12.43,12.12.12.44,12.12.12.45,12.12.12.46"/>
+				<Attribute Name="script" Value="$TF_BENCHMARKS_HOME/scripts/tf_cnn_benchmarks/"/>
+				<Attribute Name="model" Value="resnet152"/>
+				<Attribute Name="batch_size" Value="32"/>
+				<Attribute Name="num_gpus" Value="3"/>
+				<Attribute Name="server_protocol" Value="grpc+verbs"/>
+				<Attribute Name="data_dir" Value="/data/imagenet_data/"/>
+				<Attribute Name="base_port" Value="12345"/>
+				<Attribute Name="log_level" Value="0"/>
+				<Attribute Name="trace_file" Value=""/>
+				<Attribute Name="model_graph_file" Value=""/>
+				<Attribute Name="forward_only" Value="False"/>
+			</Attributes>
+		</Step>
+		<Step Class="TF CNN Benchmarks">
+			<Name Value="TF CNN Benchmarks"/>
+			<Enabled Value="True"/>
+			<Repeat Value="1"/>
+			<Attributes>
+				<Attribute Name="mode" Value="Parameter Server"/>
+				<Attribute Name="all_reduce_spec" Value="xring"/>
+				<Attribute Name="controller" Value="12.12.12.25"/>
+				<Attribute Name="ps" Value="12.12.12.41,12.12.12.42,12.12.12.43,12.12.12.44,12.12.12.45,12.12.12.46"/>
+				<Attribute Name="workers" Value="12.12.12.41,12.12.12.42,12.12.12.43,12.12.12.44,12.12.12.45,12.12.12.46"/>
+				<Attribute Name="script" Value="$TF_BENCHMARKS_HOME/scripts/tf_cnn_benchmarks/"/>
+				<Attribute Name="model" Value="resnet152"/>
+				<Attribute Name="batch_size" Value="32"/>
+				<Attribute Name="num_gpus" Value="4"/>
+				<Attribute Name="server_protocol" Value="grpc+verbs"/>
+				<Attribute Name="data_dir" Value="/data/imagenet_data/"/>
+				<Attribute Name="base_port" Value="12345"/>
+				<Attribute Name="log_level" Value="0"/>
+				<Attribute Name="trace_file" Value=""/>
+				<Attribute Name="model_graph_file" Value=""/>
+				<Attribute Name="forward_only" Value="False"/>
+			</Attributes>
+		</Step>
+		<Step Class="TF CNN Benchmarks">
+			<Name Value="TF CNN Benchmarks"/>
+			<Enabled Value="True"/>
+			<Repeat Value="1"/>
+			<Attributes>
+				<Attribute Name="mode" Value="Parameter Server"/>
+				<Attribute Name="all_reduce_spec" Value="xring"/>
+				<Attribute Name="controller" Value="12.12.12.25"/>
+				<Attribute Name="ps" Value="12.12.12.41,12.12.12.42,12.12.12.43,12.12.12.44,12.12.12.45,12.12.12.46,12.12.12.47"/>
+				<Attribute Name="workers" Value="12.12.12.41,12.12.12.42,12.12.12.43,12.12.12.44,12.12.12.45,12.12.12.46,12.12.12.47"/>
+				<Attribute Name="script" Value="$TF_BENCHMARKS_HOME/scripts/tf_cnn_benchmarks/"/>
+				<Attribute Name="model" Value="resnet152"/>
+				<Attribute Name="batch_size" Value="32"/>
+				<Attribute Name="num_gpus" Value="1"/>
+				<Attribute Name="server_protocol" Value="grpc+verbs"/>
+				<Attribute Name="data_dir" Value="/data/imagenet_data/"/>
+				<Attribute Name="base_port" Value="12345"/>
+				<Attribute Name="log_level" Value="0"/>
+				<Attribute Name="trace_file" Value=""/>
+				<Attribute Name="model_graph_file" Value=""/>
+				<Attribute Name="forward_only" Value="False"/>
+			</Attributes>
+		</Step>
+		<Step Class="TF CNN Benchmarks">
+			<Name Value="TF CNN Benchmarks"/>
+			<Enabled Value="True"/>
+			<Repeat Value="1"/>
+			<Attributes>
+				<Attribute Name="mode" Value="Parameter Server"/>
+				<Attribute Name="all_reduce_spec" Value="xring"/>
+				<Attribute Name="controller" Value="12.12.12.25"/>
+				<Attribute Name="ps" Value="12.12.12.41,12.12.12.42,12.12.12.43,12.12.12.44,12.12.12.45,12.12.12.46,12.12.12.47"/>
+				<Attribute Name="workers" Value="12.12.12.41,12.12.12.42,12.12.12.43,12.12.12.44,12.12.12.45,12.12.12.46,12.12.12.47"/>
+				<Attribute Name="script" Value="$TF_BENCHMARKS_HOME/scripts/tf_cnn_benchmarks/"/>
+				<Attribute Name="model" Value="resnet152"/>
+				<Attribute Name="batch_size" Value="32"/>
+				<Attribute Name="num_gpus" Value="2"/>
+				<Attribute Name="server_protocol" Value="grpc+verbs"/>
+				<Attribute Name="data_dir" Value="/data/imagenet_data/"/>
+				<Attribute Name="base_port" Value="12345"/>
+				<Attribute Name="log_level" Value="0"/>
+				<Attribute Name="trace_file" Value=""/>
+				<Attribute Name="model_graph_file" Value=""/>
+				<Attribute Name="forward_only" Value="False"/>
+			</Attributes>
+		</Step>
+		<Step Class="TF CNN Benchmarks">
+			<Name Value="TF CNN Benchmarks"/>
+			<Enabled Value="True"/>
+			<Repeat Value="1"/>
+			<Attributes>
+				<Attribute Name="mode" Value="Parameter Server"/>
+				<Attribute Name="all_reduce_spec" Value="xring"/>
+				<Attribute Name="controller" Value="12.12.12.25"/>
+				<Attribute Name="ps" Value="12.12.12.41,12.12.12.42,12.12.12.43,12.12.12.44,12.12.12.45,12.12.12.46,12.12.12.47"/>
+				<Attribute Name="workers" Value="12.12.12.41,12.12.12.42,12.12.12.43,12.12.12.44,12.12.12.45,12.12.12.46,12.12.12.47"/>
+				<Attribute Name="script" Value="$TF_BENCHMARKS_HOME/scripts/tf_cnn_benchmarks/"/>
+				<Attribute Name="model" Value="resnet152"/>
+				<Attribute Name="batch_size" Value="32"/>
+				<Attribute Name="num_gpus" Value="3"/>
+				<Attribute Name="server_protocol" Value="grpc+verbs"/>
+				<Attribute Name="data_dir" Value="/data/imagenet_data/"/>
+				<Attribute Name="base_port" Value="12345"/>
+				<Attribute Name="log_level" Value="0"/>
+				<Attribute Name="trace_file" Value=""/>
+				<Attribute Name="model_graph_file" Value=""/>
+				<Attribute Name="forward_only" Value="False"/>
+			</Attributes>
+		</Step>
+		<Step Class="TF CNN Benchmarks">
+			<Name Value="TF CNN Benchmarks"/>
+			<Enabled Value="True"/>
+			<Repeat Value="1"/>
+			<Attributes>
+				<Attribute Name="mode" Value="Parameter Server"/>
+				<Attribute Name="all_reduce_spec" Value="xring"/>
+				<Attribute Name="controller" Value="12.12.12.25"/>
+				<Attribute Name="ps" Value="12.12.12.41,12.12.12.42,12.12.12.43,12.12.12.44,12.12.12.45,12.12.12.46,12.12.12.47"/>
+				<Attribute Name="workers" Value="12.12.12.41,12.12.12.42,12.12.12.43,12.12.12.44,12.12.12.45,12.12.12.46,12.12.12.47"/>
+				<Attribute Name="script" Value="$TF_BENCHMARKS_HOME/scripts/tf_cnn_benchmarks/"/>
+				<Attribute Name="model" Value="resnet152"/>
+				<Attribute Name="batch_size" Value="32"/>
+				<Attribute Name="num_gpus" Value="4"/>
+				<Attribute Name="server_protocol" Value="grpc+verbs"/>
+				<Attribute Name="data_dir" Value="/data/imagenet_data/"/>
+				<Attribute Name="base_port" Value="12345"/>
+				<Attribute Name="log_level" Value="0"/>
+				<Attribute Name="trace_file" Value=""/>
+				<Attribute Name="model_graph_file" Value=""/>
+				<Attribute Name="forward_only" Value="False"/>
+			</Attributes>
+		</Step>
+		<Step Class="TF CNN Benchmarks">
+			<Name Value="TF CNN Benchmarks"/>
+			<Enabled Value="True"/>
+			<Repeat Value="1"/>
+			<Attributes>
+				<Attribute Name="mode" Value="Parameter Server"/>
+				<Attribute Name="all_reduce_spec" Value="xring"/>
+				<Attribute Name="controller" Value="12.12.12.25"/>
+				<Attribute Name="ps" Value="12.12.12.41,12.12.12.42,12.12.12.43,12.12.12.44,12.12.12.45,12.12.12.46,12.12.12.47,12.12.12.48"/>
+				<Attribute Name="workers" Value="12.12.12.41,12.12.12.42,12.12.12.43,12.12.12.44,12.12.12.45,12.12.12.46,12.12.12.47,12.12.12.48"/>
+				<Attribute Name="script" Value="$TF_BENCHMARKS_HOME/scripts/tf_cnn_benchmarks/"/>
+				<Attribute Name="model" Value="resnet152"/>
+				<Attribute Name="batch_size" Value="32"/>
+				<Attribute Name="num_gpus" Value="1"/>
+				<Attribute Name="server_protocol" Value="grpc+verbs"/>
+				<Attribute Name="data_dir" Value="/data/imagenet_data/"/>
+				<Attribute Name="base_port" Value="12345"/>
+				<Attribute Name="log_level" Value="0"/>
+				<Attribute Name="trace_file" Value=""/>
+				<Attribute Name="model_graph_file" Value=""/>
+				<Attribute Name="forward_only" Value="False"/>
+			</Attributes>
+		</Step>
+		<Step Class="TF CNN Benchmarks">
+			<Name Value="TF CNN Benchmarks"/>
+			<Enabled Value="True"/>
+			<Repeat Value="1"/>
+			<Attributes>
+				<Attribute Name="mode" Value="Parameter Server"/>
+				<Attribute Name="all_reduce_spec" Value="xring"/>
+				<Attribute Name="controller" Value="12.12.12.25"/>
+				<Attribute Name="ps" Value="12.12.12.41,12.12.12.42,12.12.12.43,12.12.12.44,12.12.12.45,12.12.12.46,12.12.12.47,12.12.12.48"/>
+				<Attribute Name="workers" Value="12.12.12.41,12.12.12.42,12.12.12.43,12.12.12.44,12.12.12.45,12.12.12.46,12.12.12.47,12.12.12.48"/>
+				<Attribute Name="script" Value="$TF_BENCHMARKS_HOME/scripts/tf_cnn_benchmarks/"/>
+				<Attribute Name="model" Value="resnet152"/>
+				<Attribute Name="batch_size" Value="32"/>
+				<Attribute Name="num_gpus" Value="2"/>
+				<Attribute Name="server_protocol" Value="grpc+verbs"/>
+				<Attribute Name="data_dir" Value="/data/imagenet_data/"/>
+				<Attribute Name="base_port" Value="12345"/>
+				<Attribute Name="log_level" Value="0"/>
+				<Attribute Name="trace_file" Value=""/>
+				<Attribute Name="model_graph_file" Value=""/>
+				<Attribute Name="forward_only" Value="False"/>
+			</Attributes>
+		</Step>
+		<Step Class="TF CNN Benchmarks">
+			<Name Value="TF CNN Benchmarks"/>
+			<Enabled Value="True"/>
+			<Repeat Value="1"/>
+			<Attributes>
+				<Attribute Name="mode" Value="Parameter Server"/>
+				<Attribute Name="all_reduce_spec" Value="xring"/>
+				<Attribute Name="controller" Value="12.12.12.25"/>
+				<Attribute Name="ps" Value="12.12.12.41,12.12.12.42,12.12.12.43,12.12.12.44,12.12.12.45,12.12.12.46,12.12.12.47,12.12.12.48"/>
+				<Attribute Name="workers" Value="12.12.12.41,12.12.12.42,12.12.12.43,12.12.12.44,12.12.12.45,12.12.12.46,12.12.12.47,12.12.12.48"/>
+				<Attribute Name="script" Value="$TF_BENCHMARKS_HOME/scripts/tf_cnn_benchmarks/"/>
+				<Attribute Name="model" Value="resnet152"/>
+				<Attribute Name="batch_size" Value="32"/>
+				<Attribute Name="num_gpus" Value="3"/>
+				<Attribute Name="server_protocol" Value="grpc+verbs"/>
+				<Attribute Name="data_dir" Value="/data/imagenet_data/"/>
+				<Attribute Name="base_port" Value="12345"/>
+				<Attribute Name="log_level" Value="0"/>
+				<Attribute Name="trace_file" Value=""/>
+				<Attribute Name="model_graph_file" Value=""/>
+				<Attribute Name="forward_only" Value="False"/>
+			</Attributes>
+		</Step>
+		<Step Class="TF CNN Benchmarks">
+			<Name Value="TF CNN Benchmarks"/>
+			<Enabled Value="True"/>
+			<Repeat Value="1"/>
+			<Attributes>
+				<Attribute Name="mode" Value="Parameter Server"/>
+				<Attribute Name="all_reduce_spec" Value="xring"/>
+				<Attribute Name="controller" Value="12.12.12.25"/>
+				<Attribute Name="ps" Value="12.12.12.41,12.12.12.42,12.12.12.43,12.12.12.44,12.12.12.45,12.12.12.46,12.12.12.47,12.12.12.48"/>
+				<Attribute Name="workers" Value="12.12.12.41,12.12.12.42,12.12.12.43,12.12.12.44,12.12.12.45,12.12.12.46,12.12.12.47,12.12.12.48"/>
+				<Attribute Name="script" Value="$TF_BENCHMARKS_HOME/scripts/tf_cnn_benchmarks/"/>
+				<Attribute Name="model" Value="resnet152"/>
+				<Attribute Name="batch_size" Value="32"/>
+				<Attribute Name="num_gpus" Value="4"/>
+				<Attribute Name="server_protocol" Value="grpc+verbs"/>
+				<Attribute Name="data_dir" Value="/data/imagenet_data/"/>
+				<Attribute Name="base_port" Value="12345"/>
 				<Attribute Name="log_level" Value="0"/>
 				<Attribute Name="trace_file" Value=""/>
 				<Attribute Name="model_graph_file" Value=""/>
