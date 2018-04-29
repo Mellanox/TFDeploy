@@ -94,6 +94,16 @@ class TFCnnBenchmarksStep(Step):
     class AttributesWidget(DefaultAttributesWidget):
         def __init__(self, attributes, parent = None):
             super(TFCnnBenchmarksStep.AttributesWidget, self).__init__(attributes, parent = None)
+            self._refreshMode()
+                    
+        # ---------------------------------------- #
+            
+        def _onFieldChanged(self, field_index, val):
+            if field_index == TFCnnBenchmarksStep.ATTRIBUTE_ID_MODE:
+                self._setMode(val)
+            DefaultAttributesWidget._onFieldChanged(self, field_index, val) 
+        
+        # ---------------------------------------- #
         
         def _setMode(self, val):
             if val in TFCnnBenchmarksStep.MODE_NAMES:
@@ -110,12 +120,15 @@ class TFCnnBenchmarksStep(Step):
             self._showField(TFCnnBenchmarksStep.ATTRIBUTE_ID_CONTROLLER, is_distributed_all_reduce)
             self._showField(TFCnnBenchmarksStep.ATTRIBUTE_ID_PS, is_parameter_server)
             self._showField(TFCnnBenchmarksStep.ATTRIBUTE_ID_SERVER_PROTOCOL, not is_local)
-            
-        def _onFieldChanged(self, field_index, val):
-            if field_index == TFCnnBenchmarksStep.ATTRIBUTE_ID_MODE:
-                self._setMode(val)
-            DefaultAttributesWidget._onFieldChanged(self, field_index, val) 
-            
+        
+        # ---------------------------------------- #
+        
+        def _refreshMode(self):
+            mode = self._getFieldValue(TFCnnBenchmarksStep.ATTRIBUTE_ID_MODE)
+            self._setMode(mode)
+       
+        # ---------------------------------------- #
+        
         def load(self, values):
             DefaultAttributesWidget.load(self, values)
             mode = self._getFieldValue(TFCnnBenchmarksStep.ATTRIBUTE_ID_MODE)
