@@ -4,8 +4,9 @@ setup(
 	name="MLTester",
 	version="1.0",
 	packages=["mltester",
-                  "mltester.actions",
-                  "mltester.dialogs"],
+	          "mltester.actions",
+	          "mltester.dialogs"],
+	package_data={'mltester': ['images/*']},	
 	install_requires=[
 		"matplotlib",
 		"CommonPyLib>=1.0.2",

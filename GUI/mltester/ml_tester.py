@@ -3,6 +3,7 @@
 
 import argparse
 import os
+import pkg_resources
 import re
 import sys
 import threading
@@ -69,6 +70,12 @@ def confSet(key, value, writeback = True):
          
 def confGet(key, default = None):
     return conf.get(key, default)
+
+#--------------------------------------------------------------------#
+
+def _res(resource_path):
+    pkg_name = os.path.basename(os.path.dirname(__file__))
+    return pkg_resources.resource_filename(pkg_name, resource_path)
 
 #############################################################################
 
@@ -467,37 +474,36 @@ class MLTester(QMainWindow):
         self.window_menu     = MenuWithToolbar(self, "&Window")
         self.help_menu       = MenuWithToolbar(self, "&Help")
                 
-        self.newAction       = ActionWithButton(self.file_menu, "images/new.jpeg",              "&New",             "Ctrl+N",       self._newAction)
-        self.openAction      = ActionWithButton(self.file_menu, "images/open.jpeg",             "&Open...",         "Ctrl+O",       self._openAction)
-        self.saveAction      = ActionWithButton(self.file_menu, "images/save.jpeg",             "&Save",            "Ctrl+S",       self._saveAction)
-        self.saveAsAction    = ActionWithButton(self.file_menu, "images/save_as.jpeg",          "Save &As...",      "",             self._saveAction)
-        self.file_menu.menu.addSeparator()                                                                                          
-        self.quitAction      = ActionWithButton(self.file_menu, "images/save_as.jpeg",          "E&xit",            "Alt+F4",       qApp.quit)
+        self.newAction       = ActionWithButton(self.file_menu,   _res("images/new.jpeg"),             "&New",             "Ctrl+N",       self._newAction)
+        self.openAction      = ActionWithButton(self.file_menu,   _res("images/open.jpeg"),            "&Open...",         "Ctrl+O",       self._openAction)
+        self.saveAction      = ActionWithButton(self.file_menu,   _res("images/save.jpeg"),            "&Save",            "Ctrl+S",       self._saveAction)
+        self.saveAsAction    = ActionWithButton(self.file_menu,   _res("images/save_as.jpeg"),         "Save &As...",      "",             self._saveAction)
+        self.file_menu.menu.addSeparator()
+        self.quitAction      = ActionWithButton(self.file_menu,   _res("images/save_as.jpeg"),         "E&xit",            "Alt+F4",       qApp.quit)
                                                                                                                                     
-        self.addAction       = ActionWithButton(self.edit_menu, "images/add.jpg",               "Add...",           "Ctrl++",       self._addActionHandler)
-        self.cutAction       = ActionWithButton(self.edit_menu, "images/cut.png",               "Cut",              "Ctrl+X",       self._cutActionHandler, enabled=False)
-        self.copyAction      = ActionWithButton(self.edit_menu, "images/copy.png",              "Copy",             "Ctrl+C",       self._copyActionHandler, enabled=False)
-        self.pasteAction     = ActionWithButton(self.edit_menu, "images/paste.png",             "Paste",            "Ctrl+V",       self._pasteAfterActionHandler, enabled=False)
-        self.pasteBeforeAction = ActionWithButton(self.edit_menu, "images/paste.png",           "Paste Before",     "Ctrl+Shift+V", self._pasteBeforeActionHandler, enabled=False)
-        self.removeAction    = ActionWithButton(self.edit_menu, "images/remove.jpg",            "Remove",           "Del",          self._removeActionHandler, enabled=False)
-        self.checkAction     = ActionWithButton(self.edit_menu, "images/check.jpg",             "Check/Uncheck",    "Ctrl+Space",   self._checkActionHandler, enabled=False)
-        self.moveUpAction    = ActionWithButton(self.edit_menu, "images/move_up.jpg",           "MoveUp",           "Ctrl+Up",      self._moveUpActionHandler, enabled=False)
-        self.moveDownAction  = ActionWithButton(self.edit_menu, "images/move_down.jpg",         "MoveDown",         "Ctrl+Down",    self._moveDownActionHandler, enabled=False)
+        self.addAction       = ActionWithButton(self.edit_menu,   _res("images/add.jpg"),              "Add...",           "Ctrl++",       self._addActionHandler)
+        self.cutAction       = ActionWithButton(self.edit_menu,   _res("images/cut.png"),              "Cut",              "Ctrl+X",       self._cutActionHandler, enabled=False)
+        self.copyAction      = ActionWithButton(self.edit_menu,   _res("images/copy.png"),             "Copy",             "Ctrl+C",       self._copyActionHandler, enabled=False)
+        self.pasteAction     = ActionWithButton(self.edit_menu,   _res("images/paste.png"),            "Paste",            "Ctrl+V",       self._pasteAfterActionHandler, enabled=False)
+        self.pasteBeforeAction = ActionWithButton(self.edit_menu, _res("images/paste.png"),            "Paste Before",     "Ctrl+Shift+V", self._pasteBeforeActionHandler, enabled=False)
+        self.removeAction    = ActionWithButton(self.edit_menu,   _res("images/remove.jpg"),           "Remove",           "Del",          self._removeActionHandler, enabled=False)
+        self.checkAction     = ActionWithButton(self.edit_menu,   _res("images/check.jpg"),            "Check/Uncheck",    "Ctrl+Space",   self._checkActionHandler, enabled=False)
+        self.moveUpAction    = ActionWithButton(self.edit_menu,   _res("images/move_up.jpg"),          "MoveUp",           "Ctrl+Up",      self._moveUpActionHandler, enabled=False)
+        self.moveDownAction  = ActionWithButton(self.edit_menu,   _res("images/move_down.jpg"),        "MoveDown",         "Ctrl+Down",    self._moveDownActionHandler, enabled=False)
         
-        self.startAction     = ActionWithButton(self.run_menu,  "images/start.jpg",             "Start",            "Ctrl+F5",      self._runActionHandler)
-        self.stopAction      = ActionWithButton(self.run_menu,  "images/stop.jpg",              "Stop",             "Ctrl+F11",     self._stopActionHandler, enabled=False)
+        self.startAction     = ActionWithButton(self.run_menu,    _res("images/start.jpg"),            "Start",            "Ctrl+F5",      self._runActionHandler)
+        self.stopAction      = ActionWithButton(self.run_menu,    _res("images/stop.jpg"),             "Stop",             "Ctrl+F11",     self._stopActionHandler, enabled=False)
         
-        self.closeWinsAction = ActionWithButton(self.window_menu,"images/close_windows.jpeg",   "&Close Windows",    "",            self._closeAllWindowsActionHandler)
-        self.closeWinsAction = ActionWithButton(self.window_menu,"images/cascade_windows.jpeg", "C&ascade Windows",  "",            self._cascadeWindowsActionHandler)
-        self.closeWinsAction = ActionWithButton(self.window_menu,"images/tile_windows.jpeg",    "&Tile Windows",     "",            self._tileWindowsActionHandler)
-        self.editAction      = ActionWithButton(self.window_menu,"images/edit.jpg",             "Show &Edit Pane",  "Ctrl+E",       self._showEditPaneActionHandler, checkable=True, checked=True)
-        self.showNaviAction  = ActionWithButton(self.window_menu,"images/show_navigator.jpeg",  "Show &Navigator",  "Ctrl+R",       self._showNavigatorActionHandler, checkable=True, checked=True)
-        self.showGraphsAction= ActionWithButton(self.window_menu,"images/graphs.jpeg",          "Show Graphs",      "Ctrl+G",       self._showGraphsActionHandler, enabled=False)
+        self.closeWinsAction = ActionWithButton(self.window_menu, _res("images/close_windows.jpeg"),   "&Close Windows",    "",            self._closeAllWindowsActionHandler)
+        self.closeWinsAction = ActionWithButton(self.window_menu, _res("images/cascade_windows.jpeg"), "C&ascade Windows",  "",            self._cascadeWindowsActionHandler)
+        self.closeWinsAction = ActionWithButton(self.window_menu, _res("images/tile_windows.jpeg"),    "&Tile Windows",     "",            self._tileWindowsActionHandler)
+        self.editAction      = ActionWithButton(self.window_menu, _res("images/edit.jpg"),             "Show &Edit Pane",  "Ctrl+E",       self._showEditPaneActionHandler, checkable=True, checked=True)
+        self.showNaviAction  = ActionWithButton(self.window_menu, _res("images/show_navigator.jpeg"),  "Show &Navigator",  "Ctrl+R",       self._showNavigatorActionHandler, checkable=True, checked=True)
+        self.showGraphsAction= ActionWithButton(self.window_menu, _res("images/graphs.jpeg"),          "Show Graphs",      "Ctrl+G",       self._showGraphsActionHandler, enabled=False)
         #self.window_menu.menu.addSeparator()
-        #self.moveDownAction  = ActionWithButton(self.window_menu,"images/preferences.png",      "Preferences",      "",             self._preferencesActionHandler)        
+        #self.moveDownAction  = ActionWithButton(self.window_menu,_res("images/preferences.png"),      "Preferences",      "",             self._preferencesActionHandler)        
 
-        
-        self.aboutAction     = ActionWithButton(self.help_menu,  "images/about.jpeg",           "&About",           "F1",           self._aboutActionHandler)
+        self.aboutAction     = ActionWithButton(self.help_menu,  _res("images/about.jpeg"),            "&About",           "F1",           self._aboutActionHandler)
         
         #########
         # Panes:
