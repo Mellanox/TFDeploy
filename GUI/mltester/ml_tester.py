@@ -19,7 +19,7 @@ from PyQt4.Qt import QWidget, QAction, QIcon, QPushButton, QSize, QToolBar,\
 
 from commonpylib.gui import DocumentControl, MultiLogWidget, DefaultAttributesWidget
 from commonpylib.log import LOG_LEVEL_INFO, LOG_LEVEL_ERROR, LOG_LEVEL_ALL, LOG_LEVEL_NOTE, setLogOps, setMainProcess, getMainProcess, log, setLogLevel, title, UniBorder
-from commonpylib.util import BasicProcess, WorkerThread, NestedException, PathAttribute
+from commonpylib.util import BasicProcess, WorkerThread, NestedException, PathAttribute, configurations
 from actions import TestEnvironment, Step
 from dialogs import StepEditDialog
 
@@ -33,43 +33,7 @@ GEOMETRY_MAX = "max"
 
 home_dir = os.path.expanduser("~")
 default_logs_dir = os.path.join(home_dir, "mltester_logs")
-conf_file_path = os.path.join(home_dir, ".mltester")
-conf = {}
-
-#--------------------------------------------------------------------#
-
-def confRead():
-    try:
-        if not os.path.isfile(conf_file_path):
-            return
-        with open(conf_file_path, "r") as conf_file:
-            for line in conf_file:
-                pair = line.strip().split("=")
-                conf[pair[0]] = pair[1]
-    except IOError:
-        sys.stderr.write("Failed to read configuration file %s\n" % conf_file_path)
-
-#--------------------------------------------------------------------#
-
-def confWrite():
-    try:
-        with open(conf_file_path, "w") as conf_file:
-            for key, val in conf.iteritems():
-                conf_file.write("%s=%s\n" % (key, val))
-    except IOError:
-        sys.stderr.write("Failed to save configuration file %s\n" % conf_file_path)
-
-#--------------------------------------------------------------------#
-
-def confSet(key, value, writeback = True):
-    conf[key] = value
-    if writeback:
-        confWrite()
-    
-#--------------------------------------------------------------------#
-         
-def confGet(key, default = None):
-    return conf.get(key, default)
+conf = configurations.Conf(os.path.join(os.path.expanduser("~"), ".mltester"))
 
 #--------------------------------------------------------------------#
 
@@ -1223,7 +1187,7 @@ class MLTester(QMainWindow):
     def _loadFromXml(self, file_path=None):
         try:        
             content = self._doc.load(file_path)
-            confSet(LAST_OPENED_FILE, self._doc.filePath())
+            conf.set(LAST_OPENED_FILE, self._doc.filePath())
         except IOError, e:
             sys.stderr.write("Failed to open xml file: %s\n" % e)
             return
@@ -1300,7 +1264,7 @@ class MLTester(QMainWindow):
     # Override:
     def closeEvent(self, evnt):
         geometry = GEOMETRY_MAX if self.isMaximized() else "%u,%u,%u,%u" % (self.x(), self.y(), self.width(), self.height())
-        confSet(GEOMETRY, geometry)
+        conf.set(GEOMETRY, geometry)
         if not self._doc.close():
             evnt.ignore()
             return
@@ -1326,7 +1290,7 @@ def main():
     QApplication.setStyle(QStyleFactory.create("Cleanlooks"))
     
 #     QApplication.setStyle(QStyleFactory.create("windowsvista"))
-    confRead()
+    conf.read()
     app = QApplication([])
     prompt = MLTester()
     if args.xml is not None:
@@ -1338,10 +1302,10 @@ def main():
     else:
         setLogLevel(LOG_LEVEL_INFO, LOG_LEVEL_ALL)
         prompt.setTestEnvironment()
-        last_opened_file = confGet(LAST_OPENED_FILE, None)
+        last_opened_file = conf.get(LAST_OPENED_FILE)
         if last_opened_file is not None:
             prompt.loadFromXml(last_opened_file)
-        geometry = confGet(GEOMETRY)
+        geometry = conf.get(GEOMETRY)
         if geometry == GEOMETRY_MAX:
             prompt.showMaximized()
         else:
