@@ -1,8 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-from PyQt4.Qt import QApplication, QDialog, QVBoxLayout, QComboBox, QDialogButtonBox, QString, Qt,\
-    QStackedLayout
+from PyQt4.Qt import QApplication, QDialog, QVBoxLayout, QComboBox, QDialogButtonBox, QString, Qt, QStackedWidget
 from mltester.actions import Step
 
 #############################################################################
@@ -21,9 +20,9 @@ class StepEditDialog(QDialog):
         self.setLayout(layout)
         
         self.cb_step_type = QComboBox()
-        self.widgets = QStackedLayout()
+        self.widgets = QStackedWidget()
         layout.addWidget(self.cb_step_type)
-        layout.addLayout(self.widgets)
+        layout.addWidget(self.widgets)
                 
         if self._step is None:
             for step_class in Step.REGISTERED_STEPS.values():

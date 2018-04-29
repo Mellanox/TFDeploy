@@ -339,6 +339,7 @@ class MLTester(QMainWindow):
         sys.excepthook = self.exceptionHook
         self._doc = DocumentControl(self, "ML tester", "Xml file (*.xml);;Any File (*.*);;", ".")
         self._sequence = []
+        self._step_attribute_widgets = {}
         self._selected_step = None
         self._test_logs_dir = None
         self._step_logs_dir = None
@@ -886,8 +887,8 @@ class MLTester(QMainWindow):
             self._clearConfigurationPane()
             return
 
-        item = self._sequence[index]
-        self._setConfigurationPane(item.attributesWidget())
+        step = self._sequence[index]
+        self._setConfigurationPane(step)
         selected_indexes = self._getSelectedIndexes()
         something_selected = len(selected_indexes) > 0
         enable_edit = not self._is_running and something_selected
@@ -902,12 +903,15 @@ class MLTester(QMainWindow):
 
     #--------------------------------------------------------------------#
     
-    def _setConfigurationPane(self, widget):
-        index = self.configuration_pane.indexOf(widget)
-        if index == -1:
-            widget.addFieldChangedHandler(self._onAttributeChanged)
+    def _setConfigurationPane(self, step):
+        step_class = type(step)
+        widget, index = self._step_attribute_widgets.get(step_class, (None, None))
+        if index is None:
+            widget = step_class.GET_WIDGET()
             self.configuration_pane.addWidget(widget)
             index = self.configuration_pane.count() - 1
+            self._step_attribute_widgets[step_class] = (widget, index)
+        widget.load(step.attributes())
         self.configuration_pane.setCurrentIndex(index)
     
     #--------------------------------------------------------------------#

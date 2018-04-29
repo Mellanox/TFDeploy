@@ -22,7 +22,6 @@ class Step(object):
     STATUS_FAILED = 3
     
     ATTRIBUTES = []
-    WIDGET = None
     WIDGET_CLASS = DefaultAttributesWidget
     
     REGISTERED_STEPS = {}
@@ -37,9 +36,7 @@ class Step(object):
         
     @classmethod
     def GET_WIDGET(cls):
-        if cls.WIDGET is None:
-            cls.WIDGET = cls.WIDGET_CLASS(cls.ATTRIBUTES)
-        return cls.WIDGET
+        return cls.WIDGET_CLASS(cls.ATTRIBUTES)
     
     # -------------------------------------------------------------------- #
     
@@ -119,13 +116,6 @@ class Step(object):
         res._is_enabled = self._is_enabled
         res._attributes = self._attributes.clone()
         return res
-
-    # -------------------------------------------------------------------- #
-    
-    def attributesWidget(self, parent = None):
-        widget = type(self).GET_WIDGET()
-        widget.load(self._attributes)
-        return widget
 
     # -------------------------------------------------------------------- #
     
