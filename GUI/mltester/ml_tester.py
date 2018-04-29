@@ -15,7 +15,8 @@ from PyQt4.Qt import QWidget, QAction, QIcon, QPushButton, QSize, QToolBar,\
     QMainWindow, pyqtSignal, QTableWidget, QHeaderView, QAbstractItemView,\
     QVBoxLayout, QScrollArea, QSplitter, QTableWidgetItem, QCheckBox, QSpinBox,\
     QMessageBox, qApp, QString, Qt, QDialog, QApplication, QStyleFactory,\
-    QGridLayout, QLineEdit, QTabWidget, QHBoxLayout, QLabel
+    QGridLayout, QLineEdit, QTabWidget, QHBoxLayout, QLabel, QStackedLayout,\
+    QStackedWidget
 
 from commonpylib.gui import DocumentControl, MultiLogWidget, DefaultAttributesWidget
 from commonpylib.log import LOG_LEVEL_INFO, LOG_LEVEL_ERROR, LOG_LEVEL_ALL, LOG_LEVEL_NOTE, setLogOps, setMainProcess, getMainProcess, log, setLogLevel, title, UniBorder
@@ -382,13 +383,8 @@ class MLTester(QMainWindow):
         self.sequence_widget.itemDoubleClicked.connect(self._onItemDoubleClicked)
         self.sequence_widget.setSelectionMode(QAbstractItemView.ExtendedSelection)
 
-        self.configuration_pane = QWidget()
-        self.configuration_pane.setLayout(QVBoxLayout())
-#         self.configuration_pane.setObjectName("HighLevelWidget")
-#         self.configuration_pane.setStyleSheet("QWidget#HighLevelWidget { border:1px solid black; }")
-        self._attributes_widget = QWidget()
-        self.configuration_pane.layout().addWidget(self._attributes_widget, 0)
-        self.configuration_pane.layout().addStretch(1)
+        self.configuration_pane = QStackedWidget()
+        self.configuration_pane.addWidget(QWidget())
 
         self.configuration_box = QScrollArea()
         self.configuration_box.setWidget(self.configuration_pane)
@@ -493,7 +489,6 @@ class MLTester(QMainWindow):
         edit_pane.addTab(sequence_pane, "Test Sequence")
         edit_pane.addTab(settings_pane, "Test Settings")
         edit_pane.resize(500, edit_pane.height())
-        #self.edit_pane.layout().addWidget(self.configuration_pane, 1)
 
         central_widget = QSplitter()
         central_widget.addWidget(edit_pane)
@@ -885,9 +880,11 @@ class MLTester(QMainWindow):
     #--------------------------------------------------------------------#
         
     def _sequenceStepSelected(self, selected, deselected):
-        if len(self._sequence) == 0:
-            return
         index = self.sequence_widget.currentRow()
+        if index == -1:
+            self._clearConfigurationPane()
+            return
+
         item = self._sequence[index]
         self._setConfigurationPane(item.attributesWidget())
         selected_indexes = self._getSelectedIndexes()
@@ -905,34 +902,17 @@ class MLTester(QMainWindow):
     #--------------------------------------------------------------------#
     
     def _setConfigurationPane(self, widget):
-        layout = self.configuration_pane.layout()
-        widget_exists = False
-        for i in range(layout.count()):
-            if widget == layout.itemAt(i).widget():
-                widget_exists = True
-                break
-        
-        if not widget_exists:
+        index = self.configuration_pane.indexOf(widget)
+        if index == -1:
             widget.addFieldChangedHandler(self._onAttributeChanged)
-            layout.insertWidget(0, widget)
-
-        self._attributes_widget.hide()
-        self._attributes_widget = widget
-        self._attributes_widget.show()
+            self.configuration_pane.addWidget(widget)
+            index = self.configuration_pane.count() - 1
+        self.configuration_pane.setCurrentIndex(index)
     
     #--------------------------------------------------------------------#
     
     def _clearConfigurationPane(self):
-        layout = self.configuration_pane.layout()
-        widgets = []
-        for i in range(layout.count()):
-            w = layout.itemAt(i).widget()
-            if w is not None:
-                widgets.append(w)
-                
-        for w in widgets:
-            w.hide() 
-            w.setParent(None)
+        self.configuration_pane.setCurrentIndex(0)
         
     #--------------------------------------------------------------------#
     

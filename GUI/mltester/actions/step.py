@@ -37,7 +37,9 @@ class Step(object):
         
     @classmethod
     def GET_WIDGET(cls):
-        return cls.WIDGET_CLASS(cls.ATTRIBUTES)
+        if cls.WIDGET is None:
+            cls.WIDGET = cls.WIDGET_CLASS(cls.ATTRIBUTES)
+        return cls.WIDGET
     
     # -------------------------------------------------------------------- #
     
@@ -121,10 +123,9 @@ class Step(object):
     # -------------------------------------------------------------------- #
     
     def attributesWidget(self, parent = None):
-        if self._widget is None:
-            self._widget = type(self).GET_WIDGET()
-        self._widget.load(self._attributes)
-        return self._widget
+        widget = type(self).GET_WIDGET()
+        widget.load(self._attributes)
+        return widget
 
     # -------------------------------------------------------------------- #
     
