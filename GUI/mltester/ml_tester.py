@@ -660,6 +660,7 @@ class MLTester(QMainWindow):
             if name != step.name(): 
                 step.setName(name)
         self._cell_being_edited = None
+        self._setModified()
         
     #--------------------------------------------------------------------#
     
