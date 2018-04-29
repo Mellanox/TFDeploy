@@ -1,7 +1,8 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-from PyQt4.Qt import QApplication, QDialog, QVBoxLayout, QComboBox, QDialogButtonBox, QString, Qt
+from PyQt4.Qt import QApplication, QDialog, QVBoxLayout, QComboBox, QDialogButtonBox, QString, Qt,\
+    QStackedLayout
 from mltester.actions import Step
 
 #############################################################################
@@ -19,20 +20,16 @@ class StepEditDialog(QDialog):
         layout = QVBoxLayout()
         self.setLayout(layout)
         
-        self._widgets = {}
-        self._selected_widget = None
         self.cb_step_type = QComboBox()
+        self.widgets = QStackedLayout()
         layout.addWidget(self.cb_step_type)
+        layout.addLayout(self.widgets)
                 
         if self._step is None:
             for step_class in Step.REGISTERED_STEPS.values():
                 self.cb_step_type.addItem(step_class.NAME)
                 w = step_class.GET_WIDGET()
-                w.hide()
-                values = [att.default_value for att in step_class.ATTRIBUTES]
-                w.load(values)            
-                self._widgets[step_class.NAME] = w
-                layout.addWidget(w)
+                self.widgets.addWidget(w)
             self.cb_step_type.currentIndexChanged.connect(self._stepTypeChanged)
         else:
             self.cb_step_type.addItems(Step.REGISTERED_STEPS.keys())
@@ -40,10 +37,9 @@ class StepEditDialog(QDialog):
             index = self.cb_step_type.findText(QString(str(self._step.NAME)))
             self.cb_step_type.setCurrentIndex(index)
             w = self._step.getWidget()
-            layout.addWidget(w)
+            self.widgets.addWidget(w)
         
         self._showStepProperties()
-        layout.addStretch()
         
         ###################
         # Action Buttons: #
@@ -56,11 +52,8 @@ class StepEditDialog(QDialog):
     #--------------------------------------------------------------------#
     
     def _showStepProperties(self):
-        if self._selected_widget is not None:
-            self._selected_widget.hide() 
-        name = str(self.cb_step_type.currentText())
-        self._selected_widget = self._widgets[name]
-        self._selected_widget.show()
+        index = self.cb_step_type.currentIndex()
+        self.widgets.setCurrentIndex(index)
         
     #--------------------------------------------------------------------#
     
@@ -85,7 +78,8 @@ class StepEditDialog(QDialog):
         if self._step is None:
             name = str(self.cb_step_type.currentText())
             step_class = Step.REGISTERED_STEPS[name] 
-            self._step = step_class(self._selected_widget.values())
+            self._step = step_class()
+            self.widgets.currentWidget().save(self._step.attributes())
         else:
             self._selected_widget.save()
         return QDialog.accept(self, *args, **kwargs)
