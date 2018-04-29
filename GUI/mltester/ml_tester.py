@@ -322,10 +322,6 @@ class MenuWithToolbar(object):
 
 class MLTester(QMainWindow):
     
-    ATTRIBUTE_ID_LOGS_FOLDER = 0  
-    
-    #--------------------------------------------------------------------#
-    
     log_signal = pyqtSignal(str, object, int)
     open_log_signal = pyqtSignal(object)
     close_log_signal = pyqtSignal(object)
@@ -475,8 +471,9 @@ class MLTester(QMainWindow):
         sequence_pane.layout().addWidget(self.sequence_widget, 2)
         sequence_pane.layout().addWidget(self.configuration_box, 1)
         
-        settings_pane = DefaultAttributesWidget([PathAttribute("base_log_dir", "Logs Folder", default_logs_dir)])
-        self._settings = settings_pane.attributes()
+        self.settings_pane = DefaultAttributesWidget([PathAttribute("base_log_dir", "Logs Folder", default_logs_dir)])
+        self.settings_pane.addFieldChangedHandler(self._onSettingsAttributeChanged)
+        self._settings = self.settings_pane.attributes()
 
         self._log_widget = MultiLogWidget()        
         logs_pane = QWidget()
@@ -488,7 +485,7 @@ class MLTester(QMainWindow):
 
         edit_pane = QTabWidget()
         edit_pane.addTab(sequence_pane, "Test Sequence")
-        edit_pane.addTab(settings_pane, "Test Settings")
+        edit_pane.addTab(self.settings_pane, "Test Settings")
         edit_pane.resize(500, edit_pane.height())
 
         central_widget = QSplitter()
@@ -908,6 +905,7 @@ class MLTester(QMainWindow):
         widget, index = self._step_attribute_widgets.get(step_class, (None, None))
         if index is None:
             widget = step_class.GET_WIDGET()
+            widget.addFieldChangedHandler(self._onStepAttributeChanged)
             self.configuration_pane.addWidget(widget)
             index = self.configuration_pane.count() - 1
             self._step_attribute_widgets[step_class] = (widget, index)
@@ -921,7 +919,12 @@ class MLTester(QMainWindow):
         
     #--------------------------------------------------------------------#
     
-    def _onAttributeChanged(self, attribute_index, value):
+    def _onSettingsAttributeChanged(self, attribute_index, value):
+        self._setModified()
+        
+    #--------------------------------------------------------------------#
+    
+    def _onStepAttributeChanged(self, attribute_index, value):
         step_index = self.sequence_widget.currentRow()
         step = self._sequence[step_index]
         step.attributes()[attribute_index].val = value
@@ -1149,9 +1152,11 @@ class MLTester(QMainWindow):
     
     def _getXmlContent(self):
         xml = etree.Element("root")
+        settings_xml = etree.SubElement(xml, "Settings")
+        self._settings.writeToXml(settings_xml)
         sequence_xml = etree.SubElement(xml, "Sequence")
         for step in self._sequence:
-            sub_element = step.writeToXml(sequence_xml)
+            step.writeToXml(sequence_xml)
         content = minidom.parseString(etree.tostring(xml)).toprettyxml()
         return content 
          
@@ -1196,16 +1201,14 @@ class MLTester(QMainWindow):
     def _loadFromContent(self, content):
         self._clear()
         root_node = etree.fromstring(content)
-        
-        sequence_node = None
-        for sub_element in root_node.getchildren():
-            if sub_element.tag == "Sequence":
-                sequence_node = sub_element
-                break
-            
-        for step_node in sequence_node.getchildren():
-            step = Step.loadFromXml(step_node)
-            self._addStepsToSequenceEnd([step])
+        for xml_node in root_node.getchildren():
+            if xml_node.tag == "Sequence":
+                for step_node in xml_node.getchildren():
+                    step = Step.loadFromXml(step_node)
+                    self._addStepsToSequenceEnd([step])
+            elif xml_node.tag == "Settings":
+                self._settings.loadFromXml(xml_node)
+                self.settings_pane.refresh()
         self._doc.setModified(False)
             
     #--------------------------------------------------------------------#
