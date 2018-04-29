@@ -1,4 +1,5 @@
 eclipse.preferences.version=1
+encoding//mltester/actions/common_steps.py=utf-8
 encoding//mltester/actions/step.py=utf-8
 encoding//mltester/actions/test_environment.py=utf-8
 encoding//mltester/actions/tf_cnn_benchmarks.py=utf-8
