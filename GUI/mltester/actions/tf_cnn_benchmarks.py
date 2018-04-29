@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 from getpass import getuser
+import pkg_resources
 import tempfile
 import sys
 import re
@@ -487,7 +488,8 @@ class TFCnnBenchmarksStep(Step):
     
     def _onOut(self, line, process):
         if "Running warm up" in line:
-            self._initProcessReport(process)            
+            log(line, process)
+            self._initProcessReport(process)
             if not self._startServerMonitors(process.server):
                 error("Warning: Failed to start monitor for server %s.\n" % process.server)
                 process.server_info.monitor = None 
@@ -595,7 +597,7 @@ class TFCnnBenchmarksStep(Step):
 
     def perform(self, index):
         Step.perform(self, index)
-        log("<img src='images/tensorflow.jpg' width=600 style='border:1px solid black'/>") #https://www.skylinelabs.in/blog/images/tensorflow.jpg?width=500'/>")
+        log("<img src='%s' width=600 style='border:1px solid black'/>" % pkg_resources.resource_filename("mltester", "images/tensorflow.jpg")) #https://www.skylinelabs.in/blog/images/tensorflow.jpg?width=500'/>")
         for attr in self._attributes:
             log(" + %s: %s" % (attr.desc.display_name, str(attr.val)))
         self._stopping = False
