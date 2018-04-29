@@ -503,7 +503,7 @@ class MLTester(QMainWindow):
         #self.window_menu.menu.addSeparator()
         #self.moveDownAction  = ActionWithButton(self.window_menu,_res("images/preferences.png"),      "Preferences",      "",             self._preferencesActionHandler)        
 
-        self.aboutAction     = ActionWithButton(self.help_menu,  _res("images/about.jpeg"),            "&About",           "F1",           self._aboutActionHandler)
+        self.aboutAction     = ActionWithButton(self.help_menu,   _res("images/about.jpeg"),            "&About",           "F1",           self._aboutActionHandler)
         
         #########
         # Panes:
@@ -921,6 +921,8 @@ class MLTester(QMainWindow):
     #--------------------------------------------------------------------#
         
     def _sequenceStepSelected(self, selected, deselected):
+        if len(self._sequence) == 0:
+            return
         index = self.sequence_widget.currentRow()
         item = self._sequence[index]
         self._setConfigurationPane(item.attributesWidget())
