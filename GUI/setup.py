@@ -11,7 +11,7 @@ setup(
 		"matplotlib",
 		"CommonPyLib>=1.0.3",
 	],
-	dependency_links = ["git+https://github.com/Mellanox/CommonPyLib.git@master#egg=CommonPyLib-1.0.2"],
+	dependency_links = ["git+https://github.com/Mellanox/CommonPyLib.git@master#egg=CommonPyLib-1.0.3"],
 	entry_points='''
 		[console_scripts]
 		ml_tester_gui=mltester.ml_tester:main
