@@ -142,9 +142,6 @@ class TFCnnBenchmarksStep(Step):
     
     def __init__(self, values = None):
         Step.__init__(self, values)
-        self._stopping = False
-        self._processes = []
-        self._perf = TFPerformanceMeasurements()
 
     # -------------------------------------------------------------------- #
     
@@ -633,6 +630,8 @@ class TFCnnBenchmarksStep(Step):
         log("<img src='%s' width=600 style='border:1px solid black'/>" % pkg_resources.resource_filename("mltester", "images/tensorflow.jpg")) #https://www.skylinelabs.in/blog/images/tensorflow.jpg?width=500'/>")
         for attr in self._attributes:
             log(" + %s: %s" % (attr.desc.display_name, str(attr.val)))
+        self._perf = TFPerformanceMeasurements()
+        self._processes = []
         self._stopping = False
         self._servers = {}
         work_dir_name = "tmp." + next(tempfile._get_candidate_names()) + next(tempfile._get_candidate_names())
