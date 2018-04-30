@@ -210,7 +210,7 @@ class TFCnnBenchmarksStep(Step):
         self._performance_table.unbind()
         self._performance_file.close()
         
-        summary_table = self._performance_table.cut(["Performance", "RX/TX rate (Mbit/sec)", "Network Errors"])                 
+        summary_table = self._performance_table.cut(["Performance", "RX/TX rate (Mbit/sec)", "Network Errors"])
         summary_table.printFormatted(LogWriter(None, LOG_LEVEL_NOTE))
 
     # -------------------------------------------------------------------- #
@@ -346,7 +346,6 @@ class TFCnnBenchmarksStep(Step):
         table.border_style = UniBorder.BORDER_STYLE_SINGLE
         table.addColumn(FormattedTable.Column("IP"))
         table.addColumn(FormattedTable.Column("Job"))
-        table.addColumn(FormattedTable.Column("#"))
         table.addColumn(FormattedTable.Column("PID"))
         table.addColumn(FormattedTable.Column("RPID"))
         table.addColumn(FormattedTable.Column("Flags"))
@@ -356,7 +355,7 @@ class TFCnnBenchmarksStep(Step):
                 process.remote_pid = remote_process_ids[process.name]
             else:
                 process.remote_pid = -1
-            table.addRow([process.server_info.ip, process.job_name, process.task_id, process.instance.pid, process.remote_pid, process.tf_flags, process.tf_command])
+            table.addRow([process.server_info.ip, process.name, process.instance.pid, process.remote_pid, process.tf_flags, process.tf_command])
         table.printFormatted(LogWriter(None, LOG_LEVEL_NOTE))
         return res
     
