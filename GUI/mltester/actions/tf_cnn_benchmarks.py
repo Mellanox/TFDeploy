@@ -73,7 +73,7 @@ class TFCnnBenchmarksStep(Step):
     ATTRIBUTE_ID_SERVER_PROTOCOL = 9
     
     ATTRIBUTES = [EnumAttribute("mode"            , "Mode", MODE_NAMES[0], MODE_NAMES),
-                  EnumAttribute("all_reduce_spec" , "All-Reduce Spec", ALL_REDUCE_SPECS[0], ALL_REDUCE_SPECS),
+                  StrAttribute ("all_reduce_spec" , "All-Reduce Spec", ALL_REDUCE_SPECS[0], ALL_REDUCE_SPECS),
                   ListAttribute("controller"      , "Controller", "12.12.12.25"),
                   ListAttribute("ps"              , "PS", "12.12.12.25"),
                   ListAttribute("workers"         , "Workers", "12.12.12.25,12.12.12.26"),
