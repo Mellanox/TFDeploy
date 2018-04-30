@@ -9,7 +9,7 @@ setup(
 	package_data={'mltester': ['images/*']},	
 	install_requires=[
 		"matplotlib",
-		"CommonPyLib>=1.0.2",
+		"CommonPyLib>=1.0.3",
 	],
 	dependency_links = ["git+https://github.com/Mellanox/CommonPyLib.git@master#egg=CommonPyLib-1.0.2"],
 	entry_points='''
