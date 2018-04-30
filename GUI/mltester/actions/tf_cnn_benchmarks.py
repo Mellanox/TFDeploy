@@ -183,7 +183,7 @@ class TFCnnBenchmarksStep(Step):
     def _appendToPerformanceFile(self):
         ''' Overall step performance (average all workers). '''
         for process in self._processes:
-            if process.job_name != "ps":
+            if process.perf is not None:
                 # Append to global performance results:
                 self._perf.reduce(process.perf)
         
@@ -432,7 +432,7 @@ class TFCnnBenchmarksStep(Step):
         if (job_name in ["ps", "controller"]) or (self.num_gpus == 0):
             tf_flags += " CUDA_VISIBLE_DEVICES="
 
-        ##############  
+        ##############
         # UCX stuff: #
         ##############
         # Ucx should be compiled ./contrib/configure-devel --enable-debug
@@ -499,6 +499,7 @@ class TFCnnBenchmarksStep(Step):
         process.tf_flags = tf_flags
         process.tf_command = tf_command
         process.remote_pid = None
+        process.perf = None
         self._processes.append(process)
         server_info.processes.append(process)
         return process
