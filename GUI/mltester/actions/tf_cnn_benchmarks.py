@@ -321,6 +321,7 @@ class TFCnnBenchmarksStep(Step):
     def _findRemoteProcessIDs(self, processes):
         remote_process_ids = {}
         def parser(line, find_process):
+            debug(line)
             key = find_process.name
             remote_process_ids[key] = int(line.split()[0])
        
