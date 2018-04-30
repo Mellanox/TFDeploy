@@ -613,7 +613,18 @@ class TFCnnBenchmarksStep(Step):
                 os.kill(process.instance.pid, 15)            
                 self.runInline("kill -15 %u >& /dev/null" % process.remote_pid, servers=[process.server])
         log("Done.")
-         
+    
+    # -------------------------------------------------------------------- #
+    
+    def _getIPs(self):
+        if self.mode == TFCnnBenchmarksStep.MODE_LOCAL:
+            return [self.workers[0]]
+        if self.mode == TFCnnBenchmarksStep.MODE_PARAMETER_SERVER:
+            return list(set(self.ps + self.workers))
+        if self.mode == TFCnnBenchmarksStep.MODE_DISTRIBUTED_ALL_REDUCE:
+            return list(set(self.controller + self.workers))
+        return []
+    
     # -------------------------------------------------------------------- #
 
     def perform(self, index):
@@ -629,7 +640,7 @@ class TFCnnBenchmarksStep(Step):
         
         user = getuser()
         self._work_dir = work_dir
-        ips = list(set(self.ps + self.workers))
+        ips = self._getIPs()
         servers = TestEnvironment.Get().getServers(ips)
             
         #########################
@@ -655,7 +666,7 @@ class TFCnnBenchmarksStep(Step):
             port += 1
         for ip in self.workers:
             self._cluster_workers.append("%s:%u" % (ip, port))
-            port += 1        
+            port += 1
     
         #########
         # Copy: #
