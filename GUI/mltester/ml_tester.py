@@ -15,12 +15,11 @@ from PyQt4.Qt import QWidget, QAction, QIcon, QPushButton, QSize, QToolBar,\
     QMainWindow, pyqtSignal, QTableWidget, QHeaderView, QAbstractItemView,\
     QVBoxLayout, QScrollArea, QSplitter, QTableWidgetItem, QCheckBox, QSpinBox,\
     QMessageBox, qApp, QString, Qt, QDialog, QApplication, QStyleFactory,\
-    QGridLayout, QLineEdit, QTabWidget, QHBoxLayout, QLabel, QStackedLayout,\
-    QStackedWidget
+    QGridLayout, QLineEdit, QTabWidget, QHBoxLayout, QLabel, QStackedWidget
 
 from commonpylib.gui import DocumentControl, MultiLogWidget, DefaultAttributesWidget
-from commonpylib.log import LOG_LEVEL_INFO, LOG_LEVEL_ERROR, LOG_LEVEL_ALL, LOG_LEVEL_NOTE, setLogOps, setMainProcess, getMainProcess, log, setLogLevel, title, UniBorder
-from commonpylib.util import BasicProcess, WorkerThread, NestedException, PathAttribute, configurations
+from commonpylib.log import LOG_LEVEL_INFO, LOG_LEVEL_ERROR, LOG_LEVEL_ALL, LOG_LEVEL_NOTE, LogLevelNames, setLogOps, setMainProcess, getMainProcess, log, setLogLevel, title, UniBorder
+from commonpylib.util import BasicProcess, WorkerThread, NestedException, PathAttribute, EnumAttribute, configurations
 from actions import TestEnvironment, Step
 from dialogs import StepEditDialog
 
@@ -471,7 +470,10 @@ class MLTester(QMainWindow):
         sequence_pane.layout().addWidget(self.sequence_widget, 2)
         sequence_pane.layout().addWidget(self.configuration_box, 1)
         
-        self.settings_pane = DefaultAttributesWidget([PathAttribute("base_log_dir", "Logs Folder", default_logs_dir)])
+        self.settings_pane = DefaultAttributesWidget([PathAttribute("base_log_dir", "Logs Folder", default_logs_dir),
+                                                      # TODO: MOVE TO PREFERENCES:
+                                                      EnumAttribute("log_level", "Log Level",  LogLevelNames[LOG_LEVEL_INFO], possible_values = LogLevelNames), 
+                                                      EnumAttribute("file_log_level", "File Log Level", LogLevelNames[LOG_LEVEL_INFO], possible_values = LogLevelNames)])
         self.settings_pane.addFieldChangedHandler(self._onSettingsAttributeChanged)
         self._settings = self.settings_pane.attributes()
 
@@ -513,7 +515,7 @@ class MLTester(QMainWindow):
     def _openLog(self, process):
         if (process is None) or (process.log_file_path is None):
             return
-        process.openLog(verbose=False)
+        process.openLog()
         return self._log_widget.open(process.log_file_path, str(process.title))
 
     #--------------------------------------------------------------------#
@@ -992,6 +994,7 @@ class MLTester(QMainWindow):
             self._all_passed = True
             self._do_stop = False
             self._reset()
+            setLogLevel(self._settings.log_level, self._settings.file_log_level)
             for index in range(len(self._sequence)):
                 if not self._runStep(index):
                     break

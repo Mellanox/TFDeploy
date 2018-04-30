@@ -11,7 +11,7 @@ import time
 import threading
 
 from mltester.actions import Step, DefaultAttributesWidget, TestEnvironment
-from commonpylib.log import LogWriter, LOG_LEVEL_NOTE, LOG_LEVEL_INFO, log, title, error, UniBorder, FormattedTable
+from commonpylib.log import LogWriter, LOG_LEVEL_NOTE, LOG_LEVEL_INFO, log, debug, title, error, UniBorder, FormattedTable
 from commonpylib.monitors import Measurement, CommonPerformanceMeasurements, RemoteMonitor
 from commonpylib.util import BasicProcess, executeRemoteCommand, waitForProcesses, toFileName, ListAttribute, \
                              EnumAttribute, IntAttribute, PathAttribute, StrAttribute, BoolAttribute, tryExp
@@ -336,7 +336,7 @@ class TFCnnBenchmarksStep(Step):
                 find_process.name = process.name
                 find_processes.append(find_process)
                 
-            waitForProcesses(find_processes, wait_timeout=5, on_output=parser, verbose=True)
+            waitForProcesses(find_processes, wait_timeout=5, on_output=parser)
             time.sleep(1)
             num_attempts += 1
             if num_attempts == max_num_attempts:
@@ -369,9 +369,11 @@ class TFCnnBenchmarksStep(Step):
         self._devices = {}
         
         def linkNameParser(line, process):
+            debug(line)
             links.append(line)
         
         def deviceNameAndPortParser(line, process):
+            debug(line)
             parts = line.split()
             res = RemoteDeviceInfo()
             res.name = parts[0]
@@ -382,17 +384,23 @@ class TFCnnBenchmarksStep(Step):
         procs = []
         for ip in ips:
             server = TestEnvironment.Get().getServer(ip)
-            procs.extend(executeRemoteCommand([server], "ip -o a s | grep %s | cut -d ' ' -f 2 | cut -d'.' -f1" % ip, verbose=False))
-        if not waitForProcesses(procs, wait_timeout=5, on_output=linkNameParser, verbose=False):
+            procs.extend(executeRemoteCommand([server], "ip -o a s | grep %s | cut -d ' ' -f 2 | cut -d'.' -f1" % ip))
+        if not waitForProcesses(procs, wait_timeout=5, on_output=linkNameParser):
+            for proc in procs:
+                if proc.exception is not None:
+                    raise proc.exception
             raise Exception("Internal Error")
         
         procs = []
         for ip in ips:
             server = TestEnvironment.Get().getServer(ip)
-            i = len(procs) 
+            i = len(procs)
             link = links[i]
-            procs.extend(executeRemoteCommand([server], "ibdev2netdev | grep %s" % link, verbose=False))
-        if not waitForProcesses(procs, wait_timeout=5, on_output=deviceNameAndPortParser, verbose=False):
+            procs.extend(executeRemoteCommand([server], "ibdev2netdev | grep %s" % link))
+        if not waitForProcesses(procs, wait_timeout=5, on_output=deviceNameAndPortParser):
+            for proc in procs:
+                if proc.exception is not None:
+                    raise proc.exception
             raise Exception("Internal Error")
 
     # -------------------------------------------------------------------- #
@@ -483,7 +491,7 @@ class TFCnnBenchmarksStep(Step):
         title = "[%s] %s - %u" % (ip, job_name, task_id)
         log_file_path = os.path.join(self._logs_dir, "%s_%u.log" % (job_name, task_id))
         factory = BasicProcess.getFactory(title, log_file_path)
-        process = executeRemoteCommand([server_info.hostname], command, factory = factory, verbose=True)[0]
+        process = executeRemoteCommand([server_info.hostname], command, factory = factory)[0]
         process.name = "%s_%u" % (job_name, task_id)
         process.job_name = job_name 
         process.task_id = task_id
@@ -603,7 +611,7 @@ class TFCnnBenchmarksStep(Step):
             if process.remote_pid and process.isAlive():
                 log("   + [%s] %s: %u" % (process.server, process.name, process.instance.pid))
                 os.kill(process.instance.pid, 15)            
-                self.runInline("kill -15 %u >& /dev/null" % process.remote_pid, servers=[process.server], verbose=False)
+                self.runInline("kill -15 %u >& /dev/null" % process.remote_pid, servers=[process.server])
         log("Done.")
          
     # -------------------------------------------------------------------- #

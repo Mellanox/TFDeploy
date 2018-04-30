@@ -161,22 +161,21 @@ class Step(object):
     
     # -------------------------------------------------------------------- #
     
-    def _runCommand(self, cmd, servers, wait_timeout, on_output, on_process_start, on_process_done, factory, verbose):
+    def _runCommand(self, cmd, servers, wait_timeout, on_output, on_process_start, on_process_done, factory):
         processes = []
         if servers is None:
-            processes.append(executeCommand(cmd, factory=factory, verbose=verbose))
+            processes.append(executeCommand(cmd, factory=factory))
         else:
-            processes.extend(executeRemoteCommand(servers, cmd, factory=factory, verbose=verbose))
+            processes.extend(executeRemoteCommand(servers, cmd, factory=factory))
         return waitForProcesses(processes,
                                 wait_timeout=wait_timeout,
                                 on_output=on_output,
                                 on_process_start=on_process_start,
-                                on_process_done=on_process_done,
-                                verbose=verbose)
+                                on_process_done=on_process_done)
 
     # -------------------------------------------------------------------- #
     
-    def runInline(self, cmd, servers = None, wait_timeout = sys.maxint, verbose = True):
+    def runInline(self, cmd, servers = None, wait_timeout = sys.maxint):
         ''' Run and output to global log '''
         return self._runCommand(cmd,
                                 servers,
@@ -184,12 +183,11 @@ class Step(object):
                                 on_output = Step.logToMainProcess,
                                 on_process_start = None, 
                                 on_process_done = checkRetCode,
-                                factory = None,
-                                verbose = verbose)
+                                factory = None)
 
     # -------------------------------------------------------------------- #
     
-    def runSeperate(self, cmd, servers = None, title = None, log_file_path = None, wait_timeout = sys.maxint, verbose = True):
+    def runSeperate(self, cmd, servers = None, title = None, log_file_path = None, wait_timeout = sys.maxint):
         ''' Run and output to process log '''
         factory = BasicProcess.getFactory(title, log_file_path)
         return self._runCommand(cmd, 
@@ -198,18 +196,16 @@ class Step(object):
                                 on_output = log,
                                 on_process_start = TestEnvironment.onNewProcess(), 
                                 on_process_done = TestEnvironment.onProcessDone(),
-                                factory = factory,
-                                verbose = verbose)
+                                factory = factory)
                 
     # -------------------------------------------------------------------- #
     
-    def runSCP(self, servers, sources, remote_dir, wait_timeout = None, verbose = True):
+    def runSCP(self, servers, sources, remote_dir, wait_timeout = None):
         ''' Run SCP. Always inline. '''
         processes = copyToRemote(servers, sources, remote_dir)
         return waitForProcesses(processes, 
                                 wait_timeout = wait_timeout,
-                                on_output = Step.logToMainProcess,
-                                verbose = verbose)
+                                on_output = Step.logToMainProcess)
     
     # -------------------------------------------------------------------- #
     
