@@ -417,27 +417,32 @@ class TFCnnBenchmarksStep(Step):
         ##################
         tf_flags += "LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda/lib64:/usr/local/gdrcopy"
         tf_flags += " TF_CPP_MIN_VLOG_LEVEL=%s" % self.log_level
-        tf_flags += " RDMA_DEVICE=%s" % device_info.name
-        tf_flags += " RDMA_DEVICE_PORT=%u" % device_info.port
-        tf_flags += " RDMA_GID_INDEX=3"
-        tf_flags += " RDMA_PKEY=0"
-        tf_flags += " RDMA_QUEUE_DEPTH=1024"
-        tf_flags += " RDMA_TIMEOUT=10"
-        tf_flags += " RDMA_RETRY_CNT=10"
-        tf_flags += " RDMA_SL=1"
-        tf_flags += " RDMA_MTU=512"
-        tf_flags += " RDMA_TRAFFIC_CLASS=8"
-        tf_flags += " UCX_NET_DEVICES=%s:%u" % (device_info.name, device_info.port)
         if (job_name in ["ps", "controller"]) or (self.num_gpus == 0):
             tf_flags += " CUDA_VISIBLE_DEVICES="
 
-        ##############
+        ################
+        # Verbs stuff: #
+        ################
+	if self.server_protocol == "grpc+verbs":
+	    tf_flags += " RDMA_DEVICE=%s" % device_info.name
+	    tf_flags += " RDMA_DEVICE_PORT=%u" % device_info.port
+	    tf_flags += " RDMA_GID_INDEX=3"
+	    tf_flags += " RDMA_PKEY=0"
+	    tf_flags += " RDMA_QUEUE_DEPTH=1024"
+	    tf_flags += " RDMA_TIMEOUT=10"
+	    tf_flags += " RDMA_RETRY_CNT=10"
+	    tf_flags += " RDMA_SL=1"
+	    tf_flags += " RDMA_MTU=512"
+	    tf_flags += " RDMA_TRAFFIC_CLASS=8"
+
+        ##############  
         # UCX stuff: #
         ##############
         # Ucx should be compiled ./contrib/configure-devel --enable-debug
         if self.server_protocol == "grpc+ucx":
             tf_flags += " UCX_LOG_LEVEL=data"
             tf_flags += " UCX_TLS=rc_x,gdr_copy,cuda_copy"
+            tf_flags += " UCX_NET_DEVICES=%s:%u" % (device_info.name, device_info.port)
         #export UCX_IB_ETH_PAUSE_ON=y
         #export UCX_LOG_LEVEL=trace 
 
