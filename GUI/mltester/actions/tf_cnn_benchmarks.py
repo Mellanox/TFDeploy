@@ -11,7 +11,7 @@ import time
 import threading
 
 from mltester.actions import Step, DefaultAttributesWidget, TestEnvironment
-from commonpylib.log import LogWriter, LOG_LEVEL_NOTE, LOG_LEVEL_INFO, log, debug, title, error, UniBorder, FormattedTable
+from commonpylib.log import LogWriter, LOG_LEVEL_NOTE, LOG_LEVEL_INFO, log, debug, title, error, warning, UniBorder, FormattedTable
 from commonpylib.monitors import Measurement, CommonPerformanceMeasurements, RemoteMonitor
 from commonpylib.util import BasicProcess, executeRemoteCommand, waitForProcesses, toFileName, ListAttribute, \
                              EnumAttribute, IntAttribute, PathAttribute, StrAttribute, BoolAttribute, tryExp
@@ -510,7 +510,7 @@ class TFCnnBenchmarksStep(Step):
             log(line, process)
             self._initProcessReport(process)
             if not self._startServerMonitors(process.server):
-                error("Warning: Failed to start monitor for server %s.\n" % process.server)
+                warning("Warning: Failed to start monitor for server %s.\n" % process.server)
                 process.server_info.monitor = None 
                 #self.stop()
                 #return
