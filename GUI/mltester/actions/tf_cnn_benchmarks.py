@@ -146,10 +146,15 @@ class TFCnnBenchmarksStep(Step):
     # -------------------------------------------------------------------- #
     
     def attributesRepr(self):
-        return "%s, %s, %u GPUs, batch %u" % (self.model,
-                                              self.server_protocol,
-                                              self.num_gpus * len(self.workers),
-                                              self.batch_size) 
+        if self.mode == TFCnnBenchmarksStep.MODE_LOCAL:
+            return "%s, LOCAL, %u GPU, batch %u" % (self.model,
+                                                    self.num_gpus,
+                                                    self.batch_size)
+        else:
+            return "%s, %s, %u GPUs, batch %u" % (self.model,
+                                                  self.server_protocol,
+                                                  self.num_gpus * len(self.workers),
+                                                  self.batch_size) 
 
     # -------------------------------------------------------------------- #
     
