@@ -800,7 +800,7 @@ class MLTester(QMainWindow):
     def _copyStepsToClipboard(self):
         selected_indexes = self._getSelectedIndexes()
         selected_indexes.sort() #reversed=True)
-        self._copied_steps = [self._sequence[index].clone() for index in selected_indexes]
+        self._copied_steps = [self._sequence[index] for index in selected_indexes]
         self.pasteAction.setEnabled(True)
         self.pasteBeforeAction.setEnabled(True)
                 
@@ -810,10 +810,11 @@ class MLTester(QMainWindow):
         if len(self._copied_steps) == 0:
             return
         
+        clones = [step.clone() for step in self._copied_steps]
         if before:
-            indexes = self._addStepsToSequenceBefore(self._copied_steps)
+            indexes = self._addStepsToSequenceBefore(clones)
         else:
-            indexes = self._addStepsToSequenceAfter(self._copied_steps)
+            indexes = self._addStepsToSequenceAfter(clones)
         
         if before:
             pass
