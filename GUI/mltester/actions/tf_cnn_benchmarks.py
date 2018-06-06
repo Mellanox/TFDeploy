@@ -37,16 +37,43 @@ class RemoteDeviceInfo(object):
 
 ###############################################################################
 
-class TFPerformanceMeasurements(CommonPerformanceMeasurements):
-    def __init__(self):
-        super(TFPerformanceMeasurements, self).__init__()
+class TFPerformanceMeasurements(object):
+    def __init__(self, process = None):
         self.images_sec = Measurement("IMG/SEC")
-        
+        self.gpu = Measurement("GPU", "%")
+        if process:
+            remote_dev = "%s:%u" % (process.rdma_device.name, process.rdma_device.port)
+            self.stime                           = Measurement("STIME-%u" % process.remote_pid)
+            self.utime                           = Measurement("UTIME-%u" % process.remote_pid)
+            self.rx                              = Measurement("RDTA-%s" % remote_dev, "Mbit", True)
+            self.tx                              = Measurement("TDTA-%s" % remote_dev, "Mbit", True)
+            self.excessive_buffer_overrun_errors = Measurement("XBUF_OVERRUN_ERRORS-%s" % remote_dev)
+            self.port_xmit_discards              = Measurement("PORT_XMIT_DISCARDS-%s" % remote_dev)
+            self.port_rcv_errors                 = Measurement("PORT_RCV_ERRORS-%s" % remote_dev)
+            self.port_rcv_constraint_errors      = Measurement("PORT_RCV_CONSTRAINT_ERRORS-%s" % remote_dev)
+        else:
+            self.stime                           = Measurement("STIME")
+            self.utime                           = Measurement("UTIME")
+            self.rx                              = Measurement("RDTA", "Mbit", True)
+            self.tx                              = Measurement("TDTA", "Mbit", True)
+            self.excessive_buffer_overrun_errors = Measurement("XBUF_OVERRUN_ERRORS")
+            self.port_xmit_discards              = Measurement("PORT_XMIT_DISCARDS")
+            self.port_rcv_errors                 = Measurement("PORT_RCV_ERRORS")
+            self.port_rcv_constraint_errors      = Measurement("PORT_RCV_CONSTRAINT_ERRORS")
+
     # -------------------------------------------------------------------- #
     
     def reduce(self, other):
-        CommonPerformanceMeasurements.reduce(self, other)
         self.images_sec.reduce(other.images_sec)
+        self.gpu.reduce(other.gpu)
+        self.stime.val += other.stime.val
+        self.utime.val += other.utime.val
+        self.rx.reduce(other.rx)
+        self.tx.reduce(other.tx)
+        self.excessive_buffer_overrun_errors.reduce(other.excessive_buffer_overrun_errors)
+        self.port_xmit_discards.reduce(other.port_xmit_discards)
+        self.port_rcv_errors.reduce(other.port_rcv_errors)
+        self.port_rcv_constraint_errors.reduce(other.port_rcv_constraint_errors)
         
 ###############################################################################
 
@@ -172,7 +199,7 @@ class TFCnnBenchmarksStep(Step):
         self._performance_table.addColumn(FormattedTable.Column("#Workers", 8), "Info")
         self._performance_table.addColumn(FormattedTable.Column("#PS", 3), "Info")
         self._performance_table.addColumn(FormattedTable.Column("Images/sec", 10), "Performance")
-        self._performance_table.addColumn(FormattedTable.Column("CPU%", 7), "Performance")
+        self._performance_table.addColumn(FormattedTable.Column("CPU time", 9), "Performance")
         self._performance_table.addColumn(FormattedTable.Column("MEM%", 5), "Performance")
         self._performance_table.addColumn(FormattedTable.Column("GPU%", 5), "Performance")
         self._performance_table.addColumn(FormattedTable.Column("Average", 18), "RX/TX rate (Mbit/sec)")
@@ -201,16 +228,16 @@ class TFCnnBenchmarksStep(Step):
                self.num_gpus,
                len(self.workers),
                len(self.ps),
-               "%.2lf" % self._perf.images_sec.avg,               
-               "%.2lf" % self._perf.cpu.avg,
-               "%.2lf" % self._perf.mem.avg,
+               "%.2lf" % self._perf.images_sec.avg,
+               "%.2lf" % (self._perf.utime.val + self._perf.stime.val),
+               "%.2lf" % 0.0,
                "%.2lf" % self._perf.gpu.avg,
                "%.2lf/%.2lf" % (self._perf.rx.rate.avg, self._perf.tx.rate.avg),
                "%.2lf/%.2lf" % (self._perf.rx.rate.max, self._perf.tx.rate.max),
-               self._perf.net_erros.excessive_buffer_overrun_errors.val,
-               self._perf.net_erros.port_xmit_discards.val,
-               self._perf.net_erros.port_rcv_errors.val,
-               self._perf.net_erros.port_rcv_constraint_errors.val]
+               self._perf.excessive_buffer_overrun_errors.val,
+               self._perf.port_xmit_discards.val,
+               self._perf.port_rcv_errors.val,
+               self._perf.port_rcv_constraint_errors.val]
         self._performance_table.addRow(row)
         self._performance_table.unbind()
         self._performance_file.close()
@@ -262,7 +289,6 @@ class TFCnnBenchmarksStep(Step):
             return True
         
         res = server_info.monitor.stop()
-        server_info.perf = TFPerformanceMeasurements()
         server_info.monitor.close()
         self.runInline("scp %s:%s/* %s" % (server_info.hostname, server_info.remote_graphs_dir, server_info.graphs_dir))
         return res            
@@ -270,11 +296,11 @@ class TFCnnBenchmarksStep(Step):
     # -------------------------------------------------------------------- #
     
     def _initProcessReport(self, process):
-        process.perf = TFPerformanceMeasurements()
+        process.perf = TFPerformanceMeasurements(process)
         process.perf.images_sec = Measurement("IMG/SEC")
         process.table = FormattedTable()
         process.table.addColumn(FormattedTable.Column("STEP", 4))
-        process.table.addColumn(FormattedTable.Column("CPU%", 7))
+        process.table.addColumn(FormattedTable.Column("CPU time", 9))
         process.table.addColumn(FormattedTable.Column("MEM%", 5))
         process.table.addColumn(FormattedTable.Column("GPU%", 5))
         process.table.addColumn(FormattedTable.Column("RX/TX (MBit/sec)", 12))
@@ -290,22 +316,22 @@ class TFCnnBenchmarksStep(Step):
     
     def _finishProcessReport(self, process):
         if process.server_info.monitor is not None:
-    #         process.server_info.monitor.fillMeasurement(process.perf.cpu)
-    #         process.server_info.monitor.fillMeasurement(process.perf.mem)
-    #         process.server_info.monitor.fillMeasurement(process.perf.rx)
-    #         process.server_info.monitor.fillMeasurement(process.perf.tx)
-    #         process.server_info.monitor.fillMeasurement(process.perf.net_erros.excessive_buffer_overrun_errors)
-    #         process.server_info.monitor.fillMeasurement(process.perf.net_erros.port_xmit_discards)
-    #         process.server_info.monitor.fillMeasurement(process.perf.net_erros.port_rcv_errors)
-    #         process.server_info.monitor.fillMeasurement(process.perf.net_erros.port_rcv_constraint_errors)
+            process.server_info.monitor.fillMeasurement(process.perf.stime)
+            process.server_info.monitor.fillMeasurement(process.perf.utime)
+            process.server_info.monitor.fillMeasurement(process.perf.rx)
+            process.server_info.monitor.fillMeasurement(process.perf.tx)
+            process.server_info.monitor.fillMeasurement(process.perf.excessive_buffer_overrun_errors)
+            process.server_info.monitor.fillMeasurement(process.perf.port_xmit_discards)
+            process.server_info.monitor.fillMeasurement(process.perf.port_rcv_errors)
+            process.server_info.monitor.fillMeasurement(process.perf.port_rcv_constraint_errors)
             for gpu_id in process.server_info.monitor.search("GPU"):
                 gpu = Measurement(gpu_id)
                 process.server_info.monitor.fillMeasurement(gpu)
                 process.perf.gpu.reduce(gpu)
         
         row = ["---",
-               "%.2lf" % process.perf.cpu.avg, 
-               "%.2lf" % process.perf.mem.val, 
+               "%.2lf" % (process.perf.utime.val + process.perf.stime.val),
+               "%.2lf" % 0.0, 
                "%.2lf" % process.perf.gpu.avg, 
                "%.2lf/%.2lf" % (process.perf.rx.rate.avg, process.perf.tx.rate.avg), 
                "%.2lf/%.2lf" % (process.perf.rx.rate.max, process.perf.tx.rate.max),
@@ -553,20 +579,27 @@ class TFCnnBenchmarksStep(Step):
                 jitter = float(m.group(4))
                 loss = float(m.group(5))
                 if process.server_info.monitor is not None:
-                    #perf = process.server_info.monitor.get(["CPU.avg", "MEM.val", "RDTA.rate.avg", "RDTA.rate.max", "TDTA.rate.avg", "TDTA.rate.max"])
+                    remote_dev = "%s:%u" % (process.rdma_device.name, process.rdma_device.port)
+                    perf = process.server_info.monitor.get(["UTIME-%u.val" % process.remote_pid,
+                                                            "STIME-%u.val" % process.remote_pid,
+                                                            "RDTA-%s.rate.avg" % remote_dev,
+                                                            "RDTA-%s.rate.max" % remote_dev,
+                                                            "TDTA-%s.rate.avg" % remote_dev, 
+                                                            "TDTA-%s.rate.max" % remote_dev])
                     gpu_perf = process.server_info.monitor.get(["%s.avg" % gpu for gpu in process.server_info.monitor.search("GPU")])
                     #cpu_perf = process.server_info.monitor.get(["%s.avg" % gpu for gpu in process.server_info.monitor.search("GPU")])
                 else:
+                    perf = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
                     gpu_perf = [0.0]
                 process.perf.images_sec.update(images_sec)
 
                 try:
-                    cpu = 0 #float(perf[0])
-                    mem = 0 #float(perf[1])
-                    rx_rate_avg = 0 #float(perf[2])
-                    rx_rate_max = 0 #float(perf[3])
-                    tx_rate_avg = 0 #float(perf[4])
-                    tx_rate_max = 0 #float(perf[5])
+                    cpu = float(perf[0]) + float(perf[1])
+                    mem = 0.0
+                    rx_rate_avg = float(perf[2])
+                    rx_rate_max = float(perf[3])
+                    tx_rate_avg = float(perf[4])
+                    tx_rate_max = float(perf[5])
                     gpu = sum([float(x) for x in gpu_perf]) / len(gpu_perf)
                 except:
                     error("Server %s: Remote monitor process failed. See %s for more info." % (process.server_info.ip, process.server_info.monitor_log_path))
