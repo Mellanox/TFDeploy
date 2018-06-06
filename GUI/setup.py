@@ -15,5 +15,6 @@ setup(
 	entry_points='''
 		[console_scripts]
 		ml_tester_gui=mltester.ml_tester:main
+		ml_graph_viewer=mltester.ml_graph_viewer:main
 	'''
 )
