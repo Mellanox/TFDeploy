@@ -750,12 +750,13 @@ class TFCnnBenchmarksStep(Step):
         
         time.sleep(0.5)
         res = self._findRemoteProcessIDs(processes)
-        if not res or self._stop:
+        if self._stop:
             return False
         
-        for server in self._servers.values():
-            if not self._initServerMonitors(server):
-                return False
+        if res:
+            for server in self._servers.values():
+                if not self._initServerMonitors(server):
+                    return False
 
         res = waitForProcesses(processes, 
                                wait_timeout=600,
