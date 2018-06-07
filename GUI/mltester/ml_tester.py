@@ -477,7 +477,7 @@ class MLTester(QMainWindow):
         self.settings_pane.addFieldChangedHandler(self._onSettingsAttributeChanged)
         self._settings = self.settings_pane.attributes()
 
-        self._log_widget = MultiLogWidget()        
+        self._log_widget = MultiLogWidget()
         logs_pane = QWidget()
         logs_pane.setLayout(QVBoxLayout())
         logs_pane.layout().addWidget(self._log_widget)
@@ -522,7 +522,7 @@ class MLTester(QMainWindow):
 
     def _closeLog(self, process):
         if (process is None) or (process.log_file_path is None):
-            return        
+            return
         process.closeLog()
         self._log_widget.close(process.log_file_path)
                             
@@ -609,7 +609,7 @@ class MLTester(QMainWindow):
         elif spinbox_handler:
             widget = QSpinBox()
             widget.setMaximumWidth(50)
-            widget.valueChanged.connect(spinbox_handler)            
+            widget.valueChanged.connect(spinbox_handler)
             self.sequence_widget.setCellWidget(r, c, widget)
         elif text is not None: 
             item.setText(text)
@@ -1289,7 +1289,7 @@ def main():
         prompt.loadFromXml(args.xml)
     
     if args.autorun:
-        setLogLevel(args.log_level, LOG_LEVEL_ALL)        
+        setLogLevel(args.log_level, LOG_LEVEL_ALL)
         prompt.run()
     else:
         setLogLevel(LOG_LEVEL_INFO, LOG_LEVEL_ALL)

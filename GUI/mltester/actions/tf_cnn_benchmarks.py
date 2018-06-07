@@ -128,7 +128,7 @@ class TFCnnBenchmarksStep(Step):
         def _onFieldChanged(self, field_index, val):
             if field_index == TFCnnBenchmarksStep.ATTRIBUTE_ID_MODE:
                 self._setMode(val)
-            DefaultAttributesWidget._onFieldChanged(self, field_index, val) 
+            DefaultAttributesWidget._onFieldChanged(self, field_index, val)
         
         # ---------------------------------------- #
         
@@ -261,7 +261,7 @@ class TFCnnBenchmarksStep(Step):
         server.remote_graphs_dir = os.path.join(self._work_dir, "graphs")
         if not os.path.exists(server.graphs_dir):
             os.makedirs(server.graphs_dir)
-        remote_monitor_title = lambda process: "Monitor [%s]" % process.server 
+        remote_monitor_title = lambda process: "Monitor [%s]" % process.server
         remote_monitor_bin = "ml_monitor"
         
         monitored_pids = ",".join(["%u" % p.remote_pid for p in server.processes])
@@ -291,7 +291,7 @@ class TFCnnBenchmarksStep(Step):
         res = server_info.monitor.stop()
         server_info.monitor.close()
         self.runInline("scp %s:%s/* %s" % (server_info.hostname, server_info.remote_graphs_dir, server_info.graphs_dir))
-        return res            
+        return res
     
     # -------------------------------------------------------------------- #
     
@@ -426,6 +426,7 @@ class TFCnnBenchmarksStep(Step):
             if i >= len(links):
                 error("IP %s: No device found." % ip)
                 return False
+                
             link = links[i]
             procs.extend(executeRemoteCommand([server], "ibdev2netdev | grep %s" % link))
         if not waitForProcesses(procs, wait_timeout=5, on_output=deviceNameAndPortParser):

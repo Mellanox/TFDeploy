@@ -103,7 +103,7 @@ class Graph(object):
                 if self._type == Graph.TYPE_NORMAL:
                     self._x.append(timestamp)
                     self._y.append(val)
-                elif self._type == Graph.TYPE_RATE:                
+                elif self._type == Graph.TYPE_RATE:
                     rate = 0 if last_val is None else (val - last_val) / (timestamp - last_timestamp)
                     if rate > 1000000:
                         print "Error in graph: %s: %u \"%s\." % (os.path.basename(self._csv_path), i, line)
@@ -113,13 +113,13 @@ class Graph(object):
                     last_val = val
                     self._x.append(timestamp)
                     self._y.append(rate)
-                elif self._type == Graph.TYPE_DELTA:                
+                elif self._type == Graph.TYPE_DELTA:
                     self._x.append(timestamp - 0.0)
                     self._x.append(timestamp)
                     self._x.append(timestamp + 0.0)
                     self._y.append(0)
                     self._y.append(1)
-                    self._y.append(0)    
+                    self._y.append(0)
 
     # -------------------------------------------------------------------- #
 
@@ -217,7 +217,7 @@ class Graph(object):
         if not self._is_visible:
             return
 
-        self._readData()        
+        self._readData()
         self.plot(fig, host)
     
     # -------------------------------------------------------------------- #
