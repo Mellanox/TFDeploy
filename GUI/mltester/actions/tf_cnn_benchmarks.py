@@ -765,7 +765,7 @@ class TFCnnBenchmarksStep(Step):
                     return False
 
         res = waitForProcesses(processes, 
-                               wait_timeout=600,
+                               wait_timeout=1200,
                                on_output=self._onOut,
                                on_process_start=self._onJobStart,
                                on_process_done=self._onJobDone)
