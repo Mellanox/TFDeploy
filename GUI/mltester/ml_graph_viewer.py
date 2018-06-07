@@ -37,7 +37,7 @@ class Graph(object):
             ymax = 1
             graph_type = Graph.TYPE_DELTA
         elif kind in ["STIME", "UTIME"]:
-            ymax = 1600
+            ymax = 3200
             graph_type = Graph.TYPE_RATE
         elif kind in ["RDTA", "TDTA"]:
             ymax = 150000
