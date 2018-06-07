@@ -397,11 +397,11 @@ class TFCnnBenchmarksStep(Step):
         self._devices = {}
         
         def linkNameParser(line, process):
-            debug(line)
+            debug(line, process)
             links.append(line)
         
         def deviceNameAndPortParser(line, process):
-            debug(line)
+            debug(line, process)
             parts = line.split()
             res = RemoteDeviceInfo()
             res.name = parts[0]
@@ -423,6 +423,9 @@ class TFCnnBenchmarksStep(Step):
         for ip in ips:
             server = TestEnvironment.Get().getServer(ip)
             i = len(procs)
+            if i >= len(links):
+                error("IP %s: No device found." % ip)
+                return False
             link = links[i]
             procs.extend(executeRemoteCommand([server], "ibdev2netdev | grep %s" % link))
         if not waitForProcesses(procs, wait_timeout=5, on_output=deviceNameAndPortParser):
@@ -430,6 +433,7 @@ class TFCnnBenchmarksStep(Step):
                 if proc.exception is not None:
                     raise proc.exception
             raise Exception("Internal Error")
+        return True
 
     # -------------------------------------------------------------------- #
     
@@ -724,7 +728,8 @@ class TFCnnBenchmarksStep(Step):
         # Run: #
         ########
         self._openPerformanceFile()
-        self._getDevices(ips)
+        if not self._getDevices(ips):
+            return False
         
         title("Running:", UniBorder.BORDER_STYLE_SINGLE)
         processes = []
