@@ -10,6 +10,7 @@ from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
 from PyQt4.QtCore import Qt, QString, SIGNAL
+from PyQt4.Qt import QSpinBox
 
 form = None
 def new_home(self, *args, **kwargs):
@@ -17,13 +18,13 @@ def new_home(self, *args, **kwargs):
 
 NavigationToolbar.home = new_home
 
-
 ###############################################################################
 
 class GraphDesc(object):
-    def __init__(self, graph_type, ymax):
+    def __init__(self, graph_type, ymax, line_width):
         self.graph_type = graph_type
         self.ymax = ymax
+        self.line_width = line_width
 
 ###############################################################################
 
@@ -39,10 +40,12 @@ class Graph(object):
     
     @staticmethod
     def getGraphDesc(csv_path):
+        line_width = 2
         kind = os.path.basename(csv_path).split("-")[0]
         if kind in ["timeline.csv"]:
             ymax = 1
             graph_type = Graph.TYPE_DELTA
+            line_width = 3
         elif kind in ["STIME", "UTIME"]:
             ymax = 3200
             graph_type = Graph.TYPE_RATE
@@ -54,20 +57,22 @@ class Graph(object):
             graph_type = Graph.TYPE_NORMAL
         else:
             return None
-        return GraphDesc(graph_type, ymax)
+        return GraphDesc(graph_type, ymax, line_width)
 
     # -------------------------------------------------------------------- #
         
-    def __init__(self, label, csv_path, graph_type, ymax = 1):
+    def __init__(self, label, csv_path, desc, shift = 0, ltrim = None, rtrim = None):
         self._label = label
         self._csv_path = csv_path
-        self._type = graph_type
-        self._ymax = ymax
+        self._desc = desc
         self._color = None
         self._ax = None
         self._x = []
         self._y = []
         self._is_visible = False
+        self._shift = shift
+        self._ltrim = ltrim
+        self._rtrim = rtrim
         self._readData()
     
     # -------------------------------------------------------------------- #
@@ -75,18 +80,6 @@ class Graph(object):
     def _readData(self):
         self._x = []
         self._y = []
-        
-        ####################################
-        # Get start time from timeline.csv #
-        ####################################
-        dirname = os.path.dirname(self._csv_path)
-        timeline_path = os.path.join(dirname, "timeline.csv")
-        if os.path.isfile(timeline_path):
-            with open(timeline_path) as timeline:
-                timeline.readline() # Skip 1st step
-                start_time = float(timeline.readline().split(",")[0])
-        else:
-            start_time = 0
         
         ####################
         # Read graph data: #
@@ -97,20 +90,23 @@ class Graph(object):
         with open(self._csv_path, "r") as csv:
             for line in csv:
                 parts = line.replace(" ","").split(",")
-                try:        
-                    timestamp = float(parts[0]) - start_time
-                    if timestamp < 0:
-                        continue
+                timestamp = float(parts[0])
+                if self._ltrim and (timestamp < self._ltrim):
+                    continue
+                if self._rtrim and (timestamp > self._rtrim):
+                    continue
+                timestamp -= self._shift
+                try:
                     val = float(parts[1])
                 except:
                     print "Error in graph: %s: %u \"%s\." % (os.path.basename(self._csv_path), i, line)
                     continue
                 i += 1
 
-                if self._type == Graph.TYPE_NORMAL:
+                if self._desc.graph_type == Graph.TYPE_NORMAL:
                     self._x.append(timestamp)
                     self._y.append(val)
-                elif self._type == Graph.TYPE_RATE:
+                elif self._desc.graph_type == Graph.TYPE_RATE:
                     rate = 0 if last_val is None else (val - last_val) / (timestamp - last_timestamp)
                     if rate > 1000000:
                         print "Error in graph: %s: %u \"%s\." % (os.path.basename(self._csv_path), i, line)
@@ -120,7 +116,7 @@ class Graph(object):
                     last_val = val
                     self._x.append(timestamp)
                     self._y.append(rate)
-                elif self._type == Graph.TYPE_DELTA:
+                elif self._desc.graph_type == Graph.TYPE_DELTA:
                     self._x.append(timestamp - 0.0)
                     self._x.append(timestamp)
                     self._x.append(timestamp + 0.0)
@@ -128,6 +124,14 @@ class Graph(object):
                     self._y.append(1)
                     self._y.append(0)
 
+    # -------------------------------------------------------------------- #
+    
+    def shiftData(self, shift, shift_now = False):
+        self._shift = shift
+        if shift_now:
+            for i in range(len(self._x)):
+                self._x[i] += shift
+        
     # -------------------------------------------------------------------- #
 
     def csvPath(self):
@@ -186,14 +190,14 @@ class Graph(object):
         else:
             pass
 
-        ymin = self._ymax * host_ymin # (0-1)
-        ymax = self._ymax * host_ymax # (0-1)
+        ymin = self._desc.ymax * host_ymin # (0-1)
+        ymax = self._desc.ymax * host_ymax # (0-1)
         autoscale_x = False #first_time #(host_xmin == 0.0) and (host_xmax == 1.0) # Only if not zoomed yet
         autoscale_y = False
         self._ax.set_autoscalex_on(autoscale_x)
         self._ax.set_autoscaley_on(autoscale_y)
             
-        self._ax.plot(self._x, self._y, self._color)
+        self._ax.plot(self._x, self._y, self._color, linewidth = self._desc.line_width)
         self._ax.set_ylim(ymin, ymax)
         self._ax.tick_params('y', colors = self._color)
         self._ax.spines['top'].set_visible(True)
@@ -202,6 +206,7 @@ class Graph(object):
         self._ax.spines['left'].set_visible(True)
         self._ax.axes.get_yaxis().set_visible(True)
         self._ax.axes.get_xaxis().set_visible(True)
+        self._ax.locator_params(nbins=10, axis='x')
         self._ax.xaxis.grid(b=True, which='minor')
         self._ax.xaxis.grid(b=True, which='major')
         self._ax.minorticks_on()
@@ -228,22 +233,23 @@ class Graph(object):
         if not self._is_visible:
             return
 
+        self.clear()
         self._readData()
         self.plot(fig, host)
     
     # -------------------------------------------------------------------- #
     
-    def scaleTo(self, host):
-        base_ymax = self._ymax if self._ymax is not None else max(self._y)
-        base_ymin = 0
-        host_ymin, host_ymax = host.get_ylim()
-        yrange = base_ymax - base_ymin
-        ymax = yrange * host_ymax # host_ymax is between 0 and 1
-        ymin = yrange * host_ymin # host_ymax is between 0 and 1
-        print yrange
-        print (host_ymin, host_ymax)
-        print (ymin, ymax)
-        self._ax.set_ylim(ymin, ymax)
+#     def scaleTo(self, host):
+#         base_ymax = self._ymax if self._ymax is not None else max(self._y)
+#         base_ymin = 0
+#         host_ymin, host_ymax = host.get_ylim()
+#         yrange = base_ymax - base_ymin
+#         ymax = yrange * host_ymax # host_ymax is between 0 and 1
+#         ymin = yrange * host_ymin # host_ymax is between 0 and 1
+#         print yrange
+#         print (host_ymin, host_ymax)
+#         print (ymin, ymax)
+#         self._ax.set_ylim(ymin, ymax)
         
 
 ###############################################################################
@@ -268,7 +274,7 @@ class GraphFileTreeWidgetItem(QTreeWidgetItem):
         self.widget.layout().addWidget(QLabel("Type:"))
         self.widget.layout().addWidget(self.cb_graph_type)
         
-        self.treeWidget().setItemWidget(self, 0, self.widget)        
+        self.treeWidget().setItemWidget(self, 0, self.widget)
 
 ###############################################################################
 
@@ -285,9 +291,14 @@ class MLGraphViewer(QMainWindow):
 
         self._dirs = dirs
         self._graphs = {}
+        self._timelines = {}
         self._handleChanges = True
         
         self.setWindowTitle('ML Graph Viewer')
+
+        self.sb_sync_step = QSpinBox()
+        self.sb_sync_step.valueChanged.connect(self._refresh)
+    
 
         self.create_menu()
         self.create_main_frame()
@@ -332,6 +343,36 @@ class MLGraphViewer(QMainWindow):
             if MLGraphViewer.COLOR_MAP[c]:
                 return c
         raise Exception("No more available colors.")
+    
+    # -------------------------------------------------------------------- #
+    
+    def _getOrCreateTimeline(self, csv_path):
+        dir_path = os.path.dirname(csv_path)
+        timeline = self._timelines.get(dir_path)
+        if not timeline:
+            timeline = []
+            timeline_path = os.path.join(dir_path, "timeline.csv")
+            if os.path.isfile(timeline_path):
+                with open(timeline_path) as timeline_file:
+                    timeline_file.readline() # Skip 1st step
+                    for line in timeline_file:
+                        step_time = float(line.split(",")[0])
+                        timeline.append(step_time)
+        return timeline
+    
+    # -------------------------------------------------------------------- #
+    
+    def _getShift(self, csv_path):
+        sync_step = self.sb_sync_step.value()
+        timeline = self._getOrCreateTimeline(csv_path)
+        shift = timeline[sync_step]
+        return shift
+    
+    # -------------------------------------------------------------------- #
+    
+    def _getEpoch(self, csv_path):
+        timeline = self._getOrCreateTimeline(csv_path)
+        return timeline[0]
         
     # -------------------------------------------------------------------- #
     
@@ -341,8 +382,10 @@ class MLGraphViewer(QMainWindow):
             graph = self._graphs[csv_path]
         else:
             label = csv_path #
-            desc = Graph.getGraphDesc(csv_path)        
-            graph = Graph(label, csv_path, desc.graph_type, desc.ymax)
+            desc = Graph.getGraphDesc(csv_path)
+            shift = self._getShift(csv_path)
+            epoch = self._getEpoch(csv_path)
+            graph = Graph(label, csv_path, desc, shift, ltrim=epoch)
             self._graphs[csv_path] = graph
         return graph
     
@@ -416,7 +459,7 @@ class MLGraphViewer(QMainWindow):
         #self.host.spines['bottom'].set_visible(True)
         #self.host.spines['left'].set_visible(False)
         #self.host.spines["right"].set_position(("axes", 1.0))
-        self.host.set_autoscale_on(False)        
+        self.host.set_autoscale_on(False)
     
     # -------------------------------------------------------------------- #
     
@@ -455,7 +498,7 @@ class MLGraphViewer(QMainWindow):
                     tree_item.setCheckState(0, Qt.Checked)
                     while tree_item is not None:
                         tree_item.setExpanded(True)
-                        tree_item = tree_item.parent()                        
+                        tree_item = tree_item.parent()
 
         ######################
         # Close dead graphs: #
@@ -469,9 +512,11 @@ class MLGraphViewer(QMainWindow):
 
         ###################
         # Refresh graphs: #
-        ################### 
+        ###################
         for graph in self._graphs.values():
-            if graph.isVisible():            
+            if graph.isVisible():
+                shift = self._getShift(graph.csvPath())
+                graph.shiftData(shift)
                 graph.refresh(self.fig, self.host)
         self._repaintCanvas()
         
@@ -607,6 +652,12 @@ class MLGraphViewer(QMainWindow):
         file_select_pane = QWidget(splitter)
         file_select_pane.setLayout(QVBoxLayout())
         file_select_pane.layout().addWidget(self._tree)
+        
+        sync_pane = QHBoxLayout()
+        sync_pane.addWidget(QLabel("Step:"))
+        sync_pane.addWidget(self.sb_sync_step)
+        
+        file_select_pane.layout().addLayout(sync_pane)
         file_select_pane.layout().addWidget(self.b_refresh)
         
         canvas_pane = QWidget(splitter) 
