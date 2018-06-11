@@ -11,6 +11,13 @@ from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as Navigatio
 from matplotlib.figure import Figure
 from PyQt4.QtCore import Qt, QString, SIGNAL
 
+form = None
+def new_home(self, *args, **kwargs):
+    form.resetZoom()
+
+NavigationToolbar.home = new_home
+
+
 ###############################################################################
 
 class GraphDesc(object):
@@ -303,9 +310,10 @@ class MLGraphViewer(QMainWindow):
 
     def _onXlimsChange(self, axes):
         #print "updated xlims: ", axes.get_xlim()
-        if axes.get_xlim() == (0.0, 1.0):
+        #if axes.get_xlim() == (0.0, 1.0):
             # print "Reset"
-            self._resetZoom()
+            # self._resetZoom()
+        pass
     
     # -------------------------------------------------------------------- #
     
@@ -411,7 +419,7 @@ class MLGraphViewer(QMainWindow):
     
     # -------------------------------------------------------------------- #
     
-    def _resetZoom(self):
+    def resetZoom(self):
         self.host.set_ylim(0.0, 1.0)
         for graph in self._graphs.values():
             if graph.isVisible():
@@ -656,6 +664,8 @@ class MLGraphViewer(QMainWindow):
 ###############################################################################################################################################################
 
 def main():
+    global form
+    
     if len(sys.argv) >= 2:
         base_dir = sys.argv[1:]
     else:
