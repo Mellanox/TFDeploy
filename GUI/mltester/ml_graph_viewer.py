@@ -202,6 +202,9 @@ class Graph(object):
         self._ax.spines['left'].set_visible(True)
         self._ax.axes.get_yaxis().set_visible(True)
         self._ax.axes.get_xaxis().set_visible(True)
+        self._ax.xaxis.grid(b=True, which='minor')
+        self._ax.xaxis.grid(b=True, which='major')
+        self._ax.minorticks_on()
         self._is_visible = True
         return fig, host, first_time
     
@@ -216,6 +219,7 @@ class Graph(object):
         self._ax.axes.get_yaxis().set_visible(False)
         self._ax.axes.get_xaxis().set_visible(False)
         self._ax.clear()
+        self._ax.minorticks_on()
         self._is_visible = False
     
     # -------------------------------------------------------------------- #
@@ -403,6 +407,8 @@ class MLGraphViewer(QMainWindow):
     
     def _resetHost(self):
         self.host.axis('off')
+        #self.host.xaxis.set_major_locator(ticker.MultipleLocator(0.05))
+        #self.host.locator_params(nbins=10, axis='x')
         #self.host.axes.get_yaxis().set_visible(False)
         #self.host.axes.get_xaxis().set_visible(True)
         #self.host.spines['top'].set_visible(False)
