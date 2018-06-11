@@ -357,7 +357,7 @@ class MLGraphViewer(QMainWindow):
         MLGraphViewer.COLOR_MAP[graph.color()] = False
         
         self.fig, self.host, first_time = graph.plot(self.fig, self.host)
-        if not graph.isInVisibleRectX(self.host):
+        if (first_time and len(self._graphs) == 1) or (not graph.isInVisibleRectX(self.host)):
             self._scaleXToFit()
         tree_item.setBackground(0, QBrush(QColor(graph.color())))
         tree_item.setCheckState(0, Qt.Checked)
