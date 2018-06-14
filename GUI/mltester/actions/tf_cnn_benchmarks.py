@@ -512,7 +512,7 @@ class TFCnnBenchmarksStep(Step):
             if self.num_gpus > 0:
                 tf_command += " --num_gpus=%s --local_parameter_device=gpu" % self.num_gpus
             if self.trace_file:
-                tf_command += "--trace_file=trace_%s_%u.json" % (job_name, task_id)
+                tf_command += " --trace_file=trace_%s_%u.json" % (job_name, task_id)
         if self.mode != TFCnnBenchmarksStep.MODE_LOCAL:
             tf_command += " --server_protocol=%s" % self.server_protocol
         if self.forward_only:
