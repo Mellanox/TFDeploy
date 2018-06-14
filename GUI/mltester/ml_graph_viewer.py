@@ -1,16 +1,15 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 import sys, os
-from PyQt4.QtGui import QVBoxLayout, QMainWindow, QTreeWidgetItem, QIcon,\
+from PyQt4.Qt import QVBoxLayout, QMainWindow, QTreeWidgetItem, QIcon,\
     QMessageBox, QFileDialog, QWidget, QSplitter, QTreeWidget, QPushButton,\
     QLabel, QAction, QApplication, QHBoxLayout, QCheckBox, QLineEdit, QComboBox,\
-    QBrush, QColor
+    QBrush, QColor, QSpinBox, Qt, QString, SIGNAL
 
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
-from PyQt4.QtCore import Qt, QString, SIGNAL
-from PyQt4.Qt import QSpinBox
+from commonpylib.util import configurations
 
 form = None
 def new_home(self, *args, **kwargs):
@@ -21,10 +20,11 @@ NavigationToolbar.home = new_home
 ###############################################################################
 
 class GraphDesc(object):
-    def __init__(self, graph_type, ymax, line_width):
+    def __init__(self, graph_type, ymax, line_width, marker):
         self.graph_type = graph_type
         self.ymax = ymax
         self.line_width = line_width
+        self.marker =  marker
 
 ###############################################################################
 
@@ -41,6 +41,7 @@ class Graph(object):
     @staticmethod
     def getGraphDesc(csv_path):
         line_width = 2
+        marker = None
         kind = os.path.basename(csv_path).split("-")[0]
         if kind in ["timeline.csv"]:
             ymax = 1
@@ -57,11 +58,11 @@ class Graph(object):
             graph_type = Graph.TYPE_NORMAL
         else:
             return None
-        return GraphDesc(graph_type, ymax, line_width)
+        return GraphDesc(graph_type, ymax, line_width, marker)
 
     # -------------------------------------------------------------------- #
         
-    def __init__(self, label, csv_path, desc, shift = 0, ltrim = None, rtrim = None):
+    def __init__(self, label, csv_path, desc, xstart = 0, ltrim = None, rtrim = None):
         self._label = label
         self._csv_path = csv_path
         self._desc = desc
@@ -70,7 +71,7 @@ class Graph(object):
         self._x = []
         self._y = []
         self._is_visible = False
-        self._shift = shift
+        self._xstart = xstart
         self._ltrim = ltrim
         self._rtrim = rtrim
         self._readData()
@@ -90,16 +91,16 @@ class Graph(object):
         with open(self._csv_path, "r") as csv:
             for line in csv:
                 parts = line.replace(" ","").split(",")
-                timestamp = float(parts[0])
-                if self._ltrim and (timestamp < self._ltrim):
-                    continue
-                if self._rtrim and (timestamp > self._rtrim):
-                    continue
-                timestamp -= self._shift
                 try:
+                    timestamp = float(parts[0])
+                    if self._ltrim and (timestamp < self._ltrim):
+                        continue
+                    if self._rtrim and (timestamp > self._rtrim):
+                        continue
+                    timestamp -= self._xstart
                     val = float(parts[1])
                 except:
-                    print "Error in graph: %s: %u \"%s\." % (os.path.basename(self._csv_path), i, line)
+                    print "Error in %s: %u \"%s\." % (self._csv_path, i, line)
                     continue
                 i += 1
 
@@ -109,7 +110,7 @@ class Graph(object):
                 elif self._desc.graph_type == Graph.TYPE_RATE:
                     rate = 0 if last_val is None else (val - last_val) / (timestamp - last_timestamp)
                     if rate > 1000000:
-                        print "Error in graph: %s: %u \"%s\." % (os.path.basename(self._csv_path), i, line)
+                        print "Error in %s: %u \"%s\." % (self._csv_path, i, line)
                         continue
                         
                     last_timestamp = timestamp
@@ -123,14 +124,6 @@ class Graph(object):
                     self._y.append(0)
                     self._y.append(1)
                     self._y.append(0)
-
-    # -------------------------------------------------------------------- #
-    
-    def shiftData(self, shift, shift_now = False):
-        self._shift = shift
-        if shift_now:
-            for i in range(len(self._x)):
-                self._x[i] += shift
         
     # -------------------------------------------------------------------- #
 
@@ -197,7 +190,7 @@ class Graph(object):
         self._ax.set_autoscalex_on(autoscale_x)
         self._ax.set_autoscaley_on(autoscale_y)
             
-        self._ax.plot(self._x, self._y, self._color, linewidth = self._desc.line_width)
+        self._ax.plot(self._x, self._y, self._color, linewidth = self._desc.line_width, marker = self._desc.marker)
         self._ax.set_ylim(ymin, ymax)
         self._ax.tick_params('y', colors = self._color)
         self._ax.spines['top'].set_visible(True)
@@ -229,14 +222,17 @@ class Graph(object):
     
     # -------------------------------------------------------------------- #
     
-    def refresh(self, fig, host):
-        if not self._is_visible:
-            return
-
-        self.clear()
+    def readData(self):
         self._readData()
-        self.plot(fig, host)
+
+    # -------------------------------------------------------------------- #
     
+    def setXStart(self, start):
+        shift = start - self._xstart
+        for i in range(len(self._x)):
+            self._x[i] -= shift
+        self._xstart = start
+        
     # -------------------------------------------------------------------- #
     
 #     def scaleTo(self, host):
@@ -297,9 +293,8 @@ class MLGraphViewer(QMainWindow):
         self.setWindowTitle('ML Graph Viewer')
 
         self.sb_sync_step = QSpinBox()
-        self.sb_sync_step.valueChanged.connect(self._refresh)
+        self.sb_sync_step.valueChanged.connect(self._onSyncStepChanged)
     
-
         self.create_menu()
         self.create_main_frame()
         self.create_status_bar()
@@ -478,7 +473,18 @@ class MLGraphViewer(QMainWindow):
         
     # -------------------------------------------------------------------- #
     
-    def _refresh(self):
+    def _shiftAll(self):
+        for graph in self._graphs.values():
+            shift = self._getShift(graph.csvPath())
+            graph.setXStart(shift)
+            if graph.isVisible():
+                graph.clear()
+                graph.plot(self.fig, self.host)
+        self._repaintCanvas()
+        
+    # -------------------------------------------------------------------- #
+    
+    def _refreshAll(self):
         self._handleChanges = False
         self._tree.clear()
         for dir in self._dirs:
@@ -514,18 +520,23 @@ class MLGraphViewer(QMainWindow):
         # Refresh graphs: #
         ###################
         for graph in self._graphs.values():
+            graph.readData()
             if graph.isVisible():
-                shift = self._getShift(graph.csvPath())
-                graph.shiftData(shift)
-                graph.refresh(self.fig, self.host)
+                graph.clear()
+                graph.plot(self.fig, self.host)
         self._repaintCanvas()
         
         self._handleChanges = True
     
     # -------------------------------------------------------------------- #
     
+    def _onSyncStepChanged(self):
+        self._shiftAll()
+    
+    # -------------------------------------------------------------------- #
+    
     def _onRefreshClicked(self):
-        self._refresh()
+        self._refreshAll()
         
     # -------------------------------------------------------------------- #
     
@@ -643,7 +654,7 @@ class MLGraphViewer(QMainWindow):
                         
         self._tree = QTreeWidget(splitter)
         self._tree.setHeaderLabel("Files")
-        self._refresh()
+        self._refreshAll()
         self._tree.itemChanged.connect(self._onTreeItemChanged)
         
         self.b_refresh = QPushButton("Refresh")
