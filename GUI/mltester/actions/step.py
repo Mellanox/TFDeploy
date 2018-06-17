@@ -8,9 +8,9 @@ from xml.etree import cElementTree as etree
 
 from test_environment import TestEnvironment
 from commonpylib.gui import DefaultAttributesWidget
-from commonpylib.log import log, error, UniBorder, title
-from commonpylib.util import executeCommand, executeRemoteCommand, checkRetCode, copyToRemote, waitForProcesses, BasicProcess, toFileName, \
-                             Attribute, AttributesList
+from commonpylib.log import log, error
+from commonpylib.util import executeCommand, executeRemoteCommand, checkRetCode, remoteCopy, waitForProcesses, BasicProcess, toFileName, \
+                             AttributesList
 
 ###############################################################################
     
@@ -200,9 +200,9 @@ class Step(object):
                 
     # -------------------------------------------------------------------- #
     
-    def runSCP(self, servers, sources, remote_dir, wait_timeout = None):
+    def runSCP(self, sources, dst_dir, src_servers = [None], dst_servers = [None], wait_timeout = sys.maxint):
         ''' Run SCP. Always inline. '''
-        processes = copyToRemote(servers, sources, remote_dir)
+        processes = remoteCopy(sources, dst_dir, src_servers=src_servers, dst_servers=dst_servers)
         return waitForProcesses(processes, 
                                 wait_timeout = wait_timeout,
                                 on_output = Step.logToMainProcess)

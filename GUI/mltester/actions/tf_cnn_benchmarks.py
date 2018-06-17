@@ -278,6 +278,9 @@ class TFCnnBenchmarksStep(Step):
     
     def _startServerMonitors(self, hostname):
         server_info = self._servers[hostname]
+        if server_info.monitor is None:
+            return True
+        
         log("Server %s: Starting monitor." % server_info.ip)
         return server_info.monitor.start()
 
@@ -290,7 +293,7 @@ class TFCnnBenchmarksStep(Step):
         
         res = server_info.monitor.stop()
         server_info.monitor.close()
-        self.runInline("scp %s:%s/* %s" % (server_info.hostname, server_info.remote_graphs_dir, server_info.graphs_dir))
+        self.runSCP(server_info.remote_graphs_dir, server_info.graphs_dir, src_servers=[server_info.hostname])
         return res
     
     # -------------------------------------------------------------------- #
@@ -720,7 +723,7 @@ class TFCnnBenchmarksStep(Step):
         # Copy: #
         #########
         title("Copying scripts:", UniBorder.BORDER_STYLE_SINGLE)    
-        if not self.runSCP(servers, [script_dir], work_dir, wait_timeout = 10): # Also create it
+        if not self.runSCP([script_dir], work_dir, dst_servers=servers, wait_timeout = 10): # Also create it
             return False
         if self._stop:
             return False
@@ -782,12 +785,7 @@ class TFCnnBenchmarksStep(Step):
         # Cleanup: #
         ############
         title("Cleaning:", UniBorder.BORDER_STYLE_SINGLE)
-        sources = ["%s:%s %s:%s" % (server, os.path.join(self._work_dir, "graph.txt"), server, os.path.join(self._work_dir, "*.json")) for server in servers]
-        dst = self._logs_dir
-        cmd = "scp %s %s" % (" ".join(sources), dst)
-        self.runInline(cmd)
-        processes = executeRemoteCommand(servers, "rm -rf %s" % work_dir)
-        waitForProcesses(processes, wait_timeout=10)
+        self.runSCP(["graph.txt", "*.json"], self._logs_dir, src_servers=servers, wait_timeout=10)
         return True
 
     # -------------------------------------------------------------------- #

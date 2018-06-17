@@ -1,9 +1,10 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-import tempfile
-import re
 import os
+import re
+import socket
+import tempfile
 
 from commonpylib.log import UniBorder, title
 from commonpylib.util import executeRemoteCommand, waitForProcesses, BoolAttribute, PathAttribute, StrAttribute, ListAttribute, AttributesList, tryExp
@@ -22,6 +23,7 @@ class TFCompileStep(Step):
     ATTRIBUTE_ID_INSTALL_SERVERS = 3
     
     ATTRIBUTES = [PathAttribute("tensorflow_home",  "TensorFlow home", tryExp(["$TENSORFLOW_HOME", "~/tensorflow"])),
+                  StrAttribute ("build_station",    "Build station", socket.gethostname()),
                   BoolAttribute("config_cuda",      "Use Cuda", "True", ["True", "False"]),
                   ListAttribute("additional_flags", "Additional build flags"),
                   ListAttribute("install_servers",  "Install on servers", "12.12.12.25,12.12.12.26")]
@@ -51,21 +53,23 @@ class TFCompileStep(Step):
             additional_flags = ""
         else:
             additional_flags = "--copt \"%s\"" % " ".join(self.additional_flags)
+        
         cmd = "cd %s; rm -rf tensorflow_pkg; bazel build -c opt %s %s //tensorflow/tools/pip_package:build_pip_package" % (self.tensorflow_home,
                                                                                                                            config_cuda,
                                                                                                                            additional_flags)
         res = self.runSeperate(cmd, 
+                               servers = [self.build_station],
                                title = "Build %s" % self.tensorflow_home, 
                                log_file_path = os.path.join(self._logs_dir, "build.log"),
                                wait_timeout = 3600)
         if not res:
             return False
-    
+        
         cmd = "cd %s; bazel-bin/tensorflow/tools/pip_package/build_pip_package tensorflow_pkg" % (self.tensorflow_home)
-        res = self.runInline(cmd, wait_timeout=60)
+        res = self.runInline(cmd, servers = [self.build_station], wait_timeout=60)
         if not res:
             return False
-
+        
         ############
         # Install: #
         ############
@@ -74,7 +78,7 @@ class TFCompileStep(Step):
         src_dir = os.path.join(self.tensorflow_home, "tensorflow_pkg")
         temp_dir_name = "tmp." + next(tempfile._get_candidate_names()) + next(tempfile._get_candidate_names())
         temp_dir = os.path.join(tempfile._get_default_tempdir(), temp_dir_name)
-        res = self.runSCP(servers, [src_dir], temp_dir, wait_timeout=10)
+        res = self.runSCP([src_dir], temp_dir, src_servers=[self.build_station], dst_servers=servers, wait_timeout=10)
         if not res:
             return False
     
