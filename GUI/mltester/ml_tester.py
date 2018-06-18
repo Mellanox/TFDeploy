@@ -1272,9 +1272,9 @@ def main():
     arg_parser = argparse.ArgumentParser(description = "ML tester")
     arg_parser.add_argument("xml", nargs="?", help="A test file to load.")
     arg_parser.add_argument("-a", "--autorun", action="store_true", help="Automatic regression run (no GUI).")
-    arg_parser.add_argument("-L", "--log_level", type=int, default="3", help="Log level.")    
     
     args = arg_parser.parse_args()
+    
 #     QApplication.setStyle(QStyleFactory.create("motif"))
 #     QApplication.setStyle(QStyleFactory.create("Windows"))
 #     QApplication.setStyle(QStyleFactory.create("cde"))
@@ -1289,10 +1289,8 @@ def main():
         prompt.loadFromXml(args.xml)
     
     if args.autorun:
-        setLogLevel(args.log_level, LOG_LEVEL_ALL)
         prompt.run()
     else:
-        setLogLevel(LOG_LEVEL_INFO, LOG_LEVEL_ALL)
         prompt.setTestEnvironment()
         last_opened_file = conf.get(LAST_OPENED_FILE)
         if last_opened_file is not None:
