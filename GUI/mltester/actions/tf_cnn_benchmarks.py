@@ -397,12 +397,12 @@ class TFCnnBenchmarksStep(Step):
     # -------------------------------------------------------------------- #
             
     def _getDevices(self, ips):
-        links = []
+        links = {}
         self._devices = {}
         
         def linkNameParser(line, process):
             debug(line, process)
-            links.append(line)
+            links[process.server] = line
         
         def deviceNameAndPortParser(line, process):
             debug(line, process)
@@ -426,13 +426,15 @@ class TFCnnBenchmarksStep(Step):
         procs = []
         for ip in ips:
             server = TestEnvironment.Get().getServer(ip)
-            i = len(procs)
-            if i >= len(links):
+            link = links.get(server)
+            if not link:
                 error("IP %s: No device found." % ip)
-                return False
-                
-            link = links[i]
+                continue
             procs.extend(executeRemoteCommand([server], "ibdev2netdev | grep %s" % link))
+        
+        if len(procs) < len(ips):
+            return False
+            
         if not waitForProcesses(procs, wait_timeout=5, on_output=deviceNameAndPortParser):
             for proc in procs:
                 if proc.exception is not None:
@@ -553,6 +555,7 @@ class TFCnnBenchmarksStep(Step):
         elif self.mode in [TFCnnBenchmarksStep.MODE_DISTRIBUTED_ALL_REDUCE]:
             tf_command += " --variable_update=distributed_all_reduce"
             tf_command += " --all_reduce_spec=%s" % self.all_reduce_spec
+
         if job_name in ["worker", "controller"]:
             tf_command += " --model=%s" % self.model
             tf_command += " --batch_size=%s" % self.batch_size
