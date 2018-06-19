@@ -11,17 +11,18 @@ import time
 import traceback
 from xml.dom import minidom
 from xml.etree import cElementTree as etree
-from PyQt4.Qt import QWidget, QAction, QIcon, QPushButton, QSize, QToolBar,\
-    QMainWindow, pyqtSignal, QTableWidget, QHeaderView, QAbstractItemView,\
-    QVBoxLayout, QScrollArea, QSplitter, QTableWidgetItem, QCheckBox, QSpinBox,\
-    QMessageBox, qApp, QString, Qt, QDialog, QApplication, QStyleFactory,\
-    QGridLayout, QLineEdit, QTabWidget, QHBoxLayout, QLabel, QStackedWidget
+from PyQt4.Qt import QWidget, QIcon, QMainWindow, pyqtSignal, QTableWidget, \
+    QHeaderView, QAbstractItemView, QVBoxLayout, QScrollArea, QSplitter, \
+    QTableWidgetItem, QCheckBox, QSpinBox, QMessageBox, qApp, QString, Qt, \
+    QDialog, QApplication, QStyleFactory, QTabWidget, QStackedWidget, QFont
 
 from commonpylib.gui import DocumentControl, MultiLogWidget, DefaultAttributesWidget
-from commonpylib.log import LOG_LEVEL_INFO, LOG_LEVEL_ERROR, LOG_LEVEL_ALL, LOG_LEVEL_NOTE, LogLevelNames, setLogOps, setMainProcess, getMainProcess, log, setLogLevel, title, UniBorder
-from commonpylib.util import BasicProcess, WorkerThread, NestedException, PathAttribute, EnumAttribute, configurations
+from commonpylib.log import LOG_LEVEL_INFO, LogManager, openLog, LogLevelNames, error, info, title
+from commonpylib.util import BasicProcess, WorkerThread, NestedException, PathAttribute, EnumAttribute, configurations, AttributesList
 from actions import TestEnvironment, Step
 from dialogs import StepEditDialog
+from dialogs.common_widgets import MenuWithToolbar, ActionWithButton,\
+    VariablesAttribute, TestDataFolder, TestDataAttribute
 
 #############################################################################
 # General        
@@ -41,315 +42,259 @@ def _res(resource_path):
     pkg_name = os.path.basename(os.path.dirname(__file__))
     return pkg_resources.resource_filename(pkg_name, resource_path)
 
-#############################################################################
+#--------------------------------------------------------------------#
 
-class TestDataItem(object):
-
-    def __init__(self, name):
-        self._name = name
-        self._widget = None
-
-    #--------------------------------------------------------------------#
-
-    def name(self):
-        return self._name
-    
-    #--------------------------------------------------------------------#
-    
-    def getWidget(self):
-        return self._widget
-    
-    #--------------------------------------------------------------------#
-    
-    def createWidget(self):
-        return self._widget
+TestAttributeDescriptors = [PathAttribute("base_log_dir", "Logs Folder", default_logs_dir),
+                            # TODO: MOVE TO PREFERENCES:
+                            EnumAttribute("log_level", "Log Level",  LogLevelNames[LOG_LEVEL_INFO], possible_values = LogLevelNames), 
+                            EnumAttribute("file_log_level", "File Log Level", LogLevelNames[LOG_LEVEL_INFO], possible_values = LogLevelNames)]
 
 #############################################################################
 
-class TestDataAttribute(TestDataItem):
+class MLTester(object):
     
-    def __init__(self, name, enum, default_value, allow_advanced_mode = False, base_widget_creator = None):
+    def __init__(self):
+        self.sequence = []
+        self.settings = AttributesList(TestAttributeDescriptors)
+        self._xml_path = None
+        self._test_logs_dir = None
+        self._step_logs_dir = None
+        self._current_step = None
+        self._is_running = False
+        self._do_stop = False
+        self._exception = None
         
-        super(TestDataAttribute, self).__init__(name)
- 
-        if enum == None:
-            enums = None
-        else:
-            enums = [enum]
-
-        self._value_widget = EZRandomWidget(allow_advanced_mode = allow_advanced_mode, base_widget_creator = base_widget_creator, parent = None, enums = enums)
-        self._widget = QWidget()
-        self._widget.setLayout(QHBoxLayout())
-        self._widget.layout().addWidget(QLabel(self._name + ":"))
-        self._widget.layout().addWidget(self._value_widget, 1)
-        
-        self._refreshWidget(default_value)
-        
-    #--------------------------------------------------------------------#
-    
-    def _refreshWidget(self, value):
-        if self._value_widget.getMode() == EZRandomWidget.BASIC:
-            self._value_widget.setBasicText(value)
-        else:
-            self._value_widget.setAdvancedText(value)
-        self._value_widget.refreshDescriptor()
-        
-    #--------------------------------------------------------------------#
-    
-    def getValue(self):
-        return self._widget.getDescriptor().next()
-        
-    #--------------------------------------------------------------------#
-    
-#     def writeToXml(self, parent_node):
-#         new_node = etree.SubElement(parent_node, "Attribute", Name = self._name)
-#         mode_node = etree.SubElement(step_node, "Mode")
-#         mode_node = EZRandomWidget.MODE_NAMES[self._widget.getMode()]
-#         basic_node = etree.SubElement(step_node, "Basic")
-#         basic_node.text = self._widget.getBasicText()
-#         advanced_node = etree.SubElement(step_node, "Advanced")
-#         advanced_node.text = self._widget.getAdvancedText()
-#         return new_node
+        # Event handlers:
+        self.run_done_handler = None
+        self.step_status_changed_handler = None
     
     #--------------------------------------------------------------------#
     
-#     def readFromXml(self, node):
-#         for property_node in step_node.getchildren():
-#             property_name = property_node.attrib["Name"]
-#             property_value = property_node.attrib["Value"]
-#             self._properties[property_name] = property_value
+    def _notifyStepStatusChanged(self, index):
+        if self.step_status_changed_handler:
+            self.step_status_changed_handler(index)
+    
+    #--------------------------------------------------------------------#
+    
+    def _notifyRunDone(self):
+        if self.run_done_handler:
+            self.run_done_handler()
+    
+    #--------------------------------------------------------------------#
+    
+    def _setStepStatus(self, step, index, status):
+        step.setStatus(status)
+        self._notifyStepStatusChanged(index)
+    
+    #--------------------------------------------------------------------#
+    
+    def _reset(self):
+        for index in range(len(self.sequence)):
+            step = self.sequence[index]
+            self._setStepStatus(step, index, Step.STATUS_IDLE)
+    
+    #--------------------------------------------------------------------#
+    
+    def _runStep(self, index):
+        step = self.sequence[index]
+        if not step.isEnabled():
+            return True
 
-#############################################################################
-
-class MultiVariableWidget(QWidget):
-    
-    def __init__(self, parent = None):
-        super(MultiVariableWidget, self).__init__(parent)
-        self._values = {}
-        self._initGui()
-    
-    # -------------------------------------------------------------------- #
-    
-    def _addVariable(self, key, value):
-        row = len(self._values)
-        b_remove = QPushButton("X")
-        b_remove.setMaximumSize(30, 26)
-        le_key = QLineEdit(key)
-        le_value = QLineEdit(value)
-        self.layout().addWidget(b_remove, row, 0)
-        self.layout().addWidget(le_key, row, 1)
-        self.layout().addWidget(le_value, row, 2)
-        
-    # -------------------------------------------------------------------- #
-    
-    def _initGui(self):
-        self.setLayout(QGridLayout())
-        self.layout().setSpacing(0)
-        self.layout().setContentsMargins(0, 0, 0, 0)
-        self._addVariable(None, None)
-                    
-#############################################################################
-
-class VariablesAttribute(TestDataItem):
-    
-    def __init__(self, name):
-        super(VariablesAttribute, self).__init__(name)
-        self._widget = MultiVariableWidget()
-    
-        
-#############################################################################
-
-class TestDataFolder(TestDataItem):
-    
-    class Widget(QWidget):
-        def __init__(self, folder):
-            super(TestDataFolder.Widget, self).__init__()
-            self._folder = folder
+        self._current_step = step
+        self._setStepStatus(step, index, Step.STATUS_RUNNING)
+        for count in range(step.repeat()):
+            title("Step %u - %s (%u/%u)" % (index, str(step), count + 1, step.repeat()), style = 2)
+            res = step.perform(index)
+            self._all_passed &= res
+            if not res:
+                self._setStepStatus(step, index, Step.STATUS_FAILED)
+                if step.stopOnFailure():
+                    return False
+                break
             
-        def folder(self):
-            return self._folder
-                
-    #--------------------------------------------------------------------#
-                    
-    def __init__(self, name):
-        
-        super(TestDataFolder, self).__init__(name)
-        self._attributes = []
-        self._sub_folders = []
-        
-    #--------------------------------------------------------------------#
-    
-    def createWidget(self):
-        self._widget = TestDataFolder.Widget(self)
-        self._widget.setLayout(QVBoxLayout())
-            
-        for attribute in self._attributes:
-            attribute_widget = attribute.createWidget()
-            self._widget.layout().addWidget(attribute_widget)
-
-        if len(self._sub_folders) > 0:
-            self._sub_folders_widget = QTabWidget()
-            for sub_folder in self._sub_folders:
-                self._sub_folders_widget.addTab(sub_folder.createWidget(), sub_folder.name())
-                self._widget.layout().addWidget(self._sub_folders_widget, 1)
-        else:
-            self._widget.layout().addStretch(1)
-
-        #self._widget.layout().setMargin(0)
-        return self._widget
-        
-    #--------------------------------------------------------------------#
-    
-    def getSelectedSubFolder(self):
-        if self._sub_folders_widget is None:
-            return None
-        return self._sub_folders_widget.currentWidget().folder()        
+        self._setStepStatus(step, index, Step.STATUS_PASSED)
+        return True
     
     #--------------------------------------------------------------------#
     
-    def _addAttributeToObject(self, name, item):
-        name = name.lower().replace(" ", "_")
-        setattr(self, name, item)
-        
+    def _runSequence(self):
+        try:
+            self._reset()
+            self._all_passed = True
+            self._do_stop = False
+            for index in range(len(self.sequence)):
+                if not self._runStep(index):
+                    break
+                if self._do_stop:
+                    error("Stopped by user.")
+                    break
+            info("Done.")
+            LogManager.Get().main_process.closeLog()
+            LogManager.Get().main_process = None
+        except Exception:
+            message = "Exception occurred on _runSequence()"
+            print message
+            self._exception = NestedException(message)
+        self._is_running = False
+        self._notifyRunDone()
+    
     #--------------------------------------------------------------------#
     
-    def setStepList(self, step_list):
-        self._step_list = step_list
-        self._addAttributeToObject(step_list.name(), step_list)
-
-    #--------------------------------------------------------------------#
-                 
-    def getStepList(self):
-        return self._step_list
-                        
+    def _isRunning(self):
+        return self._is_running
+    
     #--------------------------------------------------------------------#
     
-    def addAttribute(self, attribute):
-        self._attributes.append(attribute)
-        self._addAttributeToObject(attribute.name(), attribute)
+    def _setLogLevels(self, log_level, file_log_level):
+        LogManager.Get().log_level = log_level
+        LogManager.Get().file_log_level = file_log_level
     
-    #--------------------------------------------------------------------#    
-
-    def addSubFolder(self, sub_folder):
-        self._sub_folders.append(sub_folder)
-        self._addAttributeToObject(sub_folder.name(), sub_folder)
-        
     #--------------------------------------------------------------------#
-#         
-#     def writeToXml(self, parent_node):
-#         new_node = etree.SubElement(parent_node, "Folder", Name = self._name)
-#         for item in self._items.values():
-#             item.writeToXml(new_node)
-#         return step_node
-# 
-#     def readFromXml(self, node):
-#         for property_node in step_node.getchildren():
-#             property_name = property_node.attrib["Name"]
-#             property_value = property_node.attrib["Value"]
-#             self._properties[property_name] = property_value
-        
-#############################################################################        
-# 
-# class VariableWidget(QWidget):
-# 
-#     def __init__(self, parent = None):
-#         super(VariableWidget, self).__init__(parent)
-#         self._initGui()
-#         self._values = {}
-#     
-#     # -------------------------------------------------------------------- #
-#     
-#     def _initGui(self):
-#         self.setLayout(Q)
+    
+    def _setTestLogsDir(self, base_log_dir, xml_path):
+        test_name = re.sub("[^0-9a-zA-Z]", "_", os.path.basename(xml_path))
+        time_prefix = time.strftime("%Y_%m_%d_%H_%M_%S")
+        self._test_logs_dir = os.path.join(base_log_dir, time_prefix + "_" + test_name)
+        TestEnvironment.Get().setTestLogsDir(self._test_logs_dir)
+    
+    #--------------------------------------------------------------------#
+    
+    def _run(self):
+        self._is_running = True
+        self._setLogLevels(self.settings.log_level, self.settings.file_log_level)
+        self._setTestLogsDir(self.settings.base_log_dir, self._xml_path)
+        message = "Running: %s" % self._xml_path
+        main_process = BasicProcess(None, message, os.path.join(self._test_logs_dir, "main.log"), None)
+        LogManager.Get().main_process = main_process
+        openLog(LogManager.Get().main_process)
+        title(message, style = 1)
+        self.thread = WorkerThread(target=self._runSequence)
+        self.thread.start()
+    
+    #--------------------------------------------------------------------#
+    
+    def _saveToContent(self):
+        xml = etree.Element("root")
+        settings_xml = etree.SubElement(xml, "Settings")
+        self.settings.writeToXml(settings_xml)
+        sequence_xml = etree.SubElement(xml, "Sequence")
+        for step in self.sequence:
+            step.writeToXml(sequence_xml)
+        content = minidom.parseString(etree.tostring(xml)).toprettyxml()
+        return content
+    
+    #--------------------------------------------------------------------#
+    
+    def _loadFromContent(self, content):
+        root_node = etree.fromstring(content)
+        for xml_node in root_node.getchildren():
+            if xml_node.tag == "Sequence":
+                for step_node in xml_node.getchildren():
+                    step = Step.loadFromXml(step_node)
+                    self.sequence.append(step)
+            elif xml_node.tag == "Settings":
+                self.settings.loadFromXml(xml_node)
+    
+    #--------------------------------------------------------------------#
+    
+    def saveToXml(self, xml_path):
+        content = self._saveToContent()
+        try:
+            with open(xml_path, "w") as xml_file:
+                xml_file.write(content)
+        except IOError, e:
+            sys.stderr.write("Failed to write to xml file: %s\n" % e)
+    
+    #--------------------------------------------------------------------#
+    
+    def loadFromXml(self, xml_path):
+        try:
+            with open(xml_path, "r") as xml_file:
+                content = xml_file.read()
+        except IOError, e:
+            sys.stderr.write("Failed to read from xml file: %s\n" % e)
+            return
+        self._loadFromContent(content)
+        self._xml_path = xml_path
+    
+    #--------------------------------------------------------------------#
+    
+    def run(self):
+        if self._xml_path is None:
+            return
+        self._run()
+    
+    #--------------------------------------------------------------------#
+    
+    def isRunning(self):
+        return self._isRunning()
+    
+    #--------------------------------------------------------------------#
+    
+    def wait(self):
+        if self._isRunning():
+            self.thread.join()
+    
+    #--------------------------------------------------------------------#
+    
+    def getException(self):
+        return self._exception
+    
+    #--------------------------------------------------------------------#
+    
+    def stop(self):
+        if self._do_stop:
+            return
+        error("Stopping...")
+        self._do_stop = True
+        self._current_step.stop()
 
 #############################################################################
 
-class ActionWithButton(QAction):
-    def __init__(self, mnt, icon_path, text, shortcut, handler, enabled=True, checkable=False, checked=False):
-        super(ActionWithButton, self).__init__(QIcon(icon_path), text, mnt.menu)
-        self.setShortcut(shortcut)
-        #self.setStatusTip(text)
-        self.triggered.connect(handler)
-        self.setEnabled(enabled)
-        self.setCheckable(checkable)
-        self.setChecked(checked)
-        
-        self.button = QPushButton()
-        self.button.setIconSize(QSize(24,24))
-        self._updateButtonStatusFromAction()
-        
-        self.changed.connect(self._updateButtonStatusFromAction)
-        self.button.clicked.connect(self._buttonClicked)
-
-        mnt.menu.addAction(self)
-        if os.path.isfile(icon_path):
-            mnt.toolbar.addWidget(self.button)
+class MLTesterDialog(QMainWindow):
     
-    # -------------------------------------------------------------------- #
-    
-    def _buttonClicked(self, checked):
-        self.trigger()
-
-    # -------------------------------------------------------------------- #
-        
-    def _updateButtonStatusFromAction(self):
-        #self.button.setText        (self.text())
-        self.button.setStatusTip   (self.statusTip())
-        self.button.setToolTip     (self.toolTip())
-        self.button.setIcon        (self.icon())
-        self.button.setEnabled     (self.isEnabled())
-        self.button.setCheckable   (self.isCheckable())
-        self.button.setChecked     (self.isChecked())        
-
-#############################################################################
-
-class MenuWithToolbar(object):
-    def __init__(self, parent, text):
-        self.parent = parent
-        self.name = text.replace("&", "")
-        self.menu = parent.menuBar().addMenu(text)
-        self.toolbar = QToolBar(text)
-        self.parent.addToolBar(self.toolbar)
-    
-    #--------------------------------------------------------------------#
-    
-    def add(self, action_with_button):
-        self.menu.addAction(action_with_button)
-        self.toolbar.addWidget(action_with_button.button)
-
-#############################################################################
-
-class MLTester(QMainWindow):
-    
-    log_signal = pyqtSignal(str, object, int)
     open_log_signal = pyqtSignal(object)
     close_log_signal = pyqtSignal(object)
     refresh_item_signal = pyqtSignal(int)
     run_sequence_done_signal = pyqtSignal()
-
+    
     #--------------------------------------------------------------------#
-            
-    def __init__(self, parent = None):
-        super(MLTester, self).__init__(parent)
-        sys.excepthook = self.exceptionHook
+    
+    def __init__(self, test_xml_path = None, parent = None):
+        super(MLTesterDialog, self).__init__(parent)
+        self._tester = MLTester()
+        self._tester.step_status_changed_handler = self._emitRefreshItem
+        self._tester.run_done_handler = self._emitRunDone
+        
         self._doc = DocumentControl(self, "ML tester", "Xml file (*.xml);;Any File (*.*);;", ".")
-        self._sequence = []
         self._step_attribute_widgets = {}
-        self._selected_step = None
-        self._test_logs_dir = None
-        self._step_logs_dir = None
-        self._current_step = None
         self._copied_steps = []
-        self._error_processes = []
-        self._error_message = None
-        self._error_lock = threading.Lock()
         self._cell_being_edited = None
-        self._is_running = False
-        self._do_stop = False
+        self._error_lock = threading.Lock()
+        self._error_message = None
+        self._error_processes = []
         self._initGui()
-
+        
+        if test_xml_path is not None:
+            self._loadFromXml(test_xml_path)
+    
     #--------------------------------------------------------------------#
-                        
+    
+    def _createFolder(self, parent_folder, name):
+        folder = TestDataFolder(name)
+        if parent_folder != None:
+            parent_folder.addSubFolder(folder)
+        return folder
+    
+    #--------------------------------------------------------------------#
+    
+    def _createAttribute(self, parent_folder, name, enum, default_value, allow_advanced_mode = False, base_widget_creator = None):
+        attribute = TestDataAttribute(name, enum, default_value, allow_advanced_mode = allow_advanced_mode, base_widget_creator = base_widget_creator)
+        parent_folder.addAttribute(attribute)
+        return attribute
+    
+    #--------------------------------------------------------------------#
+    
     def _initGui(self):
         
         self.setStyleSheet('''
@@ -357,11 +302,10 @@ class MLTester(QMainWindow):
             QPushButton:hover { background-color: #cccccc }
             ''')
         self.setWindowIcon(QIcon("/usr/share/icons/Humanity/categories/16/preferences-desktop.svg"))
-        self.log_signal.connect(self._log)
-        self.open_log_signal.connect(self._openLog)
-        self.close_log_signal.connect(self._closeLog)
+        self.open_log_signal.connect(self._openLogWindow)
+        self.close_log_signal.connect(self._closeLogWindow)
         self.refresh_item_signal.connect(self._refreshItem)
-        self.run_sequence_done_signal.connect(self._runSequenceDone)
+        self.run_sequence_done_signal.connect(self._runDone)
         
 #         self.sequence_widget = QListWidget()
         self.sequence_widget = QTableWidget()
@@ -370,7 +314,7 @@ class MLTester(QMainWindow):
         self.sequence_widget.setHorizontalHeaderLabels(["", "#", "", "Name", "Attributes"])
         self.sequence_widget.horizontalHeader().setResizeMode(0, QHeaderView.ResizeToContents)
         self.sequence_widget.horizontalHeader().setResizeMode(1, QHeaderView.ResizeToContents)
-        self.sequence_widget.horizontalHeader().setResizeMode(2, QHeaderView.ResizeToContents)        
+        self.sequence_widget.horizontalHeader().setResizeMode(2, QHeaderView.ResizeToContents)
         self.sequence_widget.horizontalHeader().setResizeMode(3, QHeaderView.ResizeToContents)
         self.sequence_widget.horizontalHeader().setResizeMode(4, QHeaderView.Stretch)
         self.sequence_widget.setSelectionBehavior(QAbstractItemView.SelectRows)
@@ -424,18 +368,18 @@ class MLTester(QMainWindow):
         # Menus:
         #########
                           
-        self.file_menu       = MenuWithToolbar(self, "&File")      
+        self.file_menu       = MenuWithToolbar(self, "&File")
         self.edit_menu       = MenuWithToolbar(self, "&Edit")
         self.run_menu        = MenuWithToolbar(self, "&Run")
         self.window_menu     = MenuWithToolbar(self, "&Window")
         self.help_menu       = MenuWithToolbar(self, "&Help")
                 
-        self.newAction       = ActionWithButton(self.file_menu,   _res("images/new.jpeg"),             "&New",             "Ctrl+N",       self._newAction)
-        self.openAction      = ActionWithButton(self.file_menu,   _res("images/open.jpeg"),            "&Open...",         "Ctrl+O",       self._openAction)
-        self.saveAction      = ActionWithButton(self.file_menu,   _res("images/save.jpeg"),            "&Save",            "Ctrl+S",       self._saveAction)
-        self.saveAsAction    = ActionWithButton(self.file_menu,   _res("images/save_as.jpeg"),         "Save &As...",      "",             self._saveAction)
+        self.newAction       = ActionWithButton(self.file_menu,   _res("images/new.jpeg"),             "&New",             "Ctrl+N",       self._newActionHandler)
+        self.openAction      = ActionWithButton(self.file_menu,   _res("images/open.jpeg"),            "&Open...",         "Ctrl+O",       self._openActionHandler)
+        self.saveAction      = ActionWithButton(self.file_menu,   _res("images/save.jpeg"),            "&Save",            "Ctrl+S",       self._saveActionHandler)
+        self.saveAsAction    = ActionWithButton(self.file_menu,   _res("images/save_as.jpeg"),         "Save &As...",      "",             self._saveAsActionHandler)
         self.file_menu.menu.addSeparator()
-        self.quitAction      = ActionWithButton(self.file_menu,   _res("images/save_as.jpeg"),         "E&xit",            "Alt+F4",       qApp.quit)
+        self.quitAction      = ActionWithButton(self.file_menu,   _res("images/save_as.jpeg"),         "E&xit",            "Alt+F4",       self._quitActionHandler)
                                                                                                                                     
         self.addAction       = ActionWithButton(self.edit_menu,   _res("images/add.jpg"),              "Add...",           "Ctrl++",       self._addActionHandler)
         self.cutAction       = ActionWithButton(self.edit_menu,   _res("images/cut.png"),              "Cut",              "Ctrl+X",       self._cutActionHandler, enabled=False)
@@ -458,7 +402,7 @@ class MLTester(QMainWindow):
         self.showGraphsAction= ActionWithButton(self.window_menu, _res("images/graphs.jpeg"),          "Show Graphs",      "Ctrl+G",       self._showGraphsActionHandler, enabled=False)
         #self.window_menu.menu.addSeparator()
         #self.moveDownAction  = ActionWithButton(self.window_menu,_res("images/preferences.png"),      "Preferences",      "",             self._preferencesActionHandler)        
-
+        
         self.aboutAction     = ActionWithButton(self.help_menu,   _res("images/about.jpeg"),            "&About",           "F1",           self._aboutActionHandler)
         
         #########
@@ -470,13 +414,9 @@ class MLTester(QMainWindow):
         sequence_pane.layout().addWidget(self.sequence_widget, 2)
         sequence_pane.layout().addWidget(self.configuration_box, 1)
         
-        self.settings_pane = DefaultAttributesWidget([PathAttribute("base_log_dir", "Logs Folder", default_logs_dir),
-                                                      # TODO: MOVE TO PREFERENCES:
-                                                      EnumAttribute("log_level", "Log Level",  LogLevelNames[LOG_LEVEL_INFO], possible_values = LogLevelNames), 
-                                                      EnumAttribute("file_log_level", "File Log Level", LogLevelNames[LOG_LEVEL_INFO], possible_values = LogLevelNames)])
+        self.settings_pane = DefaultAttributesWidget(TestAttributeDescriptors)
         self.settings_pane.addFieldChangedHandler(self._onSettingsAttributeChanged)
-        self._settings = self.settings_pane.attributes()
-
+        
         self._log_widget = MultiLogWidget()
         logs_pane = QWidget()
         logs_pane.setLayout(QVBoxLayout())
@@ -484,113 +424,53 @@ class MLTester(QMainWindow):
         
 #         configurations_folder_widget.setObjectName("HighLevelWidget")
 #         configurations_folder_widget.setStyleSheet("QWidget#HighLevelWidget { border:1px solid black; }")        
-
+        
         edit_pane = QTabWidget()
         edit_pane.addTab(sequence_pane, "Test Sequence")
         edit_pane.addTab(self.settings_pane, "Test Settings")
         edit_pane.resize(500, edit_pane.height())
-
+        
         central_widget = QSplitter()
         central_widget.addWidget(edit_pane)
         central_widget.addWidget(logs_pane)
         #central_widget.addWidget(self.edit_pane)
-
+        
         self.setCentralWidget(central_widget)
         
         ###############
         # Status Bar: #
         ###############
         #self.statusBar().addWidget(self.status_text, 1)
-
+    
     #--------------------------------------------------------------------#
-
-    def _log(self, line, process, log_level):
+    
+    def _logToWidget(self, line, process, log_level):
         if (process is None) or (process.log_file_path is None):
             print line
             return
         self._log_widget.log(line, process.log_file_path, log_level)
-
+    
     #--------------------------------------------------------------------#
-
-    def _openLog(self, process):
+    
+    def _openLogWindow(self, process):
         if (process is None) or (process.log_file_path is None):
             return
         process.openLog()
         return self._log_widget.open(process.log_file_path, str(process.title))
-
+    
     #--------------------------------------------------------------------#
-
-    def _closeLog(self, process):
+    
+    def _closeLogWindow(self, process):
         if (process is None) or (process.log_file_path is None):
             return
         process.closeLog()
         self._log_widget.close(process.log_file_path)
-                            
-    #--------------------------------------------------------------------#
     
-#     def emitLog(self, line, process, log_level):
-#         self.log_signal.emit(line, process, log_level)
-
-    #--------------------------------------------------------------------#
-    
-    def emitOpenLog(self, process):
-        self.open_log_signal.emit(process)
-
-    #--------------------------------------------------------------------#
-    
-    def emitCloseLog(self, process):
-        self.close_log_signal.emit(process)
-                   
-    # -------------------------------------------------------------------- #
-    
-    def logOp(self, line, process, log_level):
-        self._log(line, process, log_level) 
-        #self.emitLog(msg, process, log_level)
-
-    # -------------------------------------------------------------------- #
-    
-    def _onNewProcess(self, process):
-        self.emitOpenLog(process)
-        
-    #--------------------------------------------------------------------#
-    
-    def _onProcessDone(self, process):
-        if process.exception is not None:
-            raise process.exception
-            
-        if process.instance.returncode in [0, 143, -15]:
-            self.emitCloseLog(process)
-            return True
-        
-        self._error_processes.append(process)
-        return False
-        
-    #--------------------------------------------------------------------#
-    
-    def setTestEnvironment(self):
-        TestEnvironment.setOnNewProcess(self._onNewProcess)
-        TestEnvironment.setOnProcessDone(self._onProcessDone)
-        setLogOps(self.logOp, self.logOp)
-
     #--------------------------------------------------------------------#
     
     def _setModified(self):
         self._doc.setModified(True)
     
-    #--------------------------------------------------------------------#
-    
-    def _createFolder(self, parent_folder, name):
-        folder = TestDataFolder(name)
-        if parent_folder != None:
-            parent_folder.addSubFolder(folder)
-        return folder
-
-    #--------------------------------------------------------------------#
-    
-    def _createAttribute(self, parent_folder, name, enum, default_value, allow_advanced_mode = False, base_widget_creator = None):
-        attribute = TestDataAttribute(name, enum, default_value, allow_advanced_mode = allow_advanced_mode, base_widget_creator = base_widget_creator)
-        parent_folder.addAttribute(attribute)
-        return attribute
     #--------------------------------------------------------------------#
     
     def _addSequenceCell(self, r, c, text = None, editable = False, checkbox_handler = None, spinbox_handler = None):
@@ -627,10 +507,10 @@ class MLTester(QMainWindow):
         
     def _getStepRepeatHandler(self, index):
         def op(val):
-            self._sequence[index].setRepeat(val)
+            self._tester.sequence[index].setRepeat(val)
             self._setModified()
         return op
-
+    
     #--------------------------------------------------------------------#
     
     def _onItemDoubleClicked(self, item):
@@ -640,7 +520,7 @@ class MLTester(QMainWindow):
         if col != 3:
             return
         self._cell_being_edited = (row, col)
-
+    
     #--------------------------------------------------------------------#
     
     def _onSequenceItemChanged(self, item):
@@ -654,50 +534,55 @@ class MLTester(QMainWindow):
         
         #print "Changed: (%u, %u)" % (row, col)
         index = row
-        step = self._sequence[index]
+        step = self._tester.sequence[index]
         if item.column() == 3:
             name = str(item.text())
             if name != step.name(): 
                 step.setName(name)
         self._cell_being_edited = None
         self._setModified()
-        
+    
+    #--------------------------------------------------------------------#
+    
+    def _addStepToWidget(self, index, step):
+        self.sequence_widget.insertRow(index)
+        self._addSequenceCell(index, 0, checkbox_handler=self._getStepEnabledHandler(index))
+        self._addSequenceCell(index, 1, spinbox_handler=self._getStepRepeatHandler(index))
+        self._addSequenceCell(index, 2)
+        self._addSequenceCell(index, 3, text = step.name(), editable=True)
+        self._addSequenceCell(index, 4)
+        self._updateStepInWidget(index, step)
+    
     #--------------------------------------------------------------------#
     
     def _addStepsToSequence(self, steps, index):
         new_indexes = []
         for step in steps:
-            self._sequence.insert(index, step)
-            self.sequence_widget.insertRow(index)
-            self._addSequenceCell(index, 0, checkbox_handler=self._getStepEnabledHandler(index))
-            self._addSequenceCell(index, 1, spinbox_handler=self._getStepRepeatHandler(index))
-            self._addSequenceCell(index, 2)
-            self._addSequenceCell(index, 3, text = step.name(), editable=True)
-            self._addSequenceCell(index, 4)
-            self._updateStepInSequence(index, step)
+            self._tester.sequence.insert(index, step)
+            self._addStepToWidget(index, step)
             new_indexes.append(index)
             index += 1
         return new_indexes
     
     #--------------------------------------------------------------------#
-
+    
     def _addStepsToSequenceStart(self, steps):
         return self._addStepsToSequence(steps, 0)
     
     #--------------------------------------------------------------------#
-
+    
     def _addStepsToSequenceEnd(self, steps):
         return self._addStepsToSequence(steps, self.sequence_widget.rowCount())
-            
+    
     #--------------------------------------------------------------------#
-
+    
     def _addStepsToSequenceBefore(self, steps):
         selected_indexes = self._getSelectedIndexes()
         index = 0 if len(selected_indexes) == 0 else min(selected_indexes)
         return self._addStepsToSequence(steps, index)
-
+    
     #--------------------------------------------------------------------#
-
+    
     def _addStepsToSequenceAfter(self, steps):
         selected_indexes = self._getSelectedIndexes()
         index = self.sequence_widget.rowCount() if len(selected_indexes) == 0 else max(selected_indexes) + 1
@@ -705,7 +590,7 @@ class MLTester(QMainWindow):
         
     #--------------------------------------------------------------------#
     
-    def _updateStepInSequence(self, index, step):
+    def _updateStepInWidget(self, index, step):
         self.sequence_widget.cellWidget(index, 0).setChecked(Qt.Checked if step.isEnabled() else Qt.Unchecked)
         self.sequence_widget.cellWidget(index, 1).setValue(step.repeat())
         #self.sequence_widget.item(index, 2).font().setPointSize(50)
@@ -728,7 +613,7 @@ class MLTester(QMainWindow):
     #--------------------------------------------------------------------#
     
     def _setStepEnabled(self, index, val):
-        step = self._sequence[index]
+        step = self._tester.sequence[index]
         step.setEnabled(val)
 #         if self._is_running:
 #             self.sequence_widget.cellWidget(index, 0).setEnabled(False)
@@ -757,12 +642,12 @@ class MLTester(QMainWindow):
             return
         
         #print "NEW: %u. OLD: %u." % (new_index, index)
-        step1 = self._sequence[index]
-        step2 = self._sequence[new_index]
-        self._sequence[index] = step2
-        self._sequence[new_index] = step1
-        self._updateStepInSequence(index, step2)
-        self._updateStepInSequence(new_index, step1)
+        step1 = self._tester.sequence[index]
+        step2 = self._tester.sequence[new_index]
+        self._tester.sequence[index] = step2
+        self._tester.sequence[new_index] = step1
+        self._updateStepInWidget(index, step2)
+        self._updateStepInWidget(new_index, step1)
         self.sequence_widget.setCurrentCell(new_index, 0)
         self._setModified()
     
@@ -775,7 +660,7 @@ class MLTester(QMainWindow):
     
     def _moveDownActionHandler(self):
         self._moveInSequence(1)
-                    
+    
     #--------------------------------------------------------------------#
     
     def _getSelectedIndexes(self):                    
@@ -787,23 +672,23 @@ class MLTester(QMainWindow):
         indexes_to_remove = self._getSelectedIndexes()
         indexes_to_remove.sort(reverse=True)
         for index in indexes_to_remove:
-            self._sequence.pop(index)
-            while index < len(self._sequence):
-                self._updateStepInSequence(index, self._sequence[index])
+            self._tester.sequence.pop(index)
+            while index < len(self._tester.sequence):
+                self._updateStepInWidget(index, self._tester.sequence[index])
                 index += 1
             self.sequence_widget.removeRow(index)
         self.sequence_widget.clearSelection()
         self._setModified()
-
+    
     #--------------------------------------------------------------------#
     
     def _copyStepsToClipboard(self):
         selected_indexes = self._getSelectedIndexes()
         selected_indexes.sort() #reversed=True)
-        self._copied_steps = [self._sequence[index] for index in selected_indexes]
+        self._copied_steps = [self._tester.sequence[index] for index in selected_indexes]
         self.pasteAction.setEnabled(True)
         self.pasteBeforeAction.setEnabled(True)
-                
+    
     #--------------------------------------------------------------------#
     
     def _pasteStepsToSequence(self, before):
@@ -823,7 +708,7 @@ class MLTester(QMainWindow):
             for index in indexes:
                 self.sequence_widget.selectRow(index)
         self._setModified()        
-        
+    
     #--------------------------------------------------------------------#
     
     def _addActionHandler(self):
@@ -859,11 +744,11 @@ class MLTester(QMainWindow):
     
     def _checkActionHandler(self):
         selected_indexes = self._getSelectedIndexes()
-        all_enabled = all(self._sequence[index].isEnabled() for index in selected_indexes)
+        all_enabled = all(self._tester.sequence[index].isEnabled() for index in selected_indexes)
         val = Qt.Unchecked if all_enabled else Qt.Checked
         for index in selected_indexes:
             self.sequence_widget.cellWidget(index, 0).setChecked(val)
-            self._sequence[index].setEnabled(not all_enabled)
+            self._tester.sequence[index].setEnabled(not all_enabled)
         self._setModified()
                 
     #--------------------------------------------------------------------#
@@ -877,21 +762,31 @@ class MLTester(QMainWindow):
         while self.sequence_widget.rowCount() > 0:
             self.sequence_widget.removeRow(0)
         self._clearConfigurationPane()
-        self._sequence = []
-
+    
     #--------------------------------------------------------------------#
-        
+    
+    def _syncGui(self):
+        # TODO: Completely sync the GUI with the tester
+        self._clear()
+        self.settings_pane.load(self._tester.settings)
+        for index in range(len(self._tester.sequence)):
+            step = self._tester.sequence[index]
+            self._addStepToWidget(index, step)
+        self._doc.setModified(False) # Patch: the above actions marked as modified
+    
+    #--------------------------------------------------------------------#
+    
     def _sequenceStepSelected(self, selected, deselected):
         index = self.sequence_widget.currentRow()
         if index == -1:
             self._clearConfigurationPane()
             return
 
-        step = self._sequence[index]
+        step = self._tester.sequence[index]
         self._setConfigurationPane(step)
         selected_indexes = self._getSelectedIndexes()
         something_selected = len(selected_indexes) > 0
-        enable_edit = not self._is_running and something_selected
+        enable_edit = not self._tester.isRunning() and something_selected
         self.removeAction.setEnabled(enable_edit)
         self.checkAction.setEnabled(enable_edit)
         self.copyAction.setEnabled(enable_edit)
@@ -919,7 +814,7 @@ class MLTester(QMainWindow):
     
     def _clearConfigurationPane(self):
         self.configuration_pane.setCurrentIndex(0)
-        
+    
     #--------------------------------------------------------------------#
     
     def _onSettingsAttributeChanged(self, attribute_index, value):
@@ -929,7 +824,7 @@ class MLTester(QMainWindow):
     
     def _onStepAttributeChanged(self, attribute_index, value):
         step_index = self.sequence_widget.currentRow()
-        step = self._sequence[step_index]
+        step = self._tester.sequence[step_index]
         step.attributes()[attribute_index].val = value
         self._refreshItem(step_index)
         self._setModified()
@@ -937,97 +832,18 @@ class MLTester(QMainWindow):
     #--------------------------------------------------------------------#
     
     def _refreshItem(self, index):
-        self._updateStepInSequence(index, self._sequence[index])
+        self._updateStepInWidget(index, self._tester.sequence[index])
     
     #--------------------------------------------------------------------#
     
     def _emitRefreshItem(self, index):
         self.refresh_item_signal.emit(index)
-
-    #--------------------------------------------------------------------#
-    
-    def _setStepStatus(self, step, index, status):
-        step.setStatus(status)
-        self._emitRefreshItem(index)
-
-    #--------------------------------------------------------------------#
-                
-    def _reset(self):
-        for index in range(len(self._sequence)):
-            step = self._sequence[index]
-            self._setStepStatus(step, index, Step.STATUS_IDLE)
     
     #--------------------------------------------------------------------#
     
-    def _setTestLogsDir(self):
-        test_name = re.sub("[^0-9a-zA-Z]", "_", os.path.basename(self._doc.filePath()))
-        time_prefix = time.strftime("%Y_%m_%d_%H_%M_%S")
-        self._test_logs_dir = os.path.join(self._settings.base_log_dir, time_prefix + "_" + test_name)
-        TestEnvironment.Get().setTestLogsDir(self._test_logs_dir)
-        
-    #--------------------------------------------------------------------#
-    
-    def _runStep(self, index):
-        step = self._sequence[index]
-        if not step.isEnabled():
-            return True
-
-        self._current_step = step
-        self._setStepStatus(step, index, Step.STATUS_RUNNING)
-        for count in range(step.repeat()):        
-            title("Step %u - %s (%u/%u)" % (index, str(step), count + 1, step.repeat()), style = UniBorder.BORDER_STYLE_DOUBLE)
-            res = step.perform(index)
-            self._all_passed &= res
-            if not res:
-                self._setStepStatus(step, index, Step.STATUS_FAILED)                
-                if step.stopOnFailure():
-                    return False
-                break
-            
-        self._setStepStatus(step, index, Step.STATUS_PASSED)
-        return True
-                                    
-    #--------------------------------------------------------------------#
-            
-    def _runSequence(self):
-        try:
-            self.emitOpenLog(getMainProcess())
-            self._all_passed = True
-            self._do_stop = False
-            self._reset()
-            setLogLevel(self._settings.log_level, self._settings.file_log_level)
-            for index in range(len(self._sequence)):
-                if not self._runStep(index):
-                    break
-                if self._do_stop:
-                    log("Stopped by user.", log_level=LOG_LEVEL_ERROR)
-                    break
-        except Exception as e:
-            message = "Exception occurred on _runSequence()"
-            print message
-            self.thread.exception = NestedException(message)
+    def _emitRunDone(self):
         self.run_sequence_done_signal.emit()
-        
-    #--------------------------------------------------------------------#
-            
-    def _runSequenceInNewThread(self):
-        self.thread = WorkerThread(target=self._runSequence)
-        self.thread.start()
-        
-    #--------------------------------------------------------------------#
     
-    def _runSequenceDone(self):
-        if self.thread.exception is not None:
-            raise self.thread.exception
-        
-        log("Done.", log_level = LOG_LEVEL_NOTE)
-        getMainProcess().closeLog()
-        setMainProcess(None)
-        self._is_running = False        
-        self._setEditWidgetsEnabled(True)
-        for index in range(len(self._sequence)):
-            self._refreshItem(index)
-
     #--------------------------------------------------------------------#
     
     def _setEditWidgetsEnabled(self, val):
@@ -1037,7 +853,6 @@ class MLTester(QMainWindow):
         else:
             self.sequence_widget.clearSelection()
 #             self.sequence_widget.setSelectionMode(QAbstractItemView.NoSelection)
-
         #self.sequence_widget.setEnabled(val)
         selected_indexes = self._getSelectedIndexes()
         for action in self.edit_menu.menu.actions():
@@ -1055,34 +870,36 @@ class MLTester(QMainWindow):
     
     #--------------------------------------------------------------------#
     
-    def _run(self):
-        self._saveAction(None)
-        self._is_running = True
-        self._setEditWidgetsEnabled(False)
+    def _runDone(self):
+        ex = self._tester.getException()
+        if ex:
+            raise ex
         
-        self._setTestLogsDir()
-        title = "Running: %s" % self._doc.filePath()
-        log(title, log_level = LOG_LEVEL_NOTE)
-        main_process = BasicProcess(None, title, os.path.join(self._test_logs_dir, "main.log"), None)
-        setMainProcess(main_process)
-        self._runSequenceInNewThread()
-        
+        self._setEditWidgetsEnabled(True)
+        for index in range(len(self._tester.sequence)):
+            self._refreshItem(index)
+    
     #--------------------------------------------------------------------#
-        
-    def _stop(self):
-        if self._do_stop:
-            return
-        log("Stopping...", log_level=LOG_LEVEL_ERROR)
-        self._do_stop = True
-        self._current_step.stop()
+    
+    def _run(self):
+        self._saveToXml()
+        self._setEditWidgetsEnabled(False)
+        self._tester.run() 
     
     #--------------------------------------------------------------------#
         
+    def _stop(self):
+        self._tester.stop()
+    
+    ###########################################################################
+    #                             Action handlers                             #
+    ###########################################################################
+    
     def _runActionHandler(self):
         self._run()
     
     #--------------------------------------------------------------------#
-
+    
     def _stopActionHandler(self):
         self._stop()
     
@@ -1095,9 +912,9 @@ class MLTester(QMainWindow):
     
     def _closeAllWindowsActionHandler(self, checked):
         for process in self._error_processes:
-            self.emitCloseLog(process)
+            self.close_log_signal.emit(process)
         self._log_widget.hideAllSubWindows()
-
+    
     #--------------------------------------------------------------------#
     
     def _cascadeWindowsActionHandler(self, checked):
@@ -1112,7 +929,7 @@ class MLTester(QMainWindow):
     
     def _showNavigatorActionHandler(self, checked):
         self._log_widget.navigator().setVisible(checked)
-        
+    
     #--------------------------------------------------------------------#
     
     def _showGraphsActionHandler(self, checked):
@@ -1120,7 +937,7 @@ class MLTester(QMainWindow):
         selected_indexes = self._getSelectedIndexes()
         dirs = []
         for index in selected_indexes:
-            step = self._sequence[index]
+            step = self._tester.sequence[index]
             logs_dir = step.logsDir()
             if logs_dir is not None:
                 dirs.append(logs_dir)
@@ -1128,7 +945,7 @@ class MLTester(QMainWindow):
         if len(dirs) > 0:
             dialog = ml_graph_viewer(dirs, parent = self)
             dialog.show()
-        
+    
     #--------------------------------------------------------------------#
     
     def _preferencesActionHandler(self):
@@ -1145,83 +962,57 @@ class MLTester(QMainWindow):
         """
         
         QMessageBox.about(self, "ML Tester", msg.strip())
-            
+    
     #--------------------------------------------------------------------#
     
-    def _newAction(self):
+    def _newActionHandler(self):
         self._doc.new()
         self._clear()
-        
+    
     #--------------------------------------------------------------------#
     
-    def _getXmlContent(self):
-        xml = etree.Element("root")
-        settings_xml = etree.SubElement(xml, "Settings")
-        self._settings.writeToXml(settings_xml)
-        sequence_xml = etree.SubElement(xml, "Sequence")
-        for step in self._sequence:
-            step.writeToXml(sequence_xml)
-        content = minidom.parseString(etree.tostring(xml)).toprettyxml()
-        return content 
-         
-    #--------------------------------------------------------------------#
-            
-    def _saveAction(self, is_checked):
-        content = self._getXmlContent()
-        self._doc.save(content)
-
+    def _openActionHandler(self, is_checked):
+        self._loadFromXml()
+    
     #--------------------------------------------------------------------#
     
-    def _saveAsAction(self, is_checked):
+    def _saveActionHandler(self, is_checked):
+        self._saveToXml()
+    
+    #--------------------------------------------------------------------#
+    
+    def _saveAsActionHandler(self, is_checked):
         content = self._getXmlContent()
         self._doc.saveAs(content)
-        
+    
     #--------------------------------------------------------------------#
-            
-    def _loadFromXml(self, file_path=None):
-        try:        
-            content = self._doc.load(file_path)
-            conf.set(LAST_OPENED_FILE, self._doc.filePath())
-        except IOError, e:
-            sys.stderr.write("Failed to open xml file: %s\n" % e)
+    
+    def _quitActionHandler(self, is_checked):
+        qApp.quit
+    
+    #--------------------------------------------------------------------#
+    
+    def _loadFromXml(self, file_path):
+        file_path = self._doc.load(file_path)
+        if file_path is None:
             return
-        if content == None:
+        
+        conf.set(LAST_OPENED_FILE, self._doc.filePath())
+        self._tester.loadFromXml(file_path)
+        self._syncGui()
+    
+    #--------------------------------------------------------------------#
+    
+    def _saveToXml(self):
+        if not self._doc.save():
             return
         
-        self._loadFromContent(content)
-
-    #--------------------------------------------------------------------#
+        conf.set(LAST_OPENED_FILE, self._doc.filePath())
+        self._tester.saveToXml(self._doc.filePath())
     
-    def _openAction(self, is_checked):
-        self._loadFromXml(None)
-        
-    #--------------------------------------------------------------------#
-            
-    def loadFromXml(self, file_path=None):
-        self._loadFromXml(file_path)
-                
-    #--------------------------------------------------------------------#
-    
-    def _loadFromContent(self, content):
-        self._clear()
-        root_node = etree.fromstring(content)
-        for xml_node in root_node.getchildren():
-            if xml_node.tag == "Sequence":
-                for step_node in xml_node.getchildren():
-                    step = Step.loadFromXml(step_node)
-                    self._addStepsToSequenceEnd([step])
-            elif xml_node.tag == "Settings":
-                self._settings.loadFromXml(xml_node)
-                self.settings_pane.refresh()
-        self._doc.setModified(False)
-            
-    #--------------------------------------------------------------------#
-    
-    def run(self):
-        self._run()
-        self.thread.wait()
-    
-    #--------------------------------------------------------------------#
+    ###########################################################################
+    #                             QMainWindow Hooks                           #
+    ###########################################################################
     
 #     def keyPressEvent(self, event):
 #         if (event.key() == Qt.Key_C) and (event.modifiers() & Qt.ControlModifier):
@@ -1230,6 +1021,61 @@ class MLTester(QMainWindow):
 #             before = bool(event.modifiers() & Qt.ShiftModifier)
 #             self._pasteStepsToSequence(before)
     
+    #--------------------------------------------------------------------#
+    
+    def closeEvent(self, evnt):
+        geometry = GEOMETRY_MAX if self.isMaximized() else "%u,%u,%u,%u" % (self.x(), self.y(), self.width(), self.height())
+        conf.set(GEOMETRY, geometry)
+        if not self._doc.close():
+            evnt.ignore()
+            return
+        super(MLTesterDialog, self).closeEvent(evnt)
+    
+    ###########################################################################
+    #                         Log/Environment Handlers                        #
+    ###########################################################################
+    
+    def openLogOp(self, process):
+        self.open_log_signal.emit(process)
+    
+    #--------------------------------------------------------------------#
+    
+    def closeLogOp(self, process):
+        self.close_log_signal.emit(process)
+    
+    # -------------------------------------------------------------------- #
+    
+    def logOp(self, line, process, log_level): 
+        # Emit is not required, since the log widget does async plotting
+        self._logToWidget(line, process, log_level) 
+    
+    # -------------------------------------------------------------------- #
+    
+    def makeTitleOp(self, msg, style, process):
+        if style <= 0:
+            msg = "<h1>%s</h1>" % msg
+        elif style <= 10:
+            msg = "<h%u>%s</h%u>" % (style, msg, style)
+        return msg
+        
+    # -------------------------------------------------------------------- #
+    
+    def onNewProcess(self, process):
+        self.open_log_signal.emit(process)
+        
+    #--------------------------------------------------------------------#
+    
+    def onProcessDone(self, process):
+        if process.exception is not None:
+            raise process.exception
+            
+        if process.instance.returncode in [0, 143, -15]:
+            self.close_log_signal.emit(process)
+            return True
+        
+        self._error_processes.append(process)
+        return False
+
     #--------------------------------------------------------------------#
     
     def exceptionHook(self, etype, value, tb):
@@ -1242,31 +1088,70 @@ class MLTester(QMainWindow):
         with self._error_lock:
             if self._error_message is None:
                 self._error_message = value
-        
+
+        sys.stderr.write(trace)
         if self.isVisible() and (self._error_message == value):
             QMessageBox.critical(self, title, "An exception had occurred. See stderr for details.")
             #msg = QLabel(trace, parent=self)
             #msg.setStyleSheet("QLabel{max-width: 500px; height: 500px; min-height: 500px; max-height: 500px;}")
             #msg.show()
-        sys.stderr.write(trace)
         #sys.__excepthook__(etype, value, tb)
-         
-    #--------------------------------------------------------------------#
-    
-    # Override:
-    def closeEvent(self, evnt):
-        geometry = GEOMETRY_MAX if self.isMaximized() else "%u,%u,%u,%u" % (self.x(), self.y(), self.width(), self.height())
-        conf.set(GEOMETRY, geometry)
-        if not self._doc.close():
-            evnt.ignore()
-            return
-        super(MLTester, self).closeEvent(evnt)
-                
+
 ###############################################################################################################################################################
 #
 #                                                                         DEMO
 #
 ###############################################################################################################################################################
+
+def runCLI(test_xml_path):
+    if test_xml_path is None:
+        print "An XML must be specified when using autorun."
+        return
+    
+    tester = MLTester()
+    tester.loadFromXml(test_xml_path)
+    tester.run()
+    tester.wait()
+    ex = tester.getException()
+    if ex:
+        raise ex
+
+#--------------------------------------------------------------------#
+
+def runGUI(test_xml_path):
+    # QApplication.setStyle(QStyleFactory.create("motif"))
+    # QApplication.setStyle(QStyleFactory.create("Windows"))
+    # QApplication.setStyle(QStyleFactory.create("cde"))
+    # QApplication.setStyle(QStyleFactory.create("Plastique"))
+    QApplication.setStyle(QStyleFactory.create("Cleanlooks"))
+    # QApplication.setStyle(QStyleFactory.create("windowsvista"))
+    QApplication.setFont(QFont("Sans", 9, QFont.Normal));
+    
+    app = QApplication([])
+    prompt = MLTesterDialog(test_xml_path)
+    TestEnvironment.Get().on_new_process = prompt.onNewProcess
+    TestEnvironment.Get().on_process_done = prompt.onProcessDone
+    LogManager.Get().log_op = prompt.logOp
+    LogManager.Get().error_op = prompt.logOp
+    LogManager.Get().make_title_op = prompt.makeTitleOp
+    LogManager.Get().open_log_op = prompt.openLogOp
+    LogManager.Get().close_log_op = prompt.closeLogOp
+    sys.excepthook = prompt.exceptionHook 
+    
+    geometry = conf.get(GEOMETRY)
+    if geometry == GEOMETRY_MAX:
+        prompt.showMaximized()
+    else:
+        try:
+            pair = geometry.split(",")
+            prompt.setGeometry(int(pair[0]) + 2, int(pair[1]) + 23, int(pair[2]), int(pair[3]))
+        except:
+            pass
+        prompt.show()
+    
+    app.exec_()
+
+#--------------------------------------------------------------------#
 
 def main():
     arg_parser = argparse.ArgumentParser(description = "ML tester")
@@ -1275,38 +1160,13 @@ def main():
     
     args = arg_parser.parse_args()
     
-#     QApplication.setStyle(QStyleFactory.create("motif"))
-#     QApplication.setStyle(QStyleFactory.create("Windows"))
-#     QApplication.setStyle(QStyleFactory.create("cde"))
-#     QApplication.setStyle(QStyleFactory.create("Plastique"))
-    QApplication.setStyle(QStyleFactory.create("Cleanlooks"))
-    
-#     QApplication.setStyle(QStyleFactory.create("windowsvista"))
     conf.read()
-    app = QApplication([])
-    prompt = MLTester()
-    if args.xml is not None:
-        prompt.loadFromXml(args.xml)
+    test_xml_path = args.xml if args.xml else conf.get(LAST_OPENED_FILE)
     
     if args.autorun:
-        prompt.run()
+        runCLI(test_xml_path)
     else:
-        prompt.setTestEnvironment()
-        last_opened_file = conf.get(LAST_OPENED_FILE)
-        if last_opened_file is not None:
-            prompt.loadFromXml(last_opened_file)
-        geometry = conf.get(GEOMETRY)
-        if geometry == GEOMETRY_MAX:
-            prompt.showMaximized()
-        else:
-            try:
-                pair = geometry.split(",")
-                prompt.setGeometry(int(pair[0]), int(pair[1]), int(pair[2]), int(pair[3]))
-            except:
-                pass
-            prompt.show()
-        
-        app.exec_()
+        runGUI(test_xml_path)
 
 #--------------------------------------------------------------------#
 

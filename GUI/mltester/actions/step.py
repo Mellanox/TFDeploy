@@ -194,8 +194,8 @@ class Step(object):
                                 servers, 
                                 wait_timeout,
                                 on_output = log,
-                                on_process_start = TestEnvironment.onNewProcess(), 
-                                on_process_done = TestEnvironment.onProcessDone(),
+                                on_process_start = TestEnvironment.Get().on_new_process, 
+                                on_process_done = TestEnvironment.Get().on_process_done,
                                 factory = factory)
                 
     # -------------------------------------------------------------------- #

@@ -11,7 +11,7 @@ import time
 import threading
 
 from mltester.actions import Step, DefaultAttributesWidget, TestEnvironment
-from commonpylib.log import LogWriter, LOG_LEVEL_NOTE, LOG_LEVEL_INFO, log, debug, title, error, warning, UniBorder, FormattedTable
+from commonpylib.log import LogWriter, LOG_LEVEL_NOTE, LOG_LEVEL_INFO, log, note, debug, title, error, warning, UniBorder, FormattedTable
 from commonpylib.monitors import Measurement, RemoteMonitor
 from commonpylib.util import BasicProcess, executeRemoteCommand, waitForProcesses, toFileName, ListAttribute, \
                              EnumAttribute, IntAttribute, PathAttribute, StrAttribute, BoolAttribute, tryExp
@@ -294,7 +294,7 @@ class TFCnnBenchmarksStep(Step):
         log("Server %s: Stopping monitor." % server_info.ip)
         res = server_info.monitor.stop()
         server_info.monitor.close()
-        self.runSCP(server_info.remote_graphs_dir, server_info.graphs_dir, src_servers=[server_info.hostname])
+        self.runSCP([server_info.remote_graphs_dir], server_info.graphs_dir, src_servers=[server_info.hostname])
         return res
     
     # -------------------------------------------------------------------- #
@@ -676,20 +676,20 @@ class TFCnnBenchmarksStep(Step):
         elif "---------------" in line:
             pass
         else:
-            log(line, process)                
+            log(line, process)
     
     # -------------------------------------------------------------------- #
     
     def _onJobStart(self, process):
-        handler = TestEnvironment.onNewProcess()
+        handler = TestEnvironment.Get().on_new_process
         if handler is not None:
             handler(process)
-        title("Log: " + process.log_file_path, process = process) 
-            
+        note("Log: %s" % process.log_file_path, process = process) 
+    
     # -------------------------------------------------------------------- #
 
     def _onJobDone(self, process):
-        handler = TestEnvironment.onProcessDone()
+        handler = TestEnvironment.Get().on_process_done
         if handler is not None:
             handler(process)
             
@@ -760,7 +760,7 @@ class TFCnnBenchmarksStep(Step):
         #########
         # Copy: #
         #########
-        title("Copying scripts:", UniBorder.BORDER_STYLE_SINGLE)    
+        title("Copying scripts:", style = 3)
         if not self.runSCP([script_dir], work_dir, dst_servers=servers, wait_timeout = 10): # Also create it
             return False
         if self._stop:
@@ -774,7 +774,7 @@ class TFCnnBenchmarksStep(Step):
         if not self._getDevices(ips):
             return False
         
-        title("Running:", UniBorder.BORDER_STYLE_SINGLE)
+        title("Running:", style = 3)
         processes = []
         if self.mode == TFCnnBenchmarksStep.MODE_PARAMETER_SERVER:
             for i in range(len(self.ps)):
@@ -828,7 +828,7 @@ class TFCnnBenchmarksStep(Step):
         ############
         # Cleanup: #
         ############
-        title("Cleaning:", UniBorder.BORDER_STYLE_SINGLE)
+        title("Cleaning:", style = 3)
         self.runSCP(["graph.txt", "*.json"], self._logs_dir, src_servers=servers, wait_timeout=10)
         return True
 

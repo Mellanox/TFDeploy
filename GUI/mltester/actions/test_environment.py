@@ -2,25 +2,22 @@
 # -*- coding: utf-8 -*-
 import os
 
-###############################################################################
+#--------------------------------------------------------------------#
 
-def _onNewProcess(process):
+def _defaultOnNewProcess(process):
     process.openLog()
     
 #--------------------------------------------------------------------#
 
-def _onProcessDone(process):    
+def _defaultOnProcessDone(process):    
     process.closeLog()
     if process.exception is not None:
         raise process.exception    
-    return process.instance.returncode in [0, 143, -15]    
+    return process.instance.returncode in [0, 143, -15]
 
 ###############################################################################
 
 class TestEnvironment(object):
-    # On Python 2 if we save without [] we'll get a unbound method
-    _on_new_process = [_onNewProcess]
-    _on_process_done = [_onProcessDone]
     _instance = None
 
     @staticmethod
@@ -33,6 +30,9 @@ class TestEnvironment(object):
     
     def __init__(self):
         self._test_logs_dir = None
+        self.on_new_process = _defaultOnNewProcess
+        self.on_process_done = _defaultOnProcessDone
+        
         self._servers_by_ip = { "192.168.1.41": "clx-mld-41",
                                 "192.168.1.42": "clx-mld-42",
                                 "192.168.1.43": "clx-mld-43",
@@ -92,30 +92,13 @@ class TestEnvironment(object):
         if ip in self._servers_by_ip:
             return self._servers_by_ip[ip]
         return ip
-
+    
     # -------------------------------------------------------------------- #
     
     def getServers(self, ips):
         return [self.getServer(ip) for ip in ips]
     
-    # -------------------------------------------------------------------- # 
-    
-    @staticmethod
-    def onNewProcess():
-        return TestEnvironment._on_new_process[0]
-        
-    @staticmethod
-    def onProcessDone():
-        return TestEnvironment._on_process_done[0]
+    #--------------------------------------------------------------------#
 
-    @staticmethod
-    def setOnNewProcess(val):
-        TestEnvironment._on_new_process[0] = val        
-        
-    @staticmethod
-    def setOnProcessDone(val):
-        TestEnvironment._on_process_done[0] = val
-        
-    @staticmethod
-    def setServersByIP(val):
-        TestEnvironment._servers_by_ip = val
+    def setServersByIP(self, val):
+        self._servers_by_ip = val
