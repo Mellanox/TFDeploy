@@ -189,6 +189,7 @@ class MLTester(object):
         root_node = etree.fromstring(content)
         for xml_node in root_node.getchildren():
             if xml_node.tag == "Sequence":
+                self.sequence = []
                 for step_node in xml_node.getchildren():
                     step = Step.loadFromXml(step_node)
                     self.sequence.append(step)
