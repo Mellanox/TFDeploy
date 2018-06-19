@@ -973,7 +973,7 @@ class MLTesterDialog(QMainWindow):
     #--------------------------------------------------------------------#
     
     def _openActionHandler(self, is_checked):
-        self._loadFromXml()
+        self._loadFromXml(None)
     
     #--------------------------------------------------------------------#
     
