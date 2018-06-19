@@ -115,7 +115,8 @@ class TFCnnBenchmarksStep(Step):
                   IntAttribute ("log_level"       , "Log Level", "0", category="Advanced"),
                   BoolAttribute("trace_file"      , "Trace File", "False", category="Advanced"),
                   BoolAttribute("model_graph_file", "Graph File", "False", category="Advanced"),
-                  BoolAttribute("forward_only"    , "Forward Only", "False", category="Advanced")]
+                  BoolAttribute("forward_only"    , "Forward Only", "False", category="Advanced"),
+                  BoolAttribute("use_ibprof"      , "Use IBprof", "False", category="Advanced")]
 
     # -------------------------------------------------------------------- #
 
@@ -488,6 +489,9 @@ class TFCnnBenchmarksStep(Step):
         tf_flags += " TF_CPP_MIN_VLOG_LEVEL=%s" % self.log_level
         if (job_name in ["ps", "controller"]) or (self.num_gpus == 0):
             tf_flags += " CUDA_VISIBLE_DEVICES="
+            
+        if self.use_ibprof:
+            tf_flags += " LD_PRELOAD=/opt/mellanox/libibprof/lib/libibprof.so"
 
         ################
         # Verbs stuff: #
