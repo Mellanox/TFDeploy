@@ -836,7 +836,7 @@ class TFCnnBenchmarksStep(Step):
         # Cleanup: #
         ############
         title("Cleaning:", style = 3)
-        self.runSCP(["graph.txt", "*.json"], self._logs_dir, src_servers=servers, wait_timeout=10)
+        self.runSCP(["%s/graph.txt" % self._work_dir, "%s/*.json" % self._work_dir], self._logs_dir, src_servers=servers, wait_timeout=10)
         return True
 
     # -------------------------------------------------------------------- #
