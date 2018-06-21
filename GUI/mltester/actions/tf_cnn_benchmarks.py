@@ -84,10 +84,10 @@ class TFCnnBenchmarksStep(Step):
     
     MODE_PARAMETER_SERVER = 0
     MODE_DISTRIBUTED_ALL_REDUCE = 1
-    MODE_OMPI = 2
+    MODE_HOROVOD = 2
     MODE_LOCAL = 3
     
-    MODE_NAMES = ["Parameter Server", "Distributed All-Reduce", "OMPI", "Local"]
+    MODE_NAMES = ["Parameter Server", "Distributed All-Reduce", "Horovod", "Local"]
     ALL_REDUCE_SPECS = ["xring", "xring#2", "nccl", "nccl/xring", "pscpu", "psgpu#4", "pscpu:2k:pscpu#2:64k:xring", "pscpu/pscpu#2"] 
     MODELS = ["trivial", "inception3", "inception4", "resnet50", "resnet101", "resnet152", "vgg16", "vgg19"]
     PROTOCOLS = ["grpc", "grpc+verbs", "grpc+ucx", "grpc+mpi"]
@@ -143,12 +143,13 @@ class TFCnnBenchmarksStep(Step):
                 
             is_parameter_server       = (mode == TFCnnBenchmarksStep.MODE_PARAMETER_SERVER)
             is_distributed_all_reduce = (mode == TFCnnBenchmarksStep.MODE_DISTRIBUTED_ALL_REDUCE)
+            is_horovod                = (mode == TFCnnBenchmarksStep.MODE_HOROVOD)
             is_local                  = (mode == TFCnnBenchmarksStep.MODE_LOCAL)
             
             self._showField(TFCnnBenchmarksStep.ATTRIBUTE_ID_ALL_REDUCE_SPECS, is_distributed_all_reduce)
             self._showField(TFCnnBenchmarksStep.ATTRIBUTE_ID_CONTROLLER, is_distributed_all_reduce)
             self._showField(TFCnnBenchmarksStep.ATTRIBUTE_ID_PS, is_parameter_server)
-            self._showField(TFCnnBenchmarksStep.ATTRIBUTE_ID_SERVER_PROTOCOL, not is_local)
+            self._showField(TFCnnBenchmarksStep.ATTRIBUTE_ID_SERVER_PROTOCOL, not is_local and not is_horovod)
         
         # ---------------------------------------- #
         
@@ -480,7 +481,7 @@ class TFCnnBenchmarksStep(Step):
         ##################
         cuda_lib_dir    = "/usr/local/cuda/lib64"
         gdrcopy_lib_dir = "/usr/local/gdrcopy"
-        mpi_lib_dir     = "/usr/mpi/gcc/openmpi-3.0.0rc6/lib"
+        mpi_lib_dir     = "/machineLearning/installs/openmpi-3.1.0/install/lib/"
         cuda_extra_dir  = "/usr/local/cuda/extras/CUPTI/lib64"
         tf_flags += "LD_LIBRARY_PATH=$LD_LIBRARY_PATH:%s:%s:%s" % (cuda_lib_dir, gdrcopy_lib_dir, mpi_lib_dir)
         if self.trace_file:
@@ -536,10 +537,9 @@ class TFCnnBenchmarksStep(Step):
         ##############
         # Arguments: #
         ##############
-        if self.mode == TFCnnBenchmarksStep.MODE_OMPI:
+        if self.mode == TFCnnBenchmarksStep.MODE_HOROVOD:
             if task_id == 0: 
-                tf_command += "mpirun -np %u" % len(self.workers)
-                tf_command += " -H %s" % ",".join(["%s" % TestEnvironment.Get().getServer(wip) for wip in self.workers])
+                tf_command += "mpirun -H %s" % ",".join(["%s:%u" % (TestEnvironment.Get().getServer(wip), self.num_gpus) for wip in self.workers])
                 tf_command += " -bind-to none -map-by slot"
                 tf_command += " -x NCCL_DEBUG=INFO -x LD_LIBRARY_PATH -x PATH"
                 tf_command += " -mca pml ob1 -mca btl ^openib -- "
@@ -559,13 +559,16 @@ class TFCnnBenchmarksStep(Step):
         elif self.mode in [TFCnnBenchmarksStep.MODE_DISTRIBUTED_ALL_REDUCE]:
             tf_command += " --variable_update=distributed_all_reduce"
             tf_command += " --all_reduce_spec=%s" % self.all_reduce_spec
+        elif self.mode in [TFCnnBenchmarksStep.MODE_HOROVOD]:
+            tf_command += " --variable_update=horovod"
+        
 
         if job_name in ["worker", "controller"]:
             tf_command += " --model=%s" % self.model
             tf_command += " --batch_size=%s" % self.batch_size
             if self.data_dir != "":
                 tf_command += " --data_dir=%s" % self.data_dir
-            if self.num_gpus > 0:
+            if (self.num_gpus > 0) and (self.mode != TFCnnBenchmarksStep.MODE_HOROVOD):
                 tf_command += " --num_gpus=%s --local_parameter_device=gpu" % self.num_gpus
             if self.trace_file:
                 tf_command += " --trace_file=%s" % os.path.join(self._work_dir, "trace_%s_%u.json" % (job_name, task_id))
@@ -810,7 +813,7 @@ class TFCnnBenchmarksStep(Step):
             return False
         
         if res:
-            if self.mode != TFCnnBenchmarksStep.MODE_OMPI:
+            if self.mode != TFCnnBenchmarksStep.MODE_HOROVOD:
                 for server in self._servers.values():
                     if not self._initServerMonitors(server):
                         return False
