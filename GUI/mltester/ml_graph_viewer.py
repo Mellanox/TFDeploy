@@ -3,13 +3,12 @@
 import sys, os
 from PyQt4.Qt import QVBoxLayout, QMainWindow, QTreeWidgetItem, QIcon,\
     QMessageBox, QFileDialog, QWidget, QSplitter, QTreeWidget, QPushButton,\
-    QLabel, QAction, QApplication, QHBoxLayout, QCheckBox, QLineEdit, QComboBox,\
-    QBrush, QColor, QSpinBox, Qt, QString, SIGNAL
+    QLabel, QAction, QApplication, QHBoxLayout, QBrush, QColor, QSpinBox, Qt, \
+    QString, SIGNAL
 
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
-from commonpylib.util import configurations
 
 form = None
 def new_home(self, *args, **kwargs):
@@ -17,14 +16,42 @@ def new_home(self, *args, **kwargs):
 
 NavigationToolbar.home = new_home
 
+COLORS = ["#ff0000", "#ff8000", "#bfff00", "#00ff00", "#00ffbf", "#00bfff", "#8000ff", "#bf00ff", "#ff00ff",
+          "#cc5151", "#7f3333", "#51cccc", "#337f7f", "#8ecc51", "#597f33", "#8e51cc", "#59337f", "#ccad51",
+          "#7f6c33", "#51cc70", "#337f46", "#5170cc", "#33467f", "#cc51ad", "#7f336c", "#cc7f51", "#7f4f33",
+          "#bccc51", "#757f33", "#60cc51", "#3c7f33", "#51cc9e", "#337f62", "#519ecc", "#33627f", "#6051cc",
+          "#3c337f", "#bc51cc", "#75337f", "#cc517f", "#7f334f", "#cc6851", "#7f4133", "#cc9651", "#7f5e33",
+          "#ccc451", "#7f7a33", "#a5cc51", "#677f33", "#77cc51", "#4a7f33", "#51cc59", "#337f37", "#51cc87",
+          "#337f54", "#51ccb5", "#337f71", "#51b5cc", "#33717f", "#5187cc", "#33547f", "#5159cc", "#33377f",
+          "#7751cc", "#4a337f", "#a551cc", "#67337f", "#cc51c4", "#7f337a", "#cc5196", "#7f335e", "#cc5168",
+          "#7f3341", "#cc5d51", "#7f3a33", "#cc7451", "#7f4833", "#cc8a51", "#7f5633", "#cca151", "#7f6533",
+          "#ccb851", "#7f7333", "#c8cc51", "#7d7f33", "#b1cc51", "#6e7f33", "#9acc51", "#607f33", "#83cc51",
+          "#527f33", "#6ccc51", "#437f33", "#55cc51", "#357f33", "#51cc64", "#337f3e", "#51cc7b", "#337f4d",
+          "#51cc92", "#337f5b", "#51cca9", "#337f69", "#51ccc0", "#337f78", "#51c0cc", "#33787f", "#51a9cc",
+          "#33697f"]
+COLOR_MAP = dict((c, True) for c in COLORS)
+
+label_colors = {}
+tl_graph_count = 0
+
+###############################################################################
+
+class Section(object):
+    def __init__(self, label):
+        self.label = label
+        self.x = []
+        self.y = []
+
 ###############################################################################
 
 class GraphDesc(object):
-    def __init__(self, graph_type, ymax, line_width, marker):
+    def __init__(self, graph_type, ymax, yshift, line_width, marker, zorder):
         self.graph_type = graph_type
         self.ymax = ymax
+        self.yshift = yshift
         self.line_width = line_width
         self.marker =  marker
+        self.zorder = zorder
 
 ###############################################################################
 
@@ -40,13 +67,24 @@ class Graph(object):
     
     @staticmethod
     def getGraphDesc(csv_path):
+        global tl_graph_count
+        
         line_width = 2
+        zorder = 5
+        yshift = 0
         marker = None
         kind = os.path.basename(csv_path).split("-")[0]
         if kind in ["timeline.csv"]:
             ymax = 1
             graph_type = Graph.TYPE_DELTA
             line_width = 3
+        elif kind in ["TL"]:
+            line_width = 1
+            ymax = 20
+            yshift = tl_graph_count * 1.1
+            graph_type = Graph.TYPE_NORMAL
+            zorder = 1
+            tl_graph_count += 1
         elif kind in ["STIME", "UTIME"]:
             ymax = 3200
             graph_type = Graph.TYPE_RATE
@@ -58,7 +96,7 @@ class Graph(object):
             graph_type = Graph.TYPE_NORMAL
         else:
             return None
-        return GraphDesc(graph_type, ymax, line_width, marker)
+        return GraphDesc(graph_type, ymax, yshift, line_width, marker, zorder)
 
     # -------------------------------------------------------------------- #
         
@@ -68,8 +106,6 @@ class Graph(object):
         self._desc = desc
         self._color = None
         self._ax = None
-        self._x = []
-        self._y = []
         self._is_visible = False
         self._xstart = xstart
         self._ltrim = ltrim
@@ -79,8 +115,8 @@ class Graph(object):
     # -------------------------------------------------------------------- #
         
     def _readData(self):
-        self._x = []
-        self._y = []
+        self._current_section = Section(None)
+        self._sections = [self._current_section]
         
         ####################
         # Read graph data: #
@@ -90,6 +126,7 @@ class Graph(object):
         last_timestamp = None
         with open(self._csv_path, "r") as csv:
             for line in csv:
+                line = line.strip()
                 parts = line.replace(" ","").split(",")
                 try:
                     timestamp = float(parts[0])
@@ -99,34 +136,49 @@ class Graph(object):
                         continue
                     timestamp -= self._xstart
                     val = float(parts[1])
+                    if len(parts) >= 3:
+                        label = parts[2]
+                        if label != self._current_section.label:
+                            self._current_section = Section(label)
+                            self._sections.append(self._current_section)
+                            if not label in label_colors:
+                                color_id = len(label_colors) % len(COLORS)
+                                label_colors[label] = COLORS[color_id]
                 except:
                     print "Error in %s: %u \"%s\." % (self._csv_path, i, line)
                     continue
                 i += 1
-
+                
                 if self._desc.graph_type == Graph.TYPE_NORMAL:
-                    self._x.append(timestamp)
-                    self._y.append(val)
+                    xs = [timestamp]
+                    ys = [val]
                 elif self._desc.graph_type == Graph.TYPE_RATE:
                     rate = 0 if last_val is None else (val - last_val) / (timestamp - last_timestamp)
                     if rate > 1000000:
                         print "Error in %s: %u \"%s\." % (self._csv_path, i, line)
                         continue
-                        
                     last_timestamp = timestamp
                     last_val = val
-                    self._x.append(timestamp)
-                    self._y.append(rate)
+                    xs = [timestamp]
+                    ys = [rate]
                 elif self._desc.graph_type == Graph.TYPE_DELTA:
-                    self._x.append(timestamp - 0.0)
-                    self._x.append(timestamp)
-                    self._x.append(timestamp + 0.0)
-                    self._y.append(0)
-                    self._y.append(1)
-                    self._y.append(0)
+                    xs = [timestamp, timestamp, timestamp]
+                    ys = [0, 1, 0]
         
+                for i in range(len(ys)):
+                    ys[i] += self._desc.yshift
+                
+                self._current_section.x.extend(xs)
+                self._current_section.y.extend(ys)
+        
+        if len(self._sections[0].x) == 0:
+            self._sections.pop(0)
+        
+        #for section in self._sections:
+            #print "%s: %s %s" % (section.label, section.x, section.y)
+    
     # -------------------------------------------------------------------- #
-
+    
     def csvPath(self):
         return self._csv_path
     
@@ -148,12 +200,12 @@ class Graph(object):
     # -------------------------------------------------------------------- #
     
     def min_x_val(self):
-        return 0 if len(self._x) == 0 else self._x[0]
+        return 0 if len(self._sections) == 0 else self._sections[0].x[0]
 
     # -------------------------------------------------------------------- #
     
     def max_x_val(self):
-        return 0 if len(self._x) == 0 else self._x[len(self._x) - 1]
+        return 0 if len(self._sections) == 0 else self._sections[-1].x[-1]
     
     # -------------------------------------------------------------------- #
     
@@ -189,8 +241,14 @@ class Graph(object):
         autoscale_y = False
         self._ax.set_autoscalex_on(autoscale_x)
         self._ax.set_autoscaley_on(autoscale_y)
-            
-        self._ax.plot(self._x, self._y, self._color, linewidth = self._desc.line_width, marker = self._desc.marker)
+        
+        for section in self._sections:
+            if section.label is None:
+                color = self._color
+            else:
+                color = label_colors.get(section.label, "r")
+            self._ax.plot(section.x, section.y, color, linewidth = self._desc.line_width, marker = self._desc.marker, zorder = self._desc.zorder)
+        
         self._ax.set_ylim(ymin, ymax)
         self._ax.tick_params('y', colors = self._color)
         self._ax.spines['top'].set_visible(True)
@@ -224,15 +282,16 @@ class Graph(object):
     
     def readData(self):
         self._readData()
-
+    
     # -------------------------------------------------------------------- #
     
     def setXStart(self, start):
         shift = start - self._xstart
-        for i in range(len(self._x)):
-            self._x[i] -= shift
+        for section in self._sections:
+            for i in range(len(section.x)):
+                section.x[i] -= shift
         self._xstart = start
-        
+    
     # -------------------------------------------------------------------- #
     
 #     def scaleTo(self, host):
@@ -250,37 +309,31 @@ class Graph(object):
 
 ###############################################################################
 
-class GraphFileTreeWidgetItem(QTreeWidgetItem):
-    
-    def __init__(self, parent, csv_path):
-        QTreeWidgetItem.__init__(self, parent)
-        
-        self._csv_path = csv_path
-        self.widget = QWidget()
-        self.widget.setLayout(QHBoxLayout())
-        self.cb_enabled = QCheckBox()
-        self.le_label = QLineEdit("")
-        self.cb_graph_type = QComboBox()
-        self.cb_graph_type.addItems(["NORMAL", "RATE", "DELTA"])
-        
-        self.widget.layout().addWidget(self.cb_enabled)
-        self.widget.layout().addWidget(QLabel(os.path.basename(csv_path)))
-        self.widget.layout().addWidget(QLabel("Label:"))
-        self.widget.layout().addWidget(self.le_label)
-        self.widget.layout().addWidget(QLabel("Type:"))
-        self.widget.layout().addWidget(self.cb_graph_type)
-        
-        self.treeWidget().setItemWidget(self, 0, self.widget)
+# class GraphFileTreeWidgetItem(QTreeWidgetItem):
+#     
+#     def __init__(self, parent, csv_path):
+#         QTreeWidgetItem.__init__(self, parent)
+#         
+#         self._csv_path = csv_path
+#         self.widget = QWidget()
+#         self.widget.setLayout(QHBoxLayout())
+#         self.cb_enabled = QCheckBox()
+#         self.le_label = QLineEdit("")
+#         self.cb_graph_type = QComboBox()
+#         self.cb_graph_type.addItems(["NORMAL", "RATE", "DELTA"])
+#         
+#         self.widget.layout().addWidget(self.cb_enabled)
+#         self.widget.layout().addWidget(QLabel(os.path.basename(csv_path)))
+#         self.widget.layout().addWidget(QLabel("Label:"))
+#         self.widget.layout().addWidget(self.le_label)
+#         self.widget.layout().addWidget(QLabel("Type:"))
+#         self.widget.layout().addWidget(self.cb_graph_type)
+#         
+#         self.treeWidget().setItemWidget(self, 0, self.widget)
 
 ###############################################################################
 
 class MLGraphViewer(QMainWindow):
-    
-    COLORS = ["#ff0000", "#ff8000", "#bfff00", "#00ff00", "#00ffbf", "#00bfff", "#8000ff", "#bf00ff", "#ff00ff",    
-              "#cc5151", "#7f3333", "#51cccc", "#337f7f", "#8ecc51", "#597f33", "#8e51cc", "#59337f", "#ccad51", "#7f6c33", "#51cc70", "#337f46", "#5170cc", "#33467f", "#cc51ad", "#7f336c", "#cc7f51", "#7f4f33", "#bccc51", "#757f33", "#60cc51", "#3c7f33", "#51cc9e", "#337f62", "#519ecc", "#33627f", "#6051cc", "#3c337f", "#bc51cc", "#75337f", "#cc517f", "#7f334f", "#cc6851", "#7f4133", "#cc9651", "#7f5e33", "#ccc451", "#7f7a33", "#a5cc51", "#677f33", "#77cc51", "#4a7f33", "#51cc59", "#337f37", "#51cc87", "#337f54", "#51ccb5", "#337f71", "#51b5cc", "#33717f", "#5187cc", "#33547f", "#5159cc", "#33377f", "#7751cc", "#4a337f", "#a551cc", "#67337f", "#cc51c4", "#7f337a", "#cc5196", "#7f335e", "#cc5168", "#7f3341", "#cc5d51", "#7f3a33", "#cc7451", "#7f4833", "#cc8a51", "#7f5633", "#cca151", "#7f6533", "#ccb851", "#7f7333", "#c8cc51", "#7d7f33", "#b1cc51", "#6e7f33", "#9acc51", "#607f33", "#83cc51", "#527f33", "#6ccc51", "#437f33", "#55cc51", "#357f33", "#51cc64", "#337f3e", "#51cc7b", "#337f4d", "#51cc92", "#337f5b", "#51cca9", "#337f69", "#51ccc0", "#337f78", "#51c0cc", "#33787f", "#51a9cc", "#33697f"]
-    COLOR_MAP = dict((c, True) for c in COLORS)
-
-    # -------------------------------------------------------------------- #
         
     def __init__(self, dirs, parent=None):
         QMainWindow.__init__(self, parent)
@@ -334,8 +387,8 @@ class MLGraphViewer(QMainWindow):
     # -------------------------------------------------------------------- #
     
     def _getNextColor(self):
-        for c in MLGraphViewer.COLORS:
-            if MLGraphViewer.COLOR_MAP[c]:
+        for c in COLORS:
+            if COLOR_MAP[c]:
                 return c
         raise Exception("No more available colors.")
     
@@ -392,7 +445,7 @@ class MLGraphViewer(QMainWindow):
         ###################
         color = self._getNextColor()
         graph.setColor(color)
-        MLGraphViewer.COLOR_MAP[graph.color()] = False
+        COLOR_MAP[graph.color()] = False
         
         self.fig, self.host, first_time = graph.plot(self.fig, self.host)
         if (first_time and len(self._graphs) == 1) or (not graph.isInVisibleRectX(self.host)):
@@ -407,7 +460,7 @@ class MLGraphViewer(QMainWindow):
         # Free color: #
         ###############
         if graph.color() is not None:
-            MLGraphViewer.COLOR_MAP[graph.color()] = True
+            COLOR_MAP[graph.color()] = True
         
         graph.clear()
         tree_item.setBackground(0, QBrush())
@@ -425,6 +478,8 @@ class MLGraphViewer(QMainWindow):
         self._handleChanges = False
         if item.checkState(0) == Qt.Checked:
             self._plotGraph(graph, item)
+            style_widget = QPushButton("...")
+            self._tree.setItemWidget(item, 1, style_widget)
         else:
             self._unplotGraph(graph, item)
         self._handleChanges = True
@@ -492,7 +547,9 @@ class MLGraphViewer(QMainWindow):
             top_level_item = QTreeWidgetItem(self._tree, [name])
             top_level_item.setExpanded(True)
             self._loadDir(dir, top_level_item)
-            
+        
+        global tl_graph_count
+        tl_graph_count = 0
         dead_graphs = []
         for graph in self._graphs.values():
             tree_item = self._findItem(graph)
@@ -653,7 +710,9 @@ class MLGraphViewer(QMainWindow):
         splitter = QSplitter()
                         
         self._tree = QTreeWidget(splitter)
-        self._tree.setHeaderLabel("Files")
+        #self._tree.setColumnCount(2)
+
+        #self._tree.setHeaderLabels(["Files", "Settings"])
         self._refreshAll()
         self._tree.itemChanged.connect(self._onTreeItemChanged)
         
