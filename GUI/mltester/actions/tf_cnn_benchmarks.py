@@ -378,23 +378,48 @@ class TFCnnBenchmarksStep(Step):
                 error("Failed to find remote process IDs. Most likely some processes failed to run.")
                 res = False
                 break
-
-        table = FormattedTable()
-        table.border_style = UniBorder.BORDER_STYLE_SINGLE
-        table.addColumn(FormattedTable.Column("IP"))
-        table.addColumn(FormattedTable.Column("Job"))
-        table.addColumn(FormattedTable.Column("PID"))
-        table.addColumn(FormattedTable.Column("RPID"))
-        table.addColumn(FormattedTable.Column("Flags"))
-        table.addColumn(FormattedTable.Column("Command"))
+            
         for process in processes:
             if process.name in remote_process_ids:
                 process.remote_pid = remote_process_ids[process.name]
             else:
                 process.remote_pid = -1
-            table.addRow([process.server_info.ip, process.name, process.instance.pid, process.remote_pid, process.tf_flags, process.tf_command])
-        table.printFormatted(LogWriter(None, LOG_LEVEL_NOTE))
         return res
+    
+    # -------------------------------------------------------------------- #
+    
+    def _printProcessSummary(self, processes):
+#         table = FormattedTable()
+#         table.border_style = UniBorder.BORDER_STYLE_SINGLE
+#         table.addColumn(FormattedTable.Column("IP"))
+#         table.addColumn(FormattedTable.Column("Job"))
+#         table.addColumn(FormattedTable.Column("PID"))
+#         table.addColumn(FormattedTable.Column("RPID"))
+#         table.addColumn(FormattedTable.Column("Flags"))
+#         table.addColumn(FormattedTable.Column("Command"))
+        log("")
+        log("<table border=1>")
+        log("<tr>")
+        log("    <th>%s</th>" % "IP")
+        log("    <th>%s</th>" % "Job")
+        log("    <th>%s</th>" % "PID")
+        log("    <th>%s</th>" % "RPID")
+        log("    <th>%s</th>" % "Flags")
+        log("    <th>%s</th>" % "Command")
+        log("</tr>")
+        for process in processes:
+#             table.addRow([process.server_info.ip, process.name, process.instance.pid, process.remote_pid, process.tf_flags, process.tf_command])
+            log("<tr>")
+            log("    <td>%s</td>" % process.server_info.ip)
+            log("    <td><a href=\"%s\">%s</a></td>" % (process.log_file_path, process.name))
+            log("    <td>%s</td>" % process.instance.pid)
+            log("    <td>%s</td>" % process.remote_pid)
+            log("    <td>%s</td>" % process.tf_flags)
+            log("    <td>%s</td>" % process.tf_command)
+            log("</tr>")
+#         table.printFormatted(LogWriter(None, LOG_LEVEL_NOTE))
+        log("</table>")
+        log("")
     
     # -------------------------------------------------------------------- #
             
@@ -736,7 +761,7 @@ class TFCnnBenchmarksStep(Step):
 
     def perform(self, index):
         Step.perform(self, index)
-        log("<img src='%s' width=600 style='border:1px solid black'/>" % pkg_resources.resource_filename("mltester", "images/tensorflow.jpg")) #https://www.skylinelabs.in/blog/images/tensorflow.jpg?width=500'/>")
+        log("<br><img src='%s' width=600 style='border:1px solid black'/><br>" % pkg_resources.resource_filename("mltester", "images/tensorflow.jpg")) #https://www.skylinelabs.in/blog/images/tensorflow.jpg?width=500'/>")
         for attr in self._attributes:
             log(" + %s: %s" % (attr.desc.display_name, str(attr.val)))
         self._perf = TFPerformanceMeasurements()
@@ -811,6 +836,7 @@ class TFCnnBenchmarksStep(Step):
         res = self._findRemoteProcessIDs(processes)
         if self._stop:
             return False
+        self._printProcessSummary(processes)
         
         if res:
             if self.mode != TFCnnBenchmarksStep.MODE_HOROVOD:

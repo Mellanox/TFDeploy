@@ -17,8 +17,8 @@ from PyQt4.Qt import QWidget, QIcon, QMainWindow, pyqtSignal, QTableWidget, \
     QDialog, QApplication, QStyleFactory, QTabWidget, QStackedWidget, QFont
 
 from commonpylib.gui import DocumentControl, MultiLogWidget, DefaultAttributesWidget
-from commonpylib.log import LOG_LEVEL_INFO, LogManager, openLog, LogLevelNames, error, info, title
-from commonpylib.util import BasicProcess, WorkerThread, NestedException, PathAttribute, EnumAttribute, configurations, AttributesList
+from commonpylib.log import LOG_LEVEL_INFO, LogManager, openLog, LogLevelNames, error, info, title, defaultFormatOp
+from commonpylib.util import BasicProcess, WorkerThread, NestedException, PathAttribute, EnumAttribute, configurations, AttributesList, isHtml
 from actions import TestEnvironment, Step
 from dialogs import StepEditDialog
 from dialogs.common_widgets import MenuWithToolbar, ActionWithButton,\
@@ -782,7 +782,7 @@ class MLTesterDialog(QMainWindow):
         if index == -1:
             self._clearConfigurationPane()
             return
-
+        
         step = self._tester.sequence[index]
         self._setConfigurationPane(step)
         selected_indexes = self._getSelectedIndexes()
@@ -796,7 +796,7 @@ class MLTesterDialog(QMainWindow):
         self.moveUpAction.setEnabled(enable_edit)
         self.showGraphsAction.setEnabled(something_selected)
         self._cell_being_edited = None
-
+    
     #--------------------------------------------------------------------#
     
     def _setConfigurationPane(self, step):
@@ -1052,13 +1052,19 @@ class MLTesterDialog(QMainWindow):
     
     # -------------------------------------------------------------------- #
     
+    def formatOp(self, msg, style, process):
+        is_html = isHtml(msg)
+        return msg if is_html else defaultFormatOp(msg, style, process)
+    
+    # -------------------------------------------------------------------- #
+    
     def makeTitleOp(self, msg, style, process):
         if style <= 0:
             msg = "<h1>%s</h1>" % msg
         elif style <= 10:
             msg = "<h%u>%s</h%u>" % (style, msg, style)
         return msg
-        
+    
     # -------------------------------------------------------------------- #
     
     def onNewProcess(self, process):
@@ -1134,6 +1140,7 @@ def runGUI(test_xml_path):
     TestEnvironment.Get().on_process_done = prompt.onProcessDone
     LogManager.Get().log_op = prompt.logOp
     LogManager.Get().error_op = prompt.logOp
+    LogManager.Get().screen_format_op = prompt.formatOp
     LogManager.Get().make_title_op = prompt.makeTitleOp
     LogManager.Get().open_log_op = prompt.openLogOp
     LogManager.Get().close_log_op = prompt.closeLogOp
