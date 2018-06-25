@@ -372,7 +372,7 @@ class TFCnnBenchmarksStep(Step):
                 find_processes.append(find_process)
                 
             waitForProcesses(find_processes, wait_timeout=5, on_output=parser)
-            time.sleep(1)
+            time.sleep(0.5)
             num_attempts += 1
             if num_attempts == max_num_attempts:
                 error("Failed to find remote process IDs. Most likely some processes failed to run.")
@@ -832,7 +832,7 @@ class TFCnnBenchmarksStep(Step):
                 if process:
                     processes.append(process)
         
-        time.sleep(0.5)
+        time.sleep(0.2)
         res = self._findRemoteProcessIDs(processes)
         if self._stop:
             return False
