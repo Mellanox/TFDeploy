@@ -48,6 +48,7 @@ class TFPerformanceMeasurements(object):
             self.tx                              = Measurement("TDTA-%s" % remote_dev, "Mbit", True)
             self.excessive_buffer_overrun_errors = Measurement("XBUF_OVERRUN_ERRORS-%s" % remote_dev)
             self.port_xmit_discards              = Measurement("PORT_XMIT_DISCARDS-%s" % remote_dev)
+            self.port_xmit_waits                 = Measurement("PORT_XMIT_WAITS-%s" % remote_dev)
             self.port_rcv_errors                 = Measurement("PORT_RCV_ERRORS-%s" % remote_dev)
             self.port_rcv_constraint_errors      = Measurement("PORT_RCV_CONSTRAINT_ERRORS-%s" % remote_dev)
         else:
@@ -57,6 +58,7 @@ class TFPerformanceMeasurements(object):
             self.tx                              = Measurement("TDTA", "Mbit", True)
             self.excessive_buffer_overrun_errors = Measurement("XBUF_OVERRUN_ERRORS")
             self.port_xmit_discards              = Measurement("PORT_XMIT_DISCARDS")
+            self.port_xmit_waits                 = Measurement("PORT_XMIT_WAITS")
             self.port_rcv_errors                 = Measurement("PORT_RCV_ERRORS")
             self.port_rcv_constraint_errors      = Measurement("PORT_RCV_CONSTRAINT_ERRORS")
 
@@ -71,6 +73,7 @@ class TFPerformanceMeasurements(object):
         self.tx.reduce(other.tx)
         self.excessive_buffer_overrun_errors.reduce(other.excessive_buffer_overrun_errors)
         self.port_xmit_discards.reduce(other.port_xmit_discards)
+        self.port_xmit_waits.reduce(other.port_xmit_waits)
         self.port_rcv_errors.reduce(other.port_rcv_errors)
         self.port_rcv_constraint_errors.reduce(other.port_rcv_constraint_errors)
         
@@ -208,6 +211,7 @@ class TFCnnBenchmarksStep(Step):
         self._performance_table.addColumn(FormattedTable.Column("Max", 18), "RX/TX rate (Mbit/sec)")
         self._performance_table.addColumn(FormattedTable.Column("Buffer overrun"), "Network Errors")
         self._performance_table.addColumn(FormattedTable.Column("TX discards"), "Network Errors")
+        self._performance_table.addColumn(FormattedTable.Column("TX waits"), "Network Errors")
         self._performance_table.addColumn(FormattedTable.Column("RX errors"), "Network Errors")
         self._performance_table.addColumn(FormattedTable.Column("RX constraint errors"), "Network Errors")
         self._performance_table.bind(self._performance_file, type = FormattedTable.TYPE_CSV, print_header = first_time)
@@ -238,6 +242,7 @@ class TFCnnBenchmarksStep(Step):
                "%.2lf/%.2lf" % (self._perf.rx.rate.max, self._perf.tx.rate.max),
                self._perf.excessive_buffer_overrun_errors.val,
                self._perf.port_xmit_discards.val,
+               self._perf.port_xmit_waits.val,
                self._perf.port_rcv_errors.val,
                self._perf.port_rcv_constraint_errors.val]
         self._performance_table.addRow(row)
@@ -327,6 +332,7 @@ class TFCnnBenchmarksStep(Step):
             process.server_info.monitor.fillMeasurement(process.perf.tx)
             process.server_info.monitor.fillMeasurement(process.perf.excessive_buffer_overrun_errors)
             process.server_info.monitor.fillMeasurement(process.perf.port_xmit_discards)
+            process.server_info.monitor.fillMeasurement(process.perf.port_xmit_waits)
             process.server_info.monitor.fillMeasurement(process.perf.port_rcv_errors)
             process.server_info.monitor.fillMeasurement(process.perf.port_rcv_constraint_errors)
             for gpu_id in process.server_info.monitor.search("GPU"):
