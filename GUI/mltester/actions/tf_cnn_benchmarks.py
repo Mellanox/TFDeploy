@@ -722,23 +722,32 @@ class TFCnnBenchmarksStep(Step):
         handler = TestEnvironment.Get().on_process_done
         if handler is not None:
             handler(process)
-            
+        
+        log("[%s]: Process %s is done." % (process.server_info.ip, process.name))
+        res = process.instance.returncode in [0, 143, -15]
+        with self._process_done_lock:
+            if not res:
+                self._stopAllIfNotAlreadyStopping()
+            if process.is_worker:
+                self._num_finished_workers += 1
+                if self._num_finished_workers == len(self.workers):
+                    log("All workers are done. Stopping remaining processes.")
+                    self._stopAllIfNotAlreadyStopping()
+        return res
+    
+    def _stopAllIfNotAlreadyStopping(self):
         if not self._stopping:
             self._stopping = True
-            log("Stopping remaining processes...")
-            wait_time_for_workers_to_exit_gracefully = len(self.workers) - 1
-            time.sleep(wait_time_for_workers_to_exit_gracefully)
             self._stopAll()
-        return process.instance.returncode in [0, 143, -15]
-        
+    
     # -------------------------------------------------------------------- #
 
     def _stopAll(self):
         log("Stopping processes:")
         for process in self._processes:
             if process.remote_pid and process.isAlive():
-                log("   + [%s] %s: %u" % (process.server, process.name, process.instance.pid))
-                os.kill(process.instance.pid, 15)            
+                log("Stopping [%s] %s: %u" % (process.server, process.name, process.instance.pid))
+                os.kill(process.instance.pid, 15)
                 self.runInline("kill -15 %u >& /dev/null" % process.remote_pid, servers=[process.server])
         log("Done.")
     
@@ -765,6 +774,8 @@ class TFCnnBenchmarksStep(Step):
         self._perf = TFPerformanceMeasurements()
         self._processes = []
         self._stopping = False
+        self._process_done_lock = threading.Lock()
+        self._num_finished_workers = 0 
         self._servers = {}
         work_dir_name = "tmp." + next(tempfile._get_candidate_names()) + next(tempfile._get_candidate_names())
         work_dir = os.path.join(tempfile._get_default_tempdir(), work_dir_name)
@@ -842,8 +853,9 @@ class TFCnnBenchmarksStep(Step):
                     if not self._initServerMonitors(server):
                         return False
 
+        title("Waiting for processes to end:", style = 3)
         res = waitForProcesses(processes, 
-                               wait_timeout=1200,
+                               wait_timeout=1800,
                                on_output=self._onOut,
                                on_process_start=self._onJobStart,
                                on_process_done=self._onJobDone)
@@ -867,5 +879,4 @@ class TFCnnBenchmarksStep(Step):
     
     def stop(self):
         Step.stop(self)
-        self._stopping = True
-        self._stopAll()
+        self._stopAllIfNotAlreadyStopping()
