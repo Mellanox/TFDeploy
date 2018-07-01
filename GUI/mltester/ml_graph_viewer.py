@@ -70,10 +70,10 @@ class Graph(object):
         global tl_graph_count
         
         line_width = 2
-        zorder = 5
+        zorder = 10
         yshift = 0
         marker = None
-        kind = os.path.basename(csv_path).split("-")[0]
+        kind = os.path.basename(csv_path).split("-")[0].split("_")[0]
         if kind in ["timeline.csv"]:
             ymax = 1
             graph_type = Graph.TYPE_DELTA
