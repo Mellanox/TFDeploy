@@ -161,12 +161,14 @@ class Step(object):
     
     # -------------------------------------------------------------------- #
     
-    def _runCommand(self, cmd, servers, wait_timeout, on_output, on_process_start, on_process_done, factory):
+    def _runCommand(self, cmds, servers, wait_timeout, on_output, on_process_start, on_process_done, factory):
         processes = []
         if servers is None:
-            processes.append(executeCommand(cmd, factory=factory))
+            for cmd in cmds:
+                processes.append(executeCommand(cmd, factory=factory))
         else:
-            processes.extend(executeRemoteCommand(servers, cmd, factory=factory))
+            for cmd in cmds:
+                processes.extend(executeRemoteCommand(servers, cmd, factory=factory))
         return waitForProcesses(processes,
                                 wait_timeout=wait_timeout,
                                 on_output=on_output,
@@ -177,20 +179,32 @@ class Step(object):
     
     def runInline(self, cmd, servers = None, wait_timeout = sys.maxint):
         ''' Run and output to global log '''
-        return self._runCommand(cmd,
+        return self._runCommand([cmd],
                                 servers,
                                 wait_timeout = wait_timeout,
                                 on_output = Step.logToMainProcess,
                                 on_process_start = None, 
                                 on_process_done = checkRetCode,
                                 factory = None)
-
+    
+    # -------------------------------------------------------------------- #
+    
+    def runInlineMulti(self, cmds, servers = None, wait_timeout = sys.maxint):
+        ''' Same as runInline, but with multiple commands (will be run in parallel) '''
+        return self._runCommand(cmds,
+                        servers,
+                        wait_timeout = wait_timeout,
+                        on_output = Step.logToMainProcess,
+                        on_process_start = None, 
+                        on_process_done = checkRetCode,
+                        factory = None)
+    
     # -------------------------------------------------------------------- #
     
     def runSeperate(self, cmd, servers = None, title = None, log_file_path = None, wait_timeout = sys.maxint):
         ''' Run and output to process log '''
         factory = BasicProcess.getFactory(title, log_file_path)
-        return self._runCommand(cmd, 
+        return self._runCommand([cmd], 
                                 servers, 
                                 wait_timeout,
                                 on_output = log,
