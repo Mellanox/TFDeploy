@@ -14,6 +14,8 @@ setup(
 	dependency_links = ["git+https://github.com/Mellanox/CommonPyLib.git@master#egg=CommonPyLib-1.0.3"],
 	entry_points='''
 		[console_scripts]
+		ml_analyze_nvperf=mltester.ml_analyze_nvperf:main
+		ml_analyze_verbs=mltester.ml_analyze_verbs:main
 		ml_tester_gui=mltester.ml_tester:main
 		ml_graph_viewer=mltester.ml_graph_viewer:main
 	'''

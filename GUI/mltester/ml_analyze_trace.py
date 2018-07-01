@@ -33,7 +33,7 @@ class ProcessInfo(object):
             f = open(file_path, "w")
             self._files[tid] = f
         return f
-        
+    
     def log(self, tid, ts, dur, label):
         f = self._getOrCreateLog(tid)
         f.write("%lf, 0, %s\n" % (ts / 1000000.0, label))
@@ -78,7 +78,6 @@ for event in events:
     dur = int(event["dur"])
     pinfo = processes[pid]
     pinfo.log(tid, ts, dur, name)
-
 
 
 print "Start: %u" % min_ts
