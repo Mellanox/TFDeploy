@@ -84,12 +84,9 @@ class TFCnnBenchmarksStep(Step):
     
     NAME = "TF CNN Benchmarks"
     
-    MODE_PARAMETER_SERVER = 0
-    MODE_DISTRIBUTED_ALL_REDUCE = 1
-    MODE_HOROVOD = 2
-    MODE_LOCAL = 3
-    
-    MODE_NAMES = ["Parameter Server", "Distributed All-Reduce", "Horovod", "Local"]
+    VARIABLE_UPDATE_MODES = ["parameter_server", "replicated", "distributed_replicated",
+                             "independent", "distributed_all_reduce",
+                             "collective_all_reduce", "horovod", "local"]
     ALL_REDUCE_SPECS = ["xring", "xring#2", "nccl", "nccl/xring", "pscpu", "psgpu#4", "pscpu:2k:pscpu#2:64k:xring", "pscpu/pscpu#2"] 
     MODELS = ["trivial", "inception3", "inception4", "resnet50", "resnet101", "resnet152", "vgg16", "vgg19"]
     PROTOCOLS = ["grpc", "grpc+verbs", "grpc+ucx", "grpc+mpi"]
@@ -102,9 +99,9 @@ class TFCnnBenchmarksStep(Step):
     ATTRIBUTE_ID_WORKERS = 4
     ATTRIBUTE_ID_SERVER_PROTOCOL = 9
     
-    ATTRIBUTES = [EnumAttribute("mode"            , "Mode", MODE_NAMES[0], MODE_NAMES),
+    ATTRIBUTES = [StrAttribute ("variable_update" , "Variable Update", VARIABLE_UPDATE_MODES[0], VARIABLE_UPDATE_MODES),
                   StrAttribute ("all_reduce_spec" , "All-Reduce Spec", ALL_REDUCE_SPECS[0], ALL_REDUCE_SPECS),
-                  ListAttribute("controller"      , "Controller", "12.12.12.25"),
+                  StrAttribute ("controller"      , "Controller", "12.12.12.25"),
                   ListAttribute("ps"              , "PS", "12.12.12.25"),
                   ListAttribute("workers"         , "Workers", "12.12.12.25,12.12.12.26"),
                   PathAttribute("script"          , "Script", os.path.join(tryExp(["$TF_BENCHMARKS_HOME", "~/benchmarks"]), "scripts", "tf_cnn_benchmarks", "tf_cnn_benchmarks.py")),
@@ -118,54 +115,49 @@ class TFCnnBenchmarksStep(Step):
                   BoolAttribute("trace_file"      , "Trace File", "False", category="Advanced"),
                   BoolAttribute("model_graph_file", "Graph File", "False", category="Advanced"),
                   BoolAttribute("forward_only"    , "Forward Only", "False", category="Advanced"),
-                  BoolAttribute("use_ibprof"      , "Use IBprof", "False", category="Advanced")]
+                  BoolAttribute("use_ibprof"      , "Use ibprof", "False", category="Advanced"),
+                  BoolAttribute("use_nvprof"      , "Use nvprof", "False", category="Advanced"),
+                  BoolAttribute("use_gdb"         , "Use gdb", "False", category="Advanced")]
 
     # -------------------------------------------------------------------- #
 
     class AttributesWidget(DefaultAttributesWidget):
         def __init__(self, attributes, parent = None):
             super(TFCnnBenchmarksStep.AttributesWidget, self).__init__(attributes, parent = None)
-            self._refreshMode()
-                    
-        # ---------------------------------------- #
-            
-        def _onFieldChanged(self, field_index, val):
-            if field_index == TFCnnBenchmarksStep.ATTRIBUTE_ID_MODE:
-                self._setMode(val)
-            DefaultAttributesWidget._onFieldChanged(self, field_index, val)
+            self._refreshFields()
         
         # ---------------------------------------- #
         
-        def _setMode(self, val):
-            if val in TFCnnBenchmarksStep.MODE_NAMES:
-                mode = TFCnnBenchmarksStep.MODE_NAMES.index(val)
-            else:
-                mode = TFCnnBenchmarksStep.MODE_NAMES[0]
-                self._setFieldValue(TFCnnBenchmarksStep.ATTRIBUTE_ID_MODE, mode)
-                
-            is_parameter_server       = (mode == TFCnnBenchmarksStep.MODE_PARAMETER_SERVER)
-            is_distributed_all_reduce = (mode == TFCnnBenchmarksStep.MODE_DISTRIBUTED_ALL_REDUCE)
-            is_horovod                = (mode == TFCnnBenchmarksStep.MODE_HOROVOD)
-            is_local                  = (mode == TFCnnBenchmarksStep.MODE_LOCAL)
+        def _refreshFields(self):
+            is_local                 = self._attributes.variable_update == "local"
+            is_ps                    = self._attributes.variable_update == "parameter_server"
+            is_replicated            = self._attributes.variable_update == "replicated"
+            is_dist_replicated       = self._attributes.variable_update == "distributed_replicated"
+            #is_independent           = self._attributes.variable_update == "independent"
+            is_dist_all_reduce       = self._attributes.variable_update == "distributed_all_reduce"
+            is_collective_all_reduce = self._attributes.variable_update == "collective_all_reduce"
+            is_horovod               = self._attributes.variable_update == "horovod"
             
-            self._showField(TFCnnBenchmarksStep.ATTRIBUTE_ID_ALL_REDUCE_SPECS, is_distributed_all_reduce)
-            self._showField(TFCnnBenchmarksStep.ATTRIBUTE_ID_CONTROLLER, is_distributed_all_reduce)
-            self._showField(TFCnnBenchmarksStep.ATTRIBUTE_ID_PS, is_parameter_server)
+            uses_ps                  = is_ps or is_dist_replicated
+            uses_all_reduce          = is_replicated or is_dist_replicated or is_dist_all_reduce or is_collective_all_reduce
+            
+            self._showField(TFCnnBenchmarksStep.ATTRIBUTE_ID_ALL_REDUCE_SPECS, uses_all_reduce)
+            self._showField(TFCnnBenchmarksStep.ATTRIBUTE_ID_CONTROLLER, is_dist_all_reduce)
+            self._showField(TFCnnBenchmarksStep.ATTRIBUTE_ID_PS, uses_ps)
             self._showField(TFCnnBenchmarksStep.ATTRIBUTE_ID_SERVER_PROTOCOL, not is_local and not is_horovod)
         
         # ---------------------------------------- #
-        
-        def _refreshMode(self):
-            mode = self._getFieldValue(TFCnnBenchmarksStep.ATTRIBUTE_ID_MODE)
-            self._setMode(mode)
+            
+        def _onFieldChanged(self, field_index, val):
+            DefaultAttributesWidget._onFieldChanged(self, field_index, val)
+            self._refreshFields()
        
         # ---------------------------------------- #
         
         def load(self, values):
             DefaultAttributesWidget.load(self, values)
-            mode = self._getFieldValue(TFCnnBenchmarksStep.ATTRIBUTE_ID_MODE)
-            self._setMode(mode)
-
+            self._refreshFields()
+    
     # -------------------------------------------------------------------- #
     
     WIDGET_CLASS = AttributesWidget
@@ -174,11 +166,38 @@ class TFCnnBenchmarksStep(Step):
     
     def __init__(self, values = None):
         Step.__init__(self, values)
-
+    
+    # -------------------------------------------------------------------- #
+    
+    def is_local(self):
+        return self._attributes.variable_update == "local"
+    def is_ps(self):
+        return self._attributes.variable_update == "parameter_server"
+    def is_replicated(self):
+        return self._attributes.variable_update == "replicated"
+    def is_dist_replicated(self):
+        return self._attributes.variable_update == "distributed_replicated"
+    def is_independent(self):
+        return self._attributes.variable_update == "independent"
+    def is_dist_all_reduce(self):
+        return self._attributes.variable_update == "distributed_all_reduce"
+    def is_collective_all_reduce(self):
+        return self._attributes.variable_update == "collective_all_reduce"
+    def is_horovod(self):
+        return self._attributes.variable_update == "horovod"
+    def is_cluster_run(self):
+        return not self.is_local() and not self.is_horovod()
+    def uses_ps(self):
+        return self.is_ps() or self.is_dist_replicated()
+    def uses_controller(self):
+        return self.is_dist_all_reduce()
+    def uses_all_reduce(self):
+        return self.is_dist_all_reduce() or self.is_collective_all_reduce() or self.is_replicated() or self.is_dist_replicated()
+    
     # -------------------------------------------------------------------- #
     
     def attributesRepr(self):
-        if self.mode == TFCnnBenchmarksStep.MODE_LOCAL:
+        if self.is_local():
             return "%s, LOCAL, %u GPU, batch %u" % (self.model,
                                                     self.num_gpus,
                                                     self.batch_size)
@@ -565,7 +584,13 @@ class TFCnnBenchmarksStep(Step):
         ##############
         # Arguments: #
         ##############
-        if self.mode == TFCnnBenchmarksStep.MODE_HOROVOD:
+        if self.use_gdb:
+            tf_command += " gdb --args"
+        elif self.use_nvprof:
+            if (job_name == "worker") and (task_id == 0):
+                tf_command += " nvprof -f -o /tmp/worker_0.nvvp -- "
+        
+        if self.is_horovod():
             if task_id == 0: 
                 tf_command += "mpirun -H %s" % ",".join(["%s:%u" % (TestEnvironment.Get().getServer(wip), self.num_gpus) for wip in self.workers])
                 tf_command += " -bind-to none -map-by slot"
@@ -574,35 +599,32 @@ class TFCnnBenchmarksStep(Step):
             else:
                 return None
   
-        # tf_command += " gdb --args"
         tf_command += "python -u %s/tf_cnn_benchmarks.py" % self._work_dir
-        if self.mode in [TFCnnBenchmarksStep.MODE_PARAMETER_SERVER,
-                         TFCnnBenchmarksStep.MODE_DISTRIBUTED_ALL_REDUCE]:
+        
+        tf_command += " --variable_update=%s" % self.variable_update
+
+        if self.is_cluster_run():
             tf_command += " --job_name=%s" % job_name
             tf_command += " --task_index=%u" % task_id
             tf_command += " --worker_hosts=%s" % self._cluster_workers
         
-        if self.mode in [TFCnnBenchmarksStep.MODE_PARAMETER_SERVER]:
+        if self.uses_ps():
             tf_command += " --ps_hosts=%s" % self._cluster_ps
-        elif self.mode in [TFCnnBenchmarksStep.MODE_DISTRIBUTED_ALL_REDUCE]:
-            tf_command += " --variable_update=distributed_all_reduce"
+            
+        if self.uses_all_reduce():
             tf_command += " --all_reduce_spec=%s" % self.all_reduce_spec
-        elif self.mode in [TFCnnBenchmarksStep.MODE_HOROVOD]:
-            tf_command += " --variable_update=horovod"
         
-
         if job_name in ["worker", "controller"]:
             tf_command += " --model=%s" % self.model
             tf_command += " --batch_size=%s" % self.batch_size
             if self.data_dir != "":
                 tf_command += " --data_dir=%s" % self.data_dir
-            if (self.num_gpus > 0) and (self.mode != TFCnnBenchmarksStep.MODE_HOROVOD):
-                tf_command += " --num_gpus=%s --local_parameter_device=gpu" % self.num_gpus
+            if (self.num_gpus > 0) and not self.is_horovod():
+                tf_command += " --num_gpus=%s" % self.num_gpus
             if self.trace_file:
                 tf_command += " --trace_file=%s" % os.path.join(self._work_dir, "trace_%s_%u.json" % (job_name, task_id))
         
-        if self.mode in [TFCnnBenchmarksStep.MODE_PARAMETER_SERVER,
-                         TFCnnBenchmarksStep.MODE_DISTRIBUTED_ALL_REDUCE]:
+        if self.is_cluster_run():
             tf_command += " --server_protocol=%s" % self.server_protocol
         
         if self.forward_only:
@@ -621,6 +643,7 @@ class TFCnnBenchmarksStep(Step):
         process.job_name = job_name 
         process.task_id = task_id
         process.is_worker = job_name == "worker"
+        process.is_ps = job_name == "ps"
         process.rdma_device = device_info
         process.server_info = server_info
         process.tf_flags = tf_flags
@@ -759,12 +782,12 @@ class TFCnnBenchmarksStep(Step):
     # -------------------------------------------------------------------- #
     
     def _getIPs(self):
-        if self.mode == TFCnnBenchmarksStep.MODE_LOCAL:
+        if self.is_local():
             res = [self.workers[0]]
-        elif self.mode == TFCnnBenchmarksStep.MODE_PARAMETER_SERVER:
+        elif self.uses_ps():
             res = list(set(self.ps + self.workers))
-        elif self.mode == TFCnnBenchmarksStep.MODE_DISTRIBUTED_ALL_REDUCE:
-            res = list(set(self.controller + self.workers))
+        elif self.is_dist_all_reduce():
+            res = list(set([self.controller] + self.workers))
         else:
             res = list(set(self.workers))
         return sorted(res)
@@ -822,29 +845,25 @@ class TFCnnBenchmarksStep(Step):
         
         title("Running:", style = 3)
         processes = []
-        if self.mode == TFCnnBenchmarksStep.MODE_PARAMETER_SERVER:
+        if self.uses_ps():
             for i in range(len(self.ps)):
                 ip = self.ps[i]
                 process = self._runJob(work_dir, ip, "ps", i)
                 if process:
                     processes.append(process)
-        elif self.mode == TFCnnBenchmarksStep.MODE_DISTRIBUTED_ALL_REDUCE:
+        
+        if self.is_dist_all_reduce():
+            ip = self.controller
             process = self._runJob(work_dir, ip, "controller", 0)
             if process:
-                processes.append(process) 
-        ################
-        # Run workers: #
-        ################
-        if self.mode == TFCnnBenchmarksStep.MODE_LOCAL:
-            process = self._runJob(work_dir, self.workers[0], "worker", 0)
+                processes.append(process)
+        
+        worker_ips = [self.workers[0]] if self.is_local() else self.workers
+        for i in range(len(worker_ips)):
+            ip = self.workers[i]
+            process = self._runJob(work_dir, ip, "worker", i)
             if process:
                 processes.append(process)
-        else:
-            for i in range(len(self.workers)):
-                ip = self.workers[i]
-                process = self._runJob(work_dir, ip, "worker", i)
-                if process:
-                    processes.append(process)
         
         time.sleep(0.2)
         res = self._findRemoteProcessIDs(processes)
@@ -853,7 +872,7 @@ class TFCnnBenchmarksStep(Step):
         self._printProcessSummary(processes)
         
         if res:
-            if self.mode != TFCnnBenchmarksStep.MODE_HOROVOD:
+            if not self.is_horovod():
                 for server in self._servers.values():
                     if not self._initServerMonitors(server):
                         return False
