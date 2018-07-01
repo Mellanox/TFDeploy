@@ -751,7 +751,7 @@ class MLTesterDialog(QMainWindow):
         
     #--------------------------------------------------------------------#
 
-    def _clear(self):
+    def _clearGui(self):
         while self.sequence_widget.rowCount() > 0:
             self.sequence_widget.removeRow(0)
         self._clearConfigurationPane()
@@ -760,7 +760,7 @@ class MLTesterDialog(QMainWindow):
     
     def _syncGui(self):
         # TODO: Completely sync the GUI with the tester
-        self._clear()
+        self._clearGui()
         self.settings_pane.load(self._tester.settings)
         for index in range(len(self._tester.sequence)):
             step = self._tester.sequence[index]
@@ -960,7 +960,8 @@ class MLTesterDialog(QMainWindow):
     
     def _newActionHandler(self):
         self._doc.new()
-        self._clear()
+        self._tester.sequence = []
+        self._syncGui()
     
     #--------------------------------------------------------------------#
     
