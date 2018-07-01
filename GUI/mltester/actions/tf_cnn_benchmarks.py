@@ -477,12 +477,10 @@ class TFCnnBenchmarksStep(Step):
         self._cluster_workers = []
         self._cluster_servers = []
         for ip in self.ps:
-            hostname = TestEnvironment.Get().getServer(ip)
-            self._cluster_ps.append("%s:%u" % (hostname, port))
+            self._cluster_ps.append("%s:%u" % (ip, port))
             port += 1
         for ip in self.workers:
-            hostname = TestEnvironment.Get().getServer(ip)
-            self._cluster_workers.append("%s:%u" % (hostname, port))
+            self._cluster_workers.append("%s:%u" % (ip, port))
             port += 1
         
         self._cluster_ps = ",".join(self._cluster_ps)
