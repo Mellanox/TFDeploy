@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 
 from getpass import getuser
-import pkg_resources
 import tempfile
 import sys
 import re
@@ -14,7 +13,7 @@ from mltester.actions import Step, DefaultAttributesWidget, TestEnvironment
 from commonpylib.log import LogWriter, LOG_LEVEL_NOTE, LOG_LEVEL_INFO, log, note, debug, title, error, warning, UniBorder, FormattedTable
 from commonpylib.monitors import Measurement, RemoteMonitor
 from commonpylib.util import BasicProcess, executeRemoteCommand, waitForProcesses, toFileName, ListAttribute, \
-                             EnumAttribute, IntAttribute, PathAttribute, StrAttribute, BoolAttribute, tryExp
+                             IntAttribute, PathAttribute, StrAttribute, BoolAttribute, tryExp, _res
 
 ###############################################################################
 
@@ -768,7 +767,7 @@ class TFCnnBenchmarksStep(Step):
 
     def perform(self, index):
         Step.perform(self, index)
-        log("<br><img src='%s' width=600 style='border:1px solid black'/><br>" % pkg_resources.resource_filename("mltester", "images/tensorflow.jpg")) #https://www.skylinelabs.in/blog/images/tensorflow.jpg?width=500'/>")
+        log("<br><img src='%s' width=600 style='border:1px solid black'/><br>" % _res("images/tensorflow.jpg")) #https://www.skylinelabs.in/blog/images/tensorflow.jpg?width=500'/>")
         for attr in self._attributes:
             log(" + %s: %s" % (attr.desc.display_name, str(attr.val)))
         self._perf = TFPerformanceMeasurements()

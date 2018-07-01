@@ -3,7 +3,6 @@
 
 import argparse
 import os
-import pkg_resources
 import re
 import sys
 import threading
@@ -18,7 +17,8 @@ from PyQt4.Qt import QWidget, QIcon, QMainWindow, pyqtSignal, QTableWidget, \
 
 from commonpylib.gui import DocumentControl, MultiLogWidget, DefaultAttributesWidget
 from commonpylib.log import LOG_LEVEL_INFO, LogManager, openLog, LogLevelNames, error, info, title, defaultFormatOp
-from commonpylib.util import BasicProcess, WorkerThread, NestedException, PathAttribute, EnumAttribute, configurations, AttributesList, isHtml
+from commonpylib.util import BasicProcess, WorkerThread, NestedException, PathAttribute, EnumAttribute, configurations, \
+    AttributesList, isHtml, PackageManager, _res
 from actions import TestEnvironment, Step
 from dialogs import StepEditDialog
 from dialogs.common_widgets import MenuWithToolbar, ActionWithButton,\
@@ -34,15 +34,7 @@ GEOMETRY_MAX = "max"
 
 home_dir = os.path.expanduser("~")
 default_logs_dir = os.path.join(home_dir, "mltester_logs")
-conf = configurations.Conf(os.path.join(os.path.expanduser("~"), ".mltester"))
-
-#--------------------------------------------------------------------#
-
-def _res(resource_path):
-    pkg_name = os.path.basename(os.path.dirname(__file__))
-    return pkg_resources.resource_filename(pkg_name, resource_path)
-
-#--------------------------------------------------------------------#
+conf = configurations.Conf(os.path.join(home_dir, ".mltester"))
 
 TestAttributeDescriptors = [PathAttribute("base_log_dir", "Logs Folder", default_logs_dir),
                             # TODO: MOVE TO PREFERENCES:
@@ -1126,6 +1118,8 @@ def runCLI(test_xml_path):
 #--------------------------------------------------------------------#
 
 def runGUI(test_xml_path):
+    PackageManager.Get().startImport("mltester")
+    
     # QApplication.setStyle(QStyleFactory.create("motif"))
     # QApplication.setStyle(QStyleFactory.create("Windows"))
     # QApplication.setStyle(QStyleFactory.create("cde"))
