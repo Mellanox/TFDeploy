@@ -658,14 +658,12 @@ class TFCnnBenchmarksStep(Step):
     # -------------------------------------------------------------------- #
     
     def _onOut(self, line, process):
-        if "Running warm up" in line:
+        if "Running warm up" in line or "Starting worker " in line:
             log(line, process)
             self._initProcessReport(process)
             if not self._startServerMonitors(process.server):
                 warning("Warning: Failed to start monitor for server %s.\n" % process.server)
                 process.server_info.monitor = None 
-                #self.stop()
-                #return
         elif "images/sec" in line:
             if "total " in line:
                 log(line, process)
