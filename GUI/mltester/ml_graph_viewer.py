@@ -6,16 +6,6 @@ from PyQt4.Qt import QVBoxLayout, QMainWindow, QTreeWidgetItem, QIcon,\
     QLabel, QAction, QApplication, QHBoxLayout, QBrush, QColor, QSpinBox, Qt, \
     QString, SIGNAL
 
-from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as NavigationToolbar
-from matplotlib.figure import Figure
-
-form = None
-def new_home(self, *args, **kwargs):
-    form.resetZoom()
-
-NavigationToolbar.home = new_home
-
 COLORS = ["#ff0000", "#ff8000", "#bfff00", "#00ff00", "#00ffbf", "#00bfff", "#8000ff", "#bf00ff", "#ff00ff",
           "#cc5151", "#7f3333", "#51cccc", "#337f7f", "#8ecc51", "#597f33", "#8e51cc", "#59337f", "#ccad51",
           "#7f6c33", "#51cc70", "#337f46", "#5170cc", "#33467f", "#cc51ad", "#7f336c", "#cc7f51", "#7f4f33",
@@ -668,6 +658,15 @@ class MLGraphViewer(QMainWindow):
     # -------------------------------------------------------------------- #
 
     def create_main_frame(self):
+        from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
+        from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as NavigationToolbar
+        from matplotlib.figure import Figure
+        
+        def new_home(self, *args, **kwargs):
+            self.resetZoom()
+    
+        NavigationToolbar.home = new_home
+        
         self.main_frame = QWidget()
         
         # Create the mpl Figure and FigCanvas objects. 
@@ -682,7 +681,6 @@ class MLGraphViewer(QMainWindow):
         self.canvas.setParent(self.main_frame)
         self.fig.tight_layout(pad=0)
         self.fig.subplots_adjust(left = 0.01, right = 0.92, top = 0.98, bottom = 0.09)
-
         
         self.host.callbacks.connect('xlim_changed', self._onXlimsChange)
         self.host.callbacks.connect('ylim_changed', self._onYlimsChange)        
@@ -791,7 +789,7 @@ class MLGraphViewer(QMainWindow):
 ###############################################################################################################################################################
 
 def main():
-    global form
+    
     
     if len(sys.argv) >= 2:
         base_dir = sys.argv[1:]
