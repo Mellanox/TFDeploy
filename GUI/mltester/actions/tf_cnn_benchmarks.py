@@ -644,6 +644,7 @@ class TFCnnBenchmarksStep(Step):
         process.task_id = task_id
         process.is_worker = job_name == "worker"
         process.is_ps = job_name == "ps"
+        process.is_controller = job_name == "controller"
         process.rdma_device = device_info
         process.server_info = server_info
         process.tf_flags = tf_flags
