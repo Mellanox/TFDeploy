@@ -598,10 +598,10 @@ class TFCnnBenchmarksStep(Step):
                 tf_command += " -mca pml ob1 -mca btl ^openib -- "
             else:
                 return None
-  
         tf_command += "python -u %s/tf_cnn_benchmarks.py" % self._work_dir
         
-        tf_command += " --variable_update=%s" % self.variable_update
+        if not self.is_local():
+            tf_command += " --variable_update=%s" % self.variable_update
 
         if self.is_cluster_run():
             tf_command += " --job_name=%s" % job_name
