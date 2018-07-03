@@ -750,33 +750,22 @@ class TFCnnBenchmarksStep(Step):
         if handler is not None:
             handler(process)
         
-        log("[%s]: Process %s is done." % (process.server_info.ip, process.name))
         res = process.instance.returncode in [0, 143, -15]
-        with self._process_done_lock:
-            if not res:
-                self._stopAllIfNotAlreadyStopping()
-            if process.is_worker:
-                self._num_finished_workers += 1
-                if self._num_finished_workers == len(self.workers):
-                    log("All workers are done. Stopping remaining processes.")
-                    self._stopAllIfNotAlreadyStopping()
+        if res:
+            log("[%s]: Process %s finished successfully." % (process.server_info.ip, process.name))
+            if self.uses_ps():
+                if process.is_worker:
+                    self._num_finished_workers += 1
+                    if self._num_finished_workers == len(self.workers):
+                        log("All workers are done. Stopping ps processes.")
+                        self._stopExternalProcesses(self._jobs)
+            elif self.uses_controller():
+                if process.is_controller:
+                    log("Controller is done. Stopping worker processes.")
+                    self._stopExternalProcesses(self._jobs)
+        else:
+            error("[%s]: Process %s failed." % (process.server_info.ip, process.name))
         return res
-    
-    def _stopAllIfNotAlreadyStopping(self):
-        if not self._stopping:
-            self._stopping = True
-            self._stopAll()
-    
-    # -------------------------------------------------------------------- #
-
-    def _stopAll(self):
-        log("Stopping processes:")
-        for process in self._processes:
-            if process.remote_pid and process.isAlive():
-                log("Stopping [%s] %s: %u" % (process.server, process.name, process.instance.pid))
-                os.kill(process.instance.pid, 15)
-                self.runInline("kill -15 %u >& /dev/null" % process.remote_pid, servers=[process.server])
-        log("Done.")
     
     # -------------------------------------------------------------------- #
     
@@ -900,6 +889,5 @@ class TFCnnBenchmarksStep(Step):
 
     # -------------------------------------------------------------------- #
     
-    def stop(self):
-        Step.stop(self)
-        self._stopAllIfNotAlreadyStopping()
+    def _stopAction(self):
+        self._stopExternalProcesses(self._jobs)

@@ -3,6 +3,7 @@
 
 import os
 import sys
+import threading
 from xml.dom import minidom
 from xml.etree import cElementTree as etree
 
@@ -46,19 +47,20 @@ class Step(object):
         if values is not None:
             for i in range(len(values)):
                 self._attributes[i].val = values[i]
-                
+        
         self._status = Step.STATUS_IDLE
         self._widget = None
         self._logs_dir = None
         self._repeat = 1
         self._is_enabled = True
         self._stop = False
+        self._stop_lock = threading.Lock()
     
     # -------------------------------------------------------------------- #
-        
+    
     def __getattr__(self, name):
         return self._attributes.__getattr__(name)
-
+    
     # -------------------------------------------------------------------- #
     
     def setLogsDir(self, index):
@@ -116,23 +118,34 @@ class Step(object):
         res._is_enabled = self._is_enabled
         res._attributes = self._attributes.clone()
         return res
-
+    
     # -------------------------------------------------------------------- #
     
     def perform(self, index):
         self.setLogsDir(index)
         self._stop = False
-
+        self._external_processes = []
+    
     # -------------------------------------------------------------------- #
-
+    
+    def _stopAction(self):
+        self._stopExternalProcesses(self._external_processes)
+        self._external_processes = []
+    
+    # -------------------------------------------------------------------- #
+    
     def stop(self):
-        self._stop = True
-        
+        with self._stop_lock:
+            if self._stop:
+                return
+            self._stop = True
+            self._stopAction()
+    
     # -------------------------------------------------------------------- #
     
     def stopOnFailure(self):
         return True
-
+    
     # -------------------------------------------------------------------- #
     
     def repeat(self):
@@ -162,19 +175,20 @@ class Step(object):
     # -------------------------------------------------------------------- #
     
     def _runCommand(self, cmds, servers, wait_timeout, on_output, on_process_start, on_process_done, factory):
-        processes = []
         if servers is None:
             for cmd in cmds:
-                processes.append(executeCommand(cmd, factory=factory))
+                self._external_processes.append(executeCommand(cmd, factory=factory))
         else:
             for cmd in cmds:
-                processes.extend(executeRemoteCommand(servers, cmd, factory=factory))
-        return waitForProcesses(processes,
-                                wait_timeout=wait_timeout,
-                                on_output=on_output,
-                                on_process_start=on_process_start,
-                                on_process_done=on_process_done)
-
+                self._external_processes.extend(executeRemoteCommand(servers, cmd, factory=factory))
+        res = waitForProcesses(self._external_processes,
+                               wait_timeout=wait_timeout,
+                               on_output=on_output,
+                               on_process_start=on_process_start,
+                               on_process_done=on_process_done)
+        self._external_processes = []
+        return res
+    
     # -------------------------------------------------------------------- #
     
     def runInline(self, cmd, servers = None, wait_timeout = sys.maxint):
@@ -211,7 +225,7 @@ class Step(object):
                                 on_process_start = TestEnvironment.Get().on_new_process, 
                                 on_process_done = TestEnvironment.Get().on_process_done,
                                 factory = factory)
-                
+    
     # -------------------------------------------------------------------- #
     
     def runSCP(self, sources, dst_dir, src_servers = [None], dst_servers = [None], wait_timeout = sys.maxint):
@@ -223,6 +237,22 @@ class Step(object):
     
     # -------------------------------------------------------------------- #
     
+    def _stopExternalProcesses(self, processes):
+        if len(processes) == 0:
+            return
+        
+        log("Stopping processes:")
+        remote_kill_procs = []
+        for process in processes:
+            if process.remote_pid and process.isAlive():
+                log("Stopping %s: %u" % (process.title, process.instance.pid))
+                os.kill(process.instance.pid, 15)
+                remote_kill_procs.extend(executeRemoteCommand([process.server], "kill -15 %u >& /dev/null" % process.remote_pid))
+        waitForProcesses(remote_kill_procs)
+        log("Done.")
+    
+    # -------------------------------------------------------------------- #
+    
     def attributesRepr(self):
         return ""
     
@@ -230,9 +260,9 @@ class Step(object):
     
     def __repr__(self):
         return self._name + ": " + self.attributesRepr()
-        
+    
     # -------------------------------------------------------------------- #
-            
+    
     def writeToXml(self, root_node):
         step_node = etree.SubElement(root_node, "Step", Class = self.className())
         etree.SubElement(step_node, "Name", Value = self.name())
