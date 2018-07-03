@@ -10,7 +10,8 @@ import time
 import threading
 
 from mltester.actions import Step, DefaultAttributesWidget, TestEnvironment
-from commonpylib.log import LogWriter, LOG_LEVEL_NOTE, LOG_LEVEL_INFO, log, note, debug, title, error, warning, UniBorder, FormattedTable
+from commonpylib.log import ScreenLogWriter, FileLogWriter, LOG_LEVEL_NOTE, \
+    log, note, debug, title, error, warning, FormattedTable, UniBorder
 from commonpylib.monitors import Measurement, RemoteMonitor
 from commonpylib.util import BasicProcess, executeRemoteCommand, waitForProcesses, toFileName, ListAttribute, \
                              IntAttribute, PathAttribute, StrAttribute, BoolAttribute, tryExp, _res
@@ -29,7 +30,7 @@ class ServerInfo(object):
 
 class RemoteDeviceInfo(object):
     def __init__(self):
-        self.link = None
+        self.net_name = None
         self.name = None
         self.port = 0
         self.is_up = False
@@ -61,7 +62,7 @@ class TFPerformanceMeasurements(object):
             self.port_xmit_waits                 = Measurement("PORT_XMIT_WAITS")
             self.port_rcv_errors                 = Measurement("PORT_RCV_ERRORS")
             self.port_rcv_constraint_errors      = Measurement("PORT_RCV_CONSTRAINT_ERRORS")
-
+    
     # -------------------------------------------------------------------- #
     
     def reduce(self, other):
@@ -76,7 +77,7 @@ class TFPerformanceMeasurements(object):
         self.port_xmit_waits.reduce(other.port_xmit_waits)
         self.port_rcv_errors.reduce(other.port_rcv_errors)
         self.port_rcv_constraint_errors.reduce(other.port_rcv_constraint_errors)
-        
+
 ###############################################################################
 
 @Step.REGISTER()
@@ -193,6 +194,8 @@ class TFCnnBenchmarksStep(Step):
         return self.is_dist_all_reduce()
     def uses_all_reduce(self):
         return self.is_dist_all_reduce() or self.is_collective_all_reduce() or self.is_replicated() or self.is_dist_replicated()
+    def hostnames(self):
+        return self._servers.keys() 
     
     # -------------------------------------------------------------------- #
     
@@ -206,10 +209,32 @@ class TFCnnBenchmarksStep(Step):
                                                   self.server_protocol,
                                                   self.num_gpus * len(self.workers),
                                                   self.batch_size) 
-
+    
     # -------------------------------------------------------------------- #
     
-    def _openPerformanceFile(self):
+    def _logTable(self, table):
+        table.printHTML(ScreenLogWriter(None, log_level=LOG_LEVEL_NOTE))
+        table.printFormatted(FileLogWriter(None, log_level=LOG_LEVEL_NOTE))
+    
+    # -------------------------------------------------------------------- #
+    
+    def _killPreviousRuns(self):
+        apps_to_kill = ["tf_cnn_benchmarks.py", "ml_monitor", "nvidia-smi"]
+        for app in apps_to_kill:
+            kill_cmd = "ps -f | grep %s | grep -v grep | grep -v %s | sed -e 's@%s *\\([0-9]\\+\\) .*@\\1@g' | xargs kill -9" % (app, self._work_dir, self._user)
+            if not self.runInline(kill_cmd, servers=self.hostnames(), wait_timeout=5):
+                return False
+        return True
+    
+    # -------------------------------------------------------------------- #
+    
+    def _copyScripts(self):
+        return self.runSCP([self._script_dir], self._work_dir, dst_servers=self.hostnames(), wait_timeout=10) # Also create it
+    
+    # -------------------------------------------------------------------- #
+    
+    def _appendToPerformanceFile(self):
+        ''' Overall step performance (average all workers). '''
         performance_file_path = os.path.join(TestEnvironment.Get().testLogsDir(), "results.csv")
         first_time = not os.path.exists(performance_file_path)
         self._performance_file = open(performance_file_path, "a+")
@@ -233,18 +258,14 @@ class TFCnnBenchmarksStep(Step):
         self._performance_table.addColumn(FormattedTable.Column("TX waits"), "Network Errors")
         self._performance_table.addColumn(FormattedTable.Column("RX errors"), "Network Errors")
         self._performance_table.addColumn(FormattedTable.Column("RX constraint errors"), "Network Errors")
-        self._performance_table.bind(self._performance_file, type = FormattedTable.TYPE_CSV, print_header = first_time)
-                
-    # -------------------------------------------------------------------- #
-    
-    def _appendToPerformanceFile(self):
-        ''' Overall step performance (average all workers). '''
-        for process in self._processes:
+        self._performance_table.bind([FormattedTable.CsvStream(self._performance_file, print_header = first_time)])
+        
+        for process in self._jobs:
             if process.perf is not None:
                 # Append to global performance results:
                 self._perf.reduce(process.perf)
         
-        log("Appending to results file: %s" % self._performance_file.name) 
+        log("Appending to results file: <a href=\"%s\">%s</a>" % (self._performance_file.name, self._performance_file.name)) 
         row = [time.strftime("%Y-%m-%d %H:%M:%S"),
                "TF cnn benchmarks",
                self.model,
@@ -269,8 +290,8 @@ class TFCnnBenchmarksStep(Step):
         self._performance_file.close()
         
         summary_table = self._performance_table.cut(["Performance", "RX/TX rate (Mbit/sec)", "Network Errors"])
-        summary_table.printFormatted(LogWriter(None, LOG_LEVEL_NOTE))
-
+        self._logTable(summary_table)
+    
     # -------------------------------------------------------------------- #
     
     def _getOrCreateServer(self, hostname, ip):
@@ -282,22 +303,22 @@ class TFCnnBenchmarksStep(Step):
 
     # -------------------------------------------------------------------- #
     
-    def _initServerMonitors(self, server):
-        server.graphs_dir = os.path.join(self._logs_dir, "graphs", toFileName(server.hostname))
-        server.remote_graphs_dir = os.path.join(self._work_dir, "graphs")
-        if not os.path.exists(server.graphs_dir):
-            os.makedirs(server.graphs_dir)
+    def _initServerMonitors(self, server_info):
+        server_info.graphs_dir = os.path.join(self._logs_dir, "graphs", toFileName(server_info.hostname))
+        server_info.remote_graphs_dir = os.path.join(self._work_dir, "graphs")
+        if not os.path.exists(server_info.graphs_dir):
+            os.makedirs(server_info.graphs_dir)
         remote_monitor_title = lambda process: "Monitor [%s]" % process.server
         remote_monitor_bin = "ml_monitor"
         
-        monitored_pids = ",".join(["%u" % p.remote_pid for p in server.processes])
-        monitored_nics = ",".join(["%s:%u" % (p.rdma_device.name, p.rdma_device.port) for p in server.processes])
+        monitored_pids = ",".join(["%u" % p.remote_pid for p in server_info.processes])
+        monitored_nics = ",".join(["%s:%u" % (p.rdma_device.name, p.rdma_device.port) for p in server_info.processes])
         remote_monitor_flags = "--cpu %s 0.010 --gpu 0.020 --net %s 0.010 --net_errors %s 1 -d %s" % (monitored_pids, 
                                                                                                       monitored_nics,
                                                                                                       monitored_nics,
-                                                                                                      server.remote_graphs_dir)
-        server.monitor_log_path = os.path.join(server.graphs_dir, "monitor.log") 
-        server.monitor = RemoteMonitor(server.hostname, remote_monitor_bin, remote_monitor_flags, remote_monitor_title, server.monitor_log_path)
+                                                                                                      server_info.remote_graphs_dir)
+        server_info.monitor_log_path = os.path.join(server_info.graphs_dir, "monitor.log") 
+        server_info.monitor = RemoteMonitor(server_info.hostname, remote_monitor_bin, remote_monitor_flags, remote_monitor_title, server_info.monitor_log_path)
         return True
 
     # -------------------------------------------------------------------- #
@@ -309,7 +330,7 @@ class TFCnnBenchmarksStep(Step):
         
         log("Server %s: Starting monitor." % server_info.ip)
         return server_info.monitor.start()
-
+    
     # -------------------------------------------------------------------- #
     
     def _stopServerMonitors(self, server_info):
@@ -319,8 +340,16 @@ class TFCnnBenchmarksStep(Step):
         log("Server %s: Stopping monitor." % server_info.ip)
         res = server_info.monitor.stop()
         server_info.monitor.close()
-        self.runSCP([server_info.remote_graphs_dir], server_info.graphs_dir, src_servers=[server_info.hostname])
+        sources = ["%s/*" % server_info.remote_graphs_dir]
+        self.runSCP(sources, server_info.graphs_dir, src_servers=[server_info.hostname])
+        server_info.monitor = None
         return res
+    
+    # -------------------------------------------------------------------- #
+    
+    def _stopAllMonitors(self):
+        for server_info in self._servers.values():
+            self._stopServerMonitors(server_info)
     
     # -------------------------------------------------------------------- #
     
@@ -338,8 +367,8 @@ class TFCnnBenchmarksStep(Step):
         process.table.addColumn(FormattedTable.Column("+/-", 7))
         process.table.addColumn(FormattedTable.Column("jitter", 6))
         process.table.addColumn(FormattedTable.Column("loss", 6))
-        log_level = LOG_LEVEL_NOTE if process.is_worker and process.task_id == 0 else LOG_LEVEL_INFO
-        process.table.bind(LogWriter(process, log_level))
+        process.table.bind([FormattedTable.UniborderStream(ScreenLogWriter(process, log_level=LOG_LEVEL_NOTE), style=UniBorder.BORDER_STYLE_STRONG),
+                            FormattedTable.UniborderStream(FileLogWriter(process, log_level=LOG_LEVEL_NOTE), style=UniBorder.BORDER_STYLE_STRONG)])
     
     # -------------------------------------------------------------------- #
     
@@ -376,7 +405,7 @@ class TFCnnBenchmarksStep(Step):
 
     # -------------------------------------------------------------------- #
     
-    def _findRemoteProcessIDs(self, processes):
+    def _findRemoteProcessIDs(self):
         remote_process_ids = {}
         def parser(line, find_process):
             debug(line)
@@ -386,9 +415,9 @@ class TFCnnBenchmarksStep(Step):
         res = True
         num_attempts = 0
         max_num_attempts = 3
-        while len(remote_process_ids) < len(processes):
+        while len(remote_process_ids) < len(self._jobs):
             find_processes = []
-            for process in processes:
+            for process in self._jobs:
                 if process.name in remote_process_ids:
                     continue
                 find_process = executeRemoteCommand([process.server],  "ps --no-headers -o\"pid,args\" | grep -e '^ *[0-9]\+ %s$'" % process.tf_command)[0]
@@ -403,72 +432,49 @@ class TFCnnBenchmarksStep(Step):
                 res = False
                 break
             
-        for process in processes:
+        for process in self._jobs:
             if process.name in remote_process_ids:
                 process.remote_pid = remote_process_ids[process.name]
-            else:
-                process.remote_pid = -1
         return res
     
     # -------------------------------------------------------------------- #
     
-    def _printProcessSummary(self, processes):
-#         table = FormattedTable()
-#         table.border_style = UniBorder.BORDER_STYLE_SINGLE
-#         table.addColumn(FormattedTable.Column("IP"))
-#         table.addColumn(FormattedTable.Column("Job"))
-#         table.addColumn(FormattedTable.Column("PID"))
-#         table.addColumn(FormattedTable.Column("RPID"))
-#         table.addColumn(FormattedTable.Column("Flags"))
-#         table.addColumn(FormattedTable.Column("Command"))
-        log("")
-        log("<table border=1>")
-        log("<tr>")
-        log("    <th>%s</th>" % "IP")
-        log("    <th>%s</th>" % "Job")
-        log("    <th>%s</th>" % "PID")
-        log("    <th>%s</th>" % "RPID")
-        log("    <th>%s</th>" % "Flags")
-        log("    <th>%s</th>" % "Command")
-        log("</tr>")
-        for process in processes:
-#             table.addRow([process.server_info.ip, process.name, process.instance.pid, process.remote_pid, process.tf_flags, process.tf_command])
-            log("<tr>")
-            log("    <td>%s</td>" % process.server_info.ip)
-            log("    <td><a href=\"%s\">%s</a></td>" % (process.log_file_path, process.name))
-            log("    <td>%s</td>" % process.instance.pid)
-            log("    <td>%s</td>" % process.remote_pid)
-            log("    <td>%s</td>" % process.tf_flags)
-            log("    <td>%s</td>" % process.tf_command)
-            log("</tr>")
-#         table.printFormatted(LogWriter(None, LOG_LEVEL_NOTE))
-        log("</table>")
-        log("")
+    def _printProcessSummary(self):
+        table = FormattedTable()
+        table.addColumn(FormattedTable.Column("IP"))
+        table.addColumn(FormattedTable.Column("Job"))
+        table.addColumn(FormattedTable.Column("PID"))
+        table.addColumn(FormattedTable.Column("RPID"))
+        table.addColumn(FormattedTable.Column("Flags"))
+        table.addColumn(FormattedTable.Column("Command"))
+        for process in self._jobs:
+            table.addRow([process.server_info.ip,
+                          "<a href=\"%s\">%s</a>" % (process.log_file_path, process.name),
+                          process.instance.pid, process.remote_pid, process.tf_flags, process.tf_command])
+        self._logTable(table)
     
     # -------------------------------------------------------------------- #
             
     def _getDevices(self, ips):
-        links = {}
-        self._devices = {}
-        
-        def linkNameParser(line, process):
+        def netNameParser(line, process):
             debug(line, process)
-            links[process.server] = line
+            device = RemoteDeviceInfo()
+            device.net_name = line
+            self._devices[process.server] = device
         
         def deviceNameAndPortParser(line, process):
             debug(line, process)
             parts = line.split()
-            res = RemoteDeviceInfo()
-            res.name = parts[0]
-            res.port = int(parts[2])
-            res.is_up = parts[5] == "(Up)"
-            self._devices[process.server] = res
-
+            device = self._devices.get(process.server)
+            device.name = parts[0]
+            device.port = int(parts[2])
+            device.is_up = parts[5] == "(Up)"
+        
         procs = []
         for ip in ips:
-            server = TestEnvironment.Get().getServer(ip)
-            procs.extend(executeRemoteCommand([server], "ip -o a s | grep %s | cut -d ' ' -f 2 | cut -d'.' -f1" % ip))
-        if not waitForProcesses(procs, wait_timeout=5, on_output=linkNameParser):
+            hostname = TestEnvironment.Get().getHostname(ip)
+            procs.extend(executeRemoteCommand([hostname], "ip -o a s | grep %s | cut -d ' ' -f 2 | cut -d'.' -f1" % ip))
+        if not waitForProcesses(procs, wait_timeout=5, on_output=netNameParser):
             for proc in procs:
                 if proc.exception is not None:
                     raise proc.exception
@@ -476,12 +482,12 @@ class TFCnnBenchmarksStep(Step):
         
         procs = []
         for ip in ips:
-            server = TestEnvironment.Get().getServer(ip)
-            link = links.get(server)
-            if not link:
+            hostname = TestEnvironment.Get().getHostname(ip)
+            device = self._devices.get(hostname)
+            if not device:
                 error("IP %s: No device found." % ip)
                 continue
-            procs.extend(executeRemoteCommand([server], "ibdev2netdev | grep %s" % link))
+            procs.extend(executeRemoteCommand([hostname], "ibdev2netdev | grep %s" % device.net_name))
         
         if len(procs) < len(ips):
             return False
@@ -496,6 +502,14 @@ class TFCnnBenchmarksStep(Step):
     # -------------------------------------------------------------------- #
     
     def _buildCluster(self):
+        ips = self._getIPs()
+        for ip in ips:
+            hostname = TestEnvironment.Get().getHostname(ip)
+            self._getOrCreateServer(hostname, ip)
+        
+        if not self._getDevices(ips) or self._stop:
+            return False
+        
         port = self.base_port
         self._cluster_ps = []
         self._cluster_workers = []
@@ -509,11 +523,25 @@ class TFCnnBenchmarksStep(Step):
         
         self._cluster_ps = ",".join(self._cluster_ps)
         self._cluster_workers = ",".join(self._cluster_workers)
-
+        
+        table = FormattedTable()
+        table.addColumn(FormattedTable.Column("IP"))
+        table.addColumn(FormattedTable.Column("Host"))
+        table.addColumn(FormattedTable.Column("Device"))
+        table.addColumn(FormattedTable.Column("Port"))
+        table.addColumn(FormattedTable.Column("Net Name"))
+        table.addColumn(FormattedTable.Column("Status"))
+        for ip in ips:
+            hostname = TestEnvironment.Get().getHostname(ip)
+            device_info = self._devices[hostname]
+            table.addRow([ip, hostname, device_info.name, device_info.port, device_info.net_name, "Up" if device_info.is_up else "Down"])
+        self._logTable(table)
+        return True
+    
     # -------------------------------------------------------------------- #
     
-    def _runJob(self, work_dir, ip, job_name, task_id):
-        hostname = TestEnvironment.Get().getServer(ip)
+    def _createJob(self, ip, job_name, task_id):
+        hostname = TestEnvironment.Get().getHostname(ip)
         server_info = self._getOrCreateServer(hostname, ip)
         device_info = self._devices[server_info.hostname]
         
@@ -572,7 +600,7 @@ class TFCnnBenchmarksStep(Step):
         ##############
         if self.server_protocol == "grpc+mpi":
             pass
-
+        
         ###############
         # GRPC Debug: #
         ###############
@@ -580,7 +608,7 @@ class TFCnnBenchmarksStep(Step):
         #export GRPC_TRACE=api,call_combiner
         #export GRPC_TRACE=queue_pluck,flowctl,http1,http2_stream_state,http,op_failure
         #export GRPC_TRACE=client_channel,call_error,channel,server_channel,channel_stack_builder,connectivity_state  #all
-
+        
         ##############
         # Arguments: #
         ##############
@@ -629,13 +657,13 @@ class TFCnnBenchmarksStep(Step):
         
         if self.forward_only:
             tf_command += " --forward_only"
-
+        
         if self.model_graph_file and (task_id == 0):
             tf_command += " --graph_file=%s" % os.path.join(self._work_dir, "graph.txt")
-
+        
         command = tf_flags + " " + tf_command
-
-        title = "[%s] %s - %u" % (ip, job_name, task_id)
+        
+        title = "[%s] %s - %u" % (server_info.ip, job_name, task_id)
         log_file_path = os.path.join(self._logs_dir, "%s_%u.log" % (job_name, task_id))
         factory = BasicProcess.getFactory(title, log_file_path)
         process = executeRemoteCommand([server_info.hostname], command, factory = factory)[0]
@@ -651,10 +679,9 @@ class TFCnnBenchmarksStep(Step):
         process.tf_command = tf_command
         process.remote_pid = None
         process.perf = None
-        self._processes.append(process)
+        self._jobs.append(process)
         server_info.processes.append(process)
-        return process
-
+    
     # -------------------------------------------------------------------- #
     
     def _onOut(self, line, process):
@@ -744,7 +771,7 @@ class TFCnnBenchmarksStep(Step):
         note("Log: %s" % process.log_file_path, process = process) 
     
     # -------------------------------------------------------------------- #
-
+    
     def _onJobDone(self, process):
         handler = TestEnvironment.Get().on_process_done
         if handler is not None:
@@ -781,112 +808,110 @@ class TFCnnBenchmarksStep(Step):
         return sorted(res)
     
     # -------------------------------------------------------------------- #
-
-    def perform(self, index):
-        Step.perform(self, index)
-        log("<br><img src='%s' width=600 style='border:1px solid black'/><br>" % _res("images/tensorflow.jpg")) #https://www.skylinelabs.in/blog/images/tensorflow.jpg?width=500'/>")
-        for attr in self._attributes:
-            log(" + %s: %s" % (attr.desc.display_name, str(attr.val)))
-        self._perf = TFPerformanceMeasurements()
-        self._processes = []
-        self._stopping = False
-        self._process_done_lock = threading.Lock()
-        self._num_finished_workers = 0 
-        self._servers = {}
-        work_dir_name = "tmp." + next(tempfile._get_candidate_names()) + next(tempfile._get_candidate_names())
-        work_dir = os.path.join(tempfile._get_default_tempdir(), work_dir_name)
-        script_dir = os.path.dirname(self.script)
-        
-        user = getuser()
-        self._work_dir = work_dir
-        ips = self._getIPs()
-        servers = TestEnvironment.Get().getServers(ips)
-            
-        #########################
-        # Kill other instances: #
-        #########################
-        apps_to_kill = ["tf_cnn_benchmarks.py", "ml_monitor"]
-        for app in apps_to_kill:
-            kill_cmd = "ps -f | grep %s | grep -v grep | grep -v %s | sed -e 's@%s *\\([0-9]\\+\\) .*@\\1@g' | xargs kill -9" % (app, work_dir, user)
-            res = self.runInline(kill_cmd, servers, wait_timeout = 5)
-            if not res:
-                return False
-        if self._stop:
-            return False
     
-        #########
-        # Copy: #
-        #########
-        title("Copying scripts:", style = 3)
-        if not self.runSCP([script_dir], work_dir, dst_servers=servers, wait_timeout = 10): # Also create it
-            return False
-        if self._stop:
-            return False
-            
-        ########
-        # Run: #
-        ########
-        self._openPerformanceFile()
-        self._buildCluster()
-        if not self._getDevices(ips):
-            return False
-        
-        title("Running:", style = 3)
-        processes = []
+    def _runJobs(self):
         if self.uses_ps():
             for i in range(len(self.ps)):
                 ip = self.ps[i]
-                process = self._runJob(work_dir, ip, "ps", i)
-                if process:
-                    processes.append(process)
+                self._createJob(ip, "ps", i)
         
         if self.is_dist_all_reduce():
             ip = self.controller
-            process = self._runJob(work_dir, ip, "controller", 0)
-            if process:
-                processes.append(process)
+            self._createJob(ip, "controller", 0)
         
         worker_ips = [self.workers[0]] if self.is_local() else self.workers
         for i in range(len(worker_ips)):
             ip = self.workers[i]
-            process = self._runJob(work_dir, ip, "worker", i)
-            if process:
-                processes.append(process)
+            self._createJob(ip, "worker", i)
         
         time.sleep(0.2)
-        res = self._findRemoteProcessIDs(processes)
-        if self._stop:
-            return False
-        self._printProcessSummary(processes)
-        
+        res = self._findRemoteProcessIDs()
+        self._printProcessSummary()
         if res:
             if not self.is_horovod():
                 for server in self._servers.values():
                     if not self._initServerMonitors(server):
                         return False
-
-        title("Waiting for processes to end:", style = 3)
-        res = waitForProcesses(processes, 
-                               wait_timeout=1800,
-                               on_output=self._onOut,
-                               on_process_start=self._onJobStart,
-                               on_process_done=self._onJobDone)
-
-        for server in self._servers.values():
-            res = res and self._stopServerMonitors(server)
+        return res
+    
+    # -------------------------------------------------------------------- #
+    
+    def _waitForJobs(self):
+        return waitForProcesses(self._jobs, 
+                                wait_timeout=1800,
+                                on_output=self._onOut,
+                                on_process_start=self._onJobStart,
+                                on_process_done=self._onJobDone)
+    
+    # -------------------------------------------------------------------- #
+    
+    def _copyResults(self):
+        if len(self._jobs) == 0:
+            return
+        sources = ["%s/graph.txt" % self._work_dir, 
+                   "%s/*.json" % self._work_dir]
+        self.runSCP(sources, self._logs_dir, src_servers=self._servers.keys(), wait_timeout=20)
+    
+    # -------------------------------------------------------------------- #
+    
+    def _cleanup(self):
+        title("Cleaning:", style = 2)
+        self._stopAllMonitors()
+        self._copyResults()
+    
+    # -------------------------------------------------------------------- #
+    
+    def _stepFailed(self):
+        self._cleanup()
+        return False
+    
+    # -------------------------------------------------------------------- #
+    
+    def _perform(self):
+        log("<br><img src='%s' width=600 style='border:1px solid black'/><br>" % _res("images/tensorflow.jpg")) #https://www.skylinelabs.in/blog/images/tensorflow.jpg?width=500'/>")
+        for attr in self._attributes:
+            log(" + %s: %s" % (attr.desc.display_name, str(attr.val)))
+        self._perf = TFPerformanceMeasurements()
+        self._num_finished_workers = 0
+        self._jobs = [] 
+        self._servers = {}
+        self._devices = {}
+        work_dir_name = "tmp." + next(tempfile._get_candidate_names()) + next(tempfile._get_candidate_names())
+        self._work_dir = os.path.join(tempfile._get_default_tempdir(), work_dir_name)
+        self._script_dir = os.path.dirname(self.script)
+        self._user = getuser()
         
-        if not res or self._stop:
+        title("Building cluster:", style = 2)
+        if not self._buildCluster() or self._stop:
             return False
-
-        self._appendToPerformanceFile()
         
-        ############
-        # Cleanup: #
-        ############
-        title("Cleaning:", style = 3)
-        self.runSCP(["%s/graph.txt" % self._work_dir, "%s/*.json" % self._work_dir], self._logs_dir, src_servers=servers, wait_timeout=10)
+        title("Killing previous runs:", style = 2)
+        if not self._killPreviousRuns() or self._stop:
+            return False
+        
+        title("Copying scripts:", style = 2)
+        if not self._copyScripts() or self._stop:
+            return False
+        
+        title("Running:", style = 2)
+        if not self._runJobs() or self._stop:
+            return False
+        
+        title("Waiting for processes to end:", style = 2)
+        if not self._waitForJobs() or self._stop:
+            return False
+        
+        self._appendToPerformanceFile()
         return True
-
+    
+    # -------------------------------------------------------------------- #
+    
+    def perform(self, index):
+        Step.perform(self, index)
+        res = self._perform()
+        self._cleanup()
+        return res
+    
     # -------------------------------------------------------------------- #
     
     def _stopAction(self):

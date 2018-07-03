@@ -95,7 +95,7 @@ class MLTester(object):
         self._current_step = step
         self._setStepStatus(step, index, Step.STATUS_RUNNING)
         for count in range(step.repeat()):
-            title("Step %u - %s (%u/%u)" % (index, str(step), count + 1, step.repeat()), style = 2)
+            title("Step %u - %s (%u/%u)" % (index, str(step), count + 1, step.repeat()), style = 1)
             res = step.perform(index)
             self._all_passed &= res
             if not res:
@@ -159,7 +159,7 @@ class MLTester(object):
         main_process = BasicProcess(None, message, os.path.join(self._test_logs_dir, "main.log"), None)
         LogManager.Get().main_process = main_process
         openLog(LogManager.Get().main_process)
-        title(message, style = 1)
+        title(message, style = 0)
         self.thread = WorkerThread(target=self._runSequence)
         self.thread.start()
     
@@ -1055,7 +1055,7 @@ class MLTesterDialog(QMainWindow):
         if style <= 0:
             msg = "<h1>%s</h1>" % msg
         elif style <= 10:
-            msg = "<h%u>%s</h%u>" % (style, msg, style)
+            msg = "<h%u>%s</h%u>" % (style + 1, msg, style + 1)
         return msg
     
     # -------------------------------------------------------------------- #
