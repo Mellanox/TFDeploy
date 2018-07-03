@@ -6,7 +6,7 @@ import re
 import socket
 import tempfile
 
-from commonpylib.log import UniBorder, title
+from commonpylib.log import title
 from commonpylib.util import executeRemoteCommand, waitForProcesses, BoolAttribute, PathAttribute, StrAttribute, ListAttribute, AttributesList, tryExp
 from mltester.actions import Step, TestEnvironment
 
@@ -38,9 +38,9 @@ class TFCompileStep(Step):
     
     def attributesRepr(self):
         return self.tensorflow_home
-         
+    
     # -------------------------------------------------------------------- #
-
+    
     def perform(self, index):
         Step.perform(self, index)
         
@@ -62,7 +62,7 @@ class TFCompileStep(Step):
                                title = "Build %s" % self.tensorflow_home, 
                                log_file_path = os.path.join(self._logs_dir, "build.log"),
                                wait_timeout = 3600)
-        if not res:
+        if not res or self._stop:
             return False
         
         cmd = "cd %s; bazel-bin/tensorflow/tools/pip_package/build_pip_package tensorflow_pkg" % (self.tensorflow_home)
@@ -79,9 +79,9 @@ class TFCompileStep(Step):
         temp_dir_name = "tmp." + next(tempfile._get_candidate_names()) + next(tempfile._get_candidate_names())
         temp_dir = os.path.join(tempfile._get_default_tempdir(), temp_dir_name)
         res = self.runSCP([src_dir], temp_dir, src_servers=[self.build_station], dst_servers=servers, wait_timeout=10)
-        if not res:
+        if not res or self._stop:
             return False
-    
+        
         cmd = "pip install --user --upgrade %s/tensorflow-*" % temp_dir
         process_title = lambda process: "Installing on %s..." % process.server
         log_file_path = lambda process: os.path.join(self._logs_dir, "install_%s.log" % re.sub("[^0-9a-zA-Z]", "_", process.server))
@@ -89,16 +89,16 @@ class TFCompileStep(Step):
                                title = process_title,
                                servers = servers,
                                log_file_path = log_file_path)
-        if not res:
+        if not res or self._stop:
             return False
-
+        
         ##########
         # Clean: #
         ##########
         title("Cleaning:", style = 3)
         processes = executeRemoteCommand(servers, "rm -rf %s" % temp_dir)
         res = waitForProcesses(processes, wait_timeout=10)
-        if not res:
+        if not res or self._stop:
             return False
         return True
 
