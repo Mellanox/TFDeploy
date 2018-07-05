@@ -73,7 +73,7 @@ class TFCompileStep(Step):
         ############
         # Install: #
         ############
-        servers = TestEnvironment.Get().getServers(self.install_servers)
+        servers = TestEnvironment.Get().getHostnames(self.install_servers)
         title("Installing:", style = 2)
         src_dir = os.path.join(self.tensorflow_home, "tensorflow_pkg")
         temp_dir_name = "tmp." + next(tempfile._get_candidate_names()) + next(tempfile._get_candidate_names())
