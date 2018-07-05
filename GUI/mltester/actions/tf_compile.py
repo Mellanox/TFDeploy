@@ -47,7 +47,7 @@ class TFCompileStep(Step):
         ##########
         # Build: #
         ##########
-        title("Building:", style = 3)
+        title("Building:", style = 2)
         config_cuda="--config=cuda" if self.config_cuda else ""
         if self.additional_flags == [""]:
             additional_flags = ""
@@ -74,7 +74,7 @@ class TFCompileStep(Step):
         # Install: #
         ############
         servers = TestEnvironment.Get().getServers(self.install_servers)
-        title("Installing:", style = 3)
+        title("Installing:", style = 2)
         src_dir = os.path.join(self.tensorflow_home, "tensorflow_pkg")
         temp_dir_name = "tmp." + next(tempfile._get_candidate_names()) + next(tempfile._get_candidate_names())
         temp_dir = os.path.join(tempfile._get_default_tempdir(), temp_dir_name)
@@ -95,7 +95,7 @@ class TFCompileStep(Step):
         ##########
         # Clean: #
         ##########
-        title("Cleaning:", style = 3)
+        title("Cleaning:", style = 2)
         processes = executeRemoteCommand(servers, "rm -rf %s" % temp_dir)
         res = waitForProcesses(processes, wait_timeout=10)
         if not res or self._stop:
